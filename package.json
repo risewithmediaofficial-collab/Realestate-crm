@@ -1,0 +1,20 @@
+{
+  "name": "propcrm-pro",
+  "version": "1.0.0",
+  "description": "PropCRM Pro — Real Estate CRM Platform (Sell.Do Architecture)",
+  "scripts": {
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && node index.js",
+    "seed": "cd backend && node db/seed.js",
+    "build": "cd frontend && npm run build"
+  },
+  "keywords": [
+    "real-estate-crm",
+    "crm",
+    "property-management",
+    "leads",
+    "inventory"
+  ],
+  "author": "Rise With Media",
+  "license": "ISC"
+}
