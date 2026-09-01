@@ -16,6 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency, formatDate, timeAgo } from '../../utils/formatters';
 import CustomSelect from '../../components/ui/CustomSelect';
+import { exportMasterDashboardSummaryCSV } from '../../utils/exportTemplates';
 
 const FUNNEL_COLORS = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe', '#eff6ff', '#f0f9ff', '#10b981'];
 
@@ -274,17 +275,6 @@ export default function DashboardPage() {
     );
   }, [telecallerTab, dueTodayLeads, overdueLeads, upcomingLeads, hotLeads, leadsList, telecallerSearch]);
 
-  const handleExportDashboard = () => {
-    const csv = `Metric,Value\nTotal Leads,${stats?.kpis?.totalLeads ?? 0}\nToday Leads,${stats?.kpis?.todayLeads ?? 0}\nSite Visits Today,${stats?.kpis?.todaySiteVisits ?? 0}\nBookings Today,${stats?.kpis?.todayBookings ?? 0}\nPending Tasks,${stats?.kpis?.pendingTasks ?? 0}`;
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `dashboard_summary_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    showNotification('Exported Dashboard summary report!');
-  };
-
   const funnelLabels = {
     new: 'New', contacted: 'Contacted', connected: 'Connected',
     qualified: 'Qualified', site_visit_scheduled: 'SV Sched.', site_visit_done: 'SV Done',
@@ -320,6 +310,42 @@ export default function DashboardPage() {
       };
     });
   }, [teamUsers, leadsList, payments]);
+
+  const handleExportDashboard = () => {
+    const totalRev = stats?.kpis?.totalRevenue || (stats?.kpis?.revenue ? Number(stats.kpis.revenue) : 0);
+    const totalTok = stats?.kpis?.totalTokens || (stats?.kpis?.tokenAdvances ? Number(stats.kpis.tokenAdvances) : 0);
+    const totalPipe = stats?.kpis?.pipelineValue || leadsList.reduce((acc, l) => acc + (Number(l.budget?.max || l.budget?.min || l.budget || 0)), 0);
+
+    const summaryPayload = {
+      teamStats: {
+        totalRevenue: totalRev,
+        totalTokens: totalTok,
+        totalPipeline: totalPipe,
+      },
+      leadsCount: leadsList.length,
+      bookingsCount: stats?.kpis?.totalBookings || stats?.kpis?.bookingsCount || 0,
+      inventoryCount: inventory.length || (stats?.kpis?.availableUnits || 0),
+      visitsCount: stats?.kpis?.siteVisits || stats?.kpis?.completedVisits || 0,
+      topAgents: teamData.map(t => ({
+        name: t.name,
+        role: t.role,
+        leads: t.leads,
+        deals: t.bookings,
+        revenue: t.revenue,
+        conversion: t.leads > 0 ? Math.round((t.bookings / t.leads) * 100) : 0
+      })),
+      leadStages: [
+        { label: 'New Inbound Leads', count: leadsList.filter(l => l.stage === 'new').length, value: leadsList.filter(l => l.stage === 'new').reduce((a, l) => a + (Number(l.budget?.max || l.budget || 0)), 0) },
+        { label: 'Follow-up Active', count: leadsList.filter(l => l.stage === 'follow_up' || l.stage === 'contacted').length, value: leadsList.filter(l => l.stage === 'follow_up' || l.stage === 'contacted').reduce((a, l) => a + (Number(l.budget?.max || l.budget || 0)), 0) },
+        { label: 'Site Visits Scheduled / Done', count: leadsList.filter(l => l.stage === 'site_visit_scheduled' || l.stage === 'site_visit_done').length, value: leadsList.filter(l => l.stage === 'site_visit_scheduled' || l.stage === 'site_visit_done').reduce((a, l) => a + (Number(l.budget?.max || l.budget || 0)), 0) },
+        { label: 'Negotiation & Booking Pending', count: leadsList.filter(l => l.stage === 'negotiation' || l.stage === 'booking_in_progress').length, value: leadsList.filter(l => l.stage === 'negotiation' || l.stage === 'booking_in_progress').reduce((a, l) => a + (Number(l.budget?.max || l.budget || 0)), 0) },
+        { label: 'Booked & Closed Won', count: leadsList.filter(l => l.stage === 'booked').length, value: leadsList.filter(l => l.stage === 'booked').reduce((a, l) => a + (Number(l.budget?.max || l.budget || 0)), 0) },
+      ]
+    };
+
+    exportMasterDashboardSummaryCSV(summaryPayload, user?.organization || 'MRP REAL ESTATE');
+    showNotification('Exported Executive 360° Dashboard Summary CSV!');
+  };
 
   if (loading) return (
     <div className="loading-overlay">

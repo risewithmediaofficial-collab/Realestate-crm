@@ -7,12 +7,13 @@ import {
   AlertCircle, ArrowLeft, Trash2, SlidersHorizontal, ArrowUpDown,
   Compass, CheckSquare, ShieldCheck, TreePine, Warehouse, ShoppingBag, Eye,
   Clock, Phone, Mail, User, CreditCard, Receipt, FileCheck, Calendar, Info,
-  UserCheck, Tag, Briefcase, Hash, Map, UserPlus
+  UserCheck, Tag, Briefcase, Hash, Map, UserPlus, Download
 } from 'lucide-react';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency, formatDate, formatArea } from '../../utils/formatters';
+import { exportProjectsCSV, exportInventoryMatrixCSV } from '../../utils/exportTemplates';
 import {
   PROJECT_STATUSES,
   UNIT_STATUSES,
@@ -1000,7 +1001,17 @@ export default function ProjectsPage() {
               </h1>
               <p className="page-subtitle">{filtered.length} active developments across residential, plotted layouts, commercial, villas & farmlands</p>
             </div>
-            <div className="page-actions">
+            <div className="page-actions" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  exportProjectsCSV(filtered, user?.organization || 'MRP REAL ESTATE');
+                  showNotification('Exported Real Estate Projects Directory CSV!');
+                }}
+                title="Download projects portfolio register"
+              >
+                <Download size={14} /> Export Projects CSV
+              </button>
               <button className="btn btn-secondary btn-sm" onClick={() => setShowWorkflowGuide(p => !p)}>
                 <HelpCircle size={14} /> {showWorkflowGuide ? 'Hide Help' : 'Workflow Guide'}
               </button>
@@ -1387,16 +1398,28 @@ export default function ProjectsPage() {
                 </p>
               </div>
 
-              {isAdmin && (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn btn-primary btn-sm" onClick={openAddUnitModal} style={{ gap: 6 }}>
-                    <Plus size={14} /> Add {activeCategoryConf?.unitTerm}
-                  </button>
-                  <button className="btn btn-secondary btn-sm" onClick={() => startEdit(activeProjectView)}>
-                    <Edit size={14} /> Edit Project
-                  </button>
-                </div>
-              )}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    exportInventoryMatrixCSV(activeProjectView.unitsList || [], user?.organization || 'MRP REAL ESTATE', activeProjectView.name);
+                    showNotification(`Exported units matrix for ${activeProjectView.name}!`);
+                  }}
+                  title="Download all units inventory for this project"
+                >
+                  <Download size={14} /> Export Units CSV
+                </button>
+                {isAdmin && (
+                  <>
+                    <button className="btn btn-primary btn-sm" onClick={openAddUnitModal} style={{ gap: 6 }}>
+                      <Plus size={14} /> Add {activeCategoryConf?.unitTerm}
+                    </button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => startEdit(activeProjectView)}>
+                      <Edit size={14} /> Edit Project
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Inventory Status Bar */}

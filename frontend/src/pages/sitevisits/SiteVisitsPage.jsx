@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { MapPin, Plus, Calendar, Clock, CheckCircle, XCircle, X, Phone, Star, Trash2, List, Columns, Car, QrCode, Search } from 'lucide-react';
+import { MapPin, Plus, Calendar, Clock, CheckCircle, XCircle, X, Phone, Star, Trash2, List, Columns, Car, QrCode, Search, Download } from 'lucide-react';
 import api from '../../services/api';
 import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
 import { formatDate, formatDateTime, timeAgo } from '../../utils/formatters';
 import CustomSelect from '../../components/ui/CustomSelect';
+import { exportSiteVisitsCSV } from '../../utils/exportTemplates';
 
 const STATUS_CONFIG = {
   scheduled: { label: 'Scheduled', badge: 'badge-primary', color: '#dbeafe' },
@@ -697,6 +699,7 @@ export default function SiteVisitsPage() {
   const [sortBy, setSortBy] = useState('date_asc');
   const [stats, setStats] = useState({});
   const { showNotification } = useUI();
+  const { user } = useAuth();
 
   useEffect(() => {
     setActiveTab(getTabFromPath());
@@ -857,7 +860,17 @@ export default function SiteVisitsPage() {
           <h1 className="page-title">Site Visits & Property Tours</h1>
           <p className="page-subtitle">Schedule, verify check-ins, record visitor ratings and feedback</p>
         </div>
-        <div className="page-actions">
+        <div className="page-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              exportSiteVisitsCSV(filtered, user?.organization || 'MRP REAL ESTATE');
+              showNotification('Exported Site Visits & Property Tours Register CSV!');
+            }}
+            title="Download full site visits register"
+          >
+            <Download size={14} /> Export Visits CSV
+          </button>
           <button className="btn btn-primary btn-sm" onClick={() => setShowSchedule(true)}>
             <Plus size={14} /> Schedule Visit
           </button>

@@ -4,15 +4,17 @@ import {
   TrendingUp, Plus, DollarSign, Target, Megaphone,
   BarChart2, Zap, Layers, Play, Pause, ArrowUpRight,
   Filter, Search, CheckCircle, Mail, MessageSquare, AlertCircle, X, Edit, Save, Settings2, Trash2, Eye,
-  List, Columns
+  List, Columns, Download
 } from 'lucide-react';
 import api from '../../services/api';
 import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import CampaignDrawer from './components/CampaignDrawer';
 import CustomSelect from '../../components/ui/CustomSelect';
 import CampaignModal from './components/CampaignModal';
 import CampaignKanbanView from './components/CampaignKanbanView';
+import { exportMarketingCampaignsCSV } from '../../utils/exportTemplates';
 
 const CAMPAIGN_TYPES = {
   meta_ads: { label: 'Meta Ads (FB/IG)', color: '#3b82f6', icon: '📘' },
@@ -59,6 +61,7 @@ export default function MarketingPage() {
   const [customTo, setCustomTo] = useState('');
   const [sortBy, setSortBy] = useState('date_desc');
   const { showNotification } = useUI();
+  const { user } = useAuth();
 
   const handleStatusChange = async (id, newStatus) => {
     try {
@@ -253,7 +256,17 @@ export default function MarketingPage() {
           <h1 className="page-title">Marketing Automation & Ad Hub</h1>
           <p className="page-subtitle">Multi-channel performance campaigns, lead ingestion webhooks, and attribution ROI</p>
         </div>
-        <div className="page-actions">
+        <div className="page-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              exportMarketingCampaignsCSV(filtered, user?.organization || 'MRP REAL ESTATE');
+              showNotification('Exported Marketing Campaigns & ROI Report CSV!');
+            }}
+            title="Download multi-channel ad campaigns performance & ROI report"
+          >
+            <Download size={14} /> Export Campaigns CSV
+          </button>
           {tab === 'scoring' ? (
             <button className="btn btn-primary btn-sm" onClick={() => showNotification('Lead Scoring Algorithm Weights saved!')}>
               <Save size={14} /> Save Scoring Weights

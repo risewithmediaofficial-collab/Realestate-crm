@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Scale, Check, X, Plus, AlertCircle, Clock,
-  DollarSign, FileText, User, Users, ShieldAlert, ArrowRight, Edit, Save, Trash2, List, Columns, Search, Eye, CreditCard, CheckCircle2, XCircle
+  DollarSign, FileText, User, Users, ShieldAlert, ArrowRight, Edit, Save, Trash2, List, Columns, Search, Eye, CreditCard, CheckCircle2, XCircle, Download
 } from 'lucide-react';
 import api from '../../services/api';
 import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
 import { formatCurrency, formatDate, truncate } from '../../utils/formatters';
 import CustomSelect from '../../components/ui/CustomSelect';
+import { exportNegotiationsCSV } from '../../utils/exportTemplates';
 
 // ─── Negotiations Kanban Board Component ─────────
 const NegotiationsKanbanView = ({ requests, onApprove, onReject, onEdit, onDelete, onStatusChange, onViewDetails, onRequestNew }) => {
@@ -243,6 +245,7 @@ export default function NegotiationsPage() {
   const [isManualLead, setIsManualLead] = useState(false);
   const [editingReq, setEditingReq] = useState(null);
   const { showNotification } = useUI();
+  const { user } = useAuth();
 
   const [form, setForm] = useState({ leadId: '', leadName: '', unitNumber: '', originalPrice: '', requestedPrice: '', reason: '', requestedBy: '' });
   const [policyThresholds, setPolicyThresholds] = useState({ repLimit: 1.5, managerLimit: 3.0, headLimit: 6.0, directorLimit: 12.0 });
@@ -480,7 +483,17 @@ export default function NegotiationsPage() {
           <h1 className="page-title">Price Negotiations & Approvals</h1>
           <p className="page-subtitle">Commercial discount matrices, booking application verifications, and tiered approval workflows</p>
         </div>
-        <div className="page-actions">
+        <div className="page-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              exportNegotiationsCSV(filtered, user?.organization || 'MRP REAL ESTATE');
+              showNotification('Exported Negotiations & Approvals Ledger CSV!');
+            }}
+            title="Download full discount exceptions & approvals register"
+          >
+            <Download size={14} /> Export Approvals CSV
+          </button>
           {tab === 'policy' ? (
             <button className="btn btn-primary btn-sm" onClick={() => showNotification('Approval Limit Policy updated!')}><Save size={14} /> Save Policy Limits</button>
           ) : (

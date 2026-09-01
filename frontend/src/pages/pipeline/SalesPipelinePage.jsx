@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react';
 import {
   GitBranch, Filter, Plus, Phone, MessageSquare,
   Calendar, DollarSign, ChevronRight, ArrowRight, Clock,
-  AlertCircle, CheckCircle, Search
+  AlertCircle, CheckCircle, Search, Download
 } from 'lucide-react';
 import api from '../../services/api';
 import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
 import { LEAD_STAGES, PIPELINE_STAGES } from '../../utils/constants';
 import { formatCurrency, timeAgo, getInitials } from '../../utils/formatters';
 import CustomSelect from '../../components/ui/CustomSelect';
+import { exportSalesPipelineCSV } from '../../utils/exportTemplates';
 
 const mockPipelineLeads = [];
 
@@ -49,6 +51,7 @@ export default function SalesPipelinePage() {
   const [draggedId, setDraggedId] = useState(null);
   const [dragOverStage, setDragOverStage] = useState(null);
   const { openCreateLead, showNotification } = useUI();
+  const { user } = useAuth();
 
   const moveStage = async (leadId, nextStage) => {
     const lead = leads.find(l => l._id === leadId);
@@ -116,8 +119,18 @@ export default function SalesPipelinePage() {
           <h1 className="page-title">Sales Pipeline & Opportunity Stages</h1>
           <p className="page-subtitle">Drag and drop deal cards to instantly advance pipeline stages with weighted forecasting</p>
         </div>
-        <div className="page-actions">
-          <div style={{ textAlign: 'right', marginRight: 12 }}>
+        <div className="page-actions" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              exportSalesPipelineCSV(filtered, user?.organization || 'MRP REAL ESTATE');
+              showNotification('Exported Sales Pipeline & Active Deals CSV!');
+            }}
+            title="Download full sales pipeline register"
+          >
+            <Download size={14} /> Export Pipeline CSV
+          </button>
+          <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Pipeline Value</div>
             <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--primary)' }}>{formatCurrency(totalPipelineValue)}</div>
           </div>

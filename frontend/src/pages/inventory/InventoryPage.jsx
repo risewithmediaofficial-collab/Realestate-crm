@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Search, Filter, Grid, List, X, Check, Clock, FileText, Plus, Layers,
   Sparkles, Building2, HelpCircle, Trash2, Columns, Eye, User, Users,
-  CreditCard, UserCheck, CheckCircle
+  CreditCard, UserCheck, CheckCircle, Download
 } from 'lucide-react';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -12,6 +12,7 @@ import { UNIT_STATUSES, REAL_ESTATE_CATEGORIES, CATEGORY_TYPOLOGIES, FACING_OPTI
 import { formatCurrency, formatArea } from '../../utils/formatters';
 import AddInventoryModal from '../../components/inventory/AddInventoryModal';
 import CustomSelect from '../../components/ui/CustomSelect';
+import { exportInventoryMatrixCSV } from '../../utils/exportTemplates';
 
 // ─── Co-Applicant Relationships ─────────────────────────────
 const CO_APPLICANT_RELATIONS = [
@@ -967,7 +968,24 @@ export default function InventoryPage() {
           </h1>
           <p className="page-subtitle">Real-time unit locking, 48h executive hold countdown, floor rise matrix and unit comparisons</p>
         </div>
-        <div className="page-actions">
+        <div className="page-actions" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              const allUnits = [];
+              Object.keys(matrix).forEach(t => {
+                Object.keys(matrix[t] || {}).forEach(f => {
+                  (matrix[t][f] || []).forEach(u => allUnits.push(u));
+                });
+              });
+              const prjName = projectsList.find(p => p._id === selectedProject)?.name || 'All Projects';
+              exportInventoryMatrixCSV(allUnits, user?.organization || 'MRP REAL ESTATE', prjName);
+              showNotification('Exported professional Inventory Matrix & Stacking Master!');
+            }}
+            title="Download complete inventory stacking register CSV"
+          >
+            <Download size={14} /> Export Inventory CSV
+          </button>
           {compareUnits.length > 0 && (
             <button className="btn btn-secondary btn-sm" onClick={() => setShowCompareModal(true)} style={{ background: '#eff6ff', borderColor: 'var(--primary)', color: 'var(--primary)', fontWeight: 700 }}>
               ⚖️ Compare ({compareUnits.length}) Units

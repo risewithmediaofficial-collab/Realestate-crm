@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CheckSquare, Plus, Clock, Phone, MapPin, Calendar, Check, Trash2, X, AlertCircle, Edit, List, Columns, User, Search } from 'lucide-react';
+import { CheckSquare, Plus, Clock, Phone, MapPin, Calendar, Check, Trash2, X, AlertCircle, Edit, List, Columns, User, Search, Download } from 'lucide-react';
 import api from '../../services/api';
 import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
 import { TASK_TYPES, TASK_STATUSES, TASK_PRIORITIES } from '../../utils/constants';
 import { formatDateTime, timeAgo, isOverdue } from '../../utils/formatters';
 import CustomSelect from '../../components/ui/CustomSelect';
+import { exportActivitiesCSV } from '../../utils/exportTemplates';
 
 const mockTasks = [];
 
@@ -489,6 +491,7 @@ export default function ActivitiesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const { showNotification } = useUI();
+  const { user } = useAuth();
 
   useEffect(() => {
     setFilter(getFilterFromPath());
@@ -628,8 +631,20 @@ export default function ActivitiesPage() {
           <h1 className="page-title">Tasks & Sales Activities</h1>
           <p className="page-subtitle">Track follow-ups, calls, appointments, and SLA task completion</p>
         </div>
-        <div className="page-actions">
-          <button className="btn btn-primary btn-sm" onClick={() => { setEditingTask(null); setShowModal(true); }}><Plus size={14} /> New Task</button>
+        <div className="page-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              exportActivitiesCSV(filtered, user?.organization || 'MRP REAL ESTATE');
+              showNotification('Exported Sales Activities & SLA Tasks Ledger CSV!');
+            }}
+            title="Download full tasks and follow-up activities ledger"
+          >
+            <Download size={14} /> Export Tasks CSV
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => { setEditingTask(null); setShowModal(true); }}>
+            <Plus size={14} /> New Task
+          </button>
         </div>
       </div>
 

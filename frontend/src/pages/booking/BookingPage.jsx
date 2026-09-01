@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Plus, Check, X, Eye, AlertCircle, DollarSign, Building, Trash2, List, Columns, User, Search } from 'lucide-react';
+import { FileText, Plus, Check, X, Eye, AlertCircle, DollarSign, Building, Trash2, List, Columns, User, Search, Download } from 'lucide-react';
 import api from '../../services/api';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatCurrency, formatDate, formatArea, getInitials } from '../../utils/formatters';
 import CustomSelect from '../../components/ui/CustomSelect';
+import { exportBookingsCSV } from '../../utils/exportTemplates';
 
 const STATUS_CONFIG = {
   pending_approval: { label: 'Pending Approval', badge: 'badge-warning', color: '#fef3c7' },
@@ -1359,8 +1360,20 @@ export default function BookingPage() {
           <h1 className="page-title">Booking Management & Approvals</h1>
           <p className="page-subtitle">Track applications, approvals, digital agreement deeds and unit allocations</p>
         </div>
-        <div className="page-actions">
-          <button className="btn btn-primary btn-sm" onClick={() => setShowNew(true)}><Plus size={14} /> New Booking</button>
+        <div className="page-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              exportBookingsCSV(filtered, user?.organization || 'MRP REAL ESTATE');
+              showNotification('Exported professional Bookings Application & KYC Register!');
+            }}
+            title="Download full bookings register CSV"
+          >
+            <Download size={14} /> Export Bookings CSV
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => setShowNew(true)}>
+            <Plus size={14} /> New Booking
+          </button>
         </div>
       </div>
 

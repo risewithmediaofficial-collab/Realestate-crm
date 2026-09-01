@@ -6,8 +6,10 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import CustomSelect from '../../components/ui/CustomSelect';
+import { exportChannelPartnersCSV } from '../../utils/exportTemplates';
 
 const mockPartners = [];
 
@@ -328,6 +330,7 @@ export default function ChannelPartnersPage() {
   const [editingPartner, setEditingPartner] = useState(null);
   const [search, setSearch] = useState('');
   const { showNotification } = useUI();
+  const { user } = useAuth();
 
   const [form, setForm] = useState({
     firmName: '', contactPerson: '', phone: '', email: '', reraNumber: '', city: '', tier: '', status: '', commissionRate: ''
@@ -482,7 +485,17 @@ export default function ChannelPartnersPage() {
           <h1 className="page-title">Channel Partner Network & Payouts</h1>
           <p className="page-subtitle">Broker onboarding, RERA compliance check, deal attribution and tiered commission disbursement</p>
         </div>
-        <div className="page-actions">
+        <div className="page-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              exportChannelPartnersCSV(filtered, user?.organization || 'MRP REAL ESTATE');
+              showNotification('Exported Channel Partner Network Directory CSV!');
+            }}
+            title="Download full CP directory & commission ledger"
+          >
+            <Download size={14} /> Export CP Directory CSV
+          </button>
           <button className="btn btn-primary btn-sm" onClick={() => { setEditingPartner(null); setForm({ firmName: '', contactPerson: '', phone: '', email: '', reraNumber: '', city: 'Pune', tier: 'silver', status: 'approved', commissionRate: 2.0 }); setShowModal(true); }}>
             <Plus size={14} /> Register New CP
           </button>

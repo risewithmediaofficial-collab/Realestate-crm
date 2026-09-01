@@ -4,9 +4,11 @@ import {
   Phone, PhoneCall, PhoneOff, MessageSquare, Mail, Send,
   Play, Pause, Mic, CheckCircle, Clock, Search, Plus,
   FileText, User, ChevronRight, CornerDownLeft, Sparkles, Filter,
-  Trash2, X, AlertTriangle
+  Trash2, X, AlertTriangle, Download
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { formatPhone, timeAgo, getInitials } from '../../utils/formatters';
+import { exportCallLogsCSV } from '../../utils/exportTemplates';
 
 const mockCalls = [];
 
@@ -30,6 +32,7 @@ export default function CommunicationPage() {
   };
 
   const [tab, setTab] = useState(getTabFromPath());
+  const { user } = useAuth();
   
   // Call logs state
   const [callLogs, setCallLogs] = useState([]);
@@ -203,8 +206,14 @@ export default function CommunicationPage() {
                 <div className="card-title">Recent Call Recordings & Dispositions</div>
                 <div className="card-subtitle">Auto-synced from telephony gateway • {callLogs.length} log{callLogs.length !== 1 ? 's' : ''}</div>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn btn-secondary btn-sm" onClick={() => alert('Filtered by today logs')}><Filter size={13} /> Filter Logs</button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => exportCallLogsCSV(callLogs, user?.organization || 'MRP REAL ESTATE')}
+                  title="Download call recordings & dispositions log CSV"
+                >
+                  <Download size={13} /> Export Logs CSV
+                </button>
                 {callLogs.length > 0 && (
                   <button
                     className="btn btn-danger btn-sm"

@@ -6,14 +6,17 @@ import {
   Share2, Send, X, Building2, Sparkles, User, Award, Check
 } from 'lucide-react';
 import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { formatCurrency, formatArea, formatDate } from '../../utils/formatters';
 import CustomSelect from '../../components/ui/CustomSelect';
+import { exportPricingCostSheetCSV } from '../../utils/exportTemplates';
 
 export default function PricingPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { showNotification } = useUI();
+  const { user } = useAuth();
 
   const getTabFromPath = () => {
     if (location.pathname.includes('/rules')) return 'rules';
@@ -115,7 +118,37 @@ export default function PricingPage() {
           <h1 className="page-title">Pricing Engine & Cost Sheet Generator</h1>
           <p className="page-subtitle">Accurate RERA-compliant cost sheets, PLC calculations, statutory taxes and payment schedules</p>
         </div>
-        <div className="page-actions">
+        <div className="page-actions" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              const selectedPrjObj = projects.find(p => p._id === project);
+              exportPricingCostSheetCSV({
+                projectName: selectedPrjObj?.name || 'Project Cost Sheet',
+                unitType,
+                superArea,
+                floorNumber,
+                baseRate,
+                baseCost,
+                floorRiseCost,
+                plcCost,
+                infraCost,
+                clubhouseRate,
+                totalParkingCost,
+                agreementValue,
+                gstAmount,
+                stampDutyAmount,
+                regCharge,
+                legalAdvocateFees,
+                totalPackageValue,
+                milestones
+              }, user?.organization || 'MRP REAL ESTATE');
+              showNotification(`Exported Cost Sheet CSV for ${unitType} (${superArea} sq.ft)!`);
+            }}
+            title="Download detailed RERA cost sheet calculations CSV"
+          >
+            <Download size={14} /> Export Cost Sheet CSV
+          </button>
           <button className="btn btn-secondary btn-sm" onClick={() => setShowWhatsAppModal(true)}>
             <MessageSquare size={14} color="#16a34a" /> WhatsApp Quote
           </button>
