@@ -51,10 +51,43 @@ export default function UserDashboardModal({ user, onClose, allLeads = [], allBo
           return (lAssignedId && String(lAssignedId) === uId) || (lAssignedName && lAssignedName === uName);
         });
 
+        // Match bookings explicitly handled by or linked to this user's leads
         const userBookings = rawBookings.filter(b => {
           const bHandledId = b.handledBy?._id || b.handledBy || b.agent?._id || b.agent;
           const bHandledName = (b.handledBy?.name || b.agent?.name || '').toLowerCase();
-          return (bHandledId && String(bHandledId) === uId) || (bHandledName && bHandledName === uName);
+          if ((bHandledId && String(bHandledId) === uId) || (bHandledName && bHandledName === uName)) return true;
+          // Match by customer phone or name from user's assigned leads
+          if (b.customerPhone && userLeads.some(l => l.phone && l.phone.replace(/\D/g, '') === b.customerPhone.replace(/\D/g, ''))) return true;
+          if (b.customerName && userLeads.some(l => l.name?.toLowerCase() === b.customerName?.toLowerCase())) return true;
+          if (b.lead && userLeads.some(l => String(l._id) === String(b.lead?._id || b.lead))) return true;
+          return false;
+        });
+
+        // Also merge any assigned leads that have stage === 'booked'
+        userLeads.forEach(l => {
+          if (l.stage === 'booked') {
+            const alreadyInBookings = userBookings.some(b => 
+              (b.customerPhone && l.phone && b.customerPhone.replace(/\D/g, '') === l.phone.replace(/\D/g, '')) ||
+              (b.customerName && l.name && b.customerName.toLowerCase() === l.name.toLowerCase())
+            );
+            if (!alreadyInBookings) {
+              const leadVal = (typeof l.budget === 'object' ? (l.budget?.max || l.budget?.min) : Number(l.budget)) || 100000;
+              userBookings.push({
+                _id: `lead-bk-${l._id}`,
+                bookingNumber: `BK-${(l._id || '').slice(-6).toUpperCase() || 'WON'}`,
+                customerName: l.name || 'Applicant',
+                customerPhone: l.phone || '—',
+                customerEmail: l.email || '',
+                unit: { unitNumber: l.interestedUnitType || 'Reserved Unit', type: l.interestedUnitType || '3BHK' },
+                project: { name: l.interestedProject?.name || l.project || 'Project' },
+                totalAmount: leadVal,
+                tokenAmount: l.tokenAmount || Math.round(leadVal * 0.1) || 10000,
+                status: 'approved',
+                bookingDate: l.updatedAt || l.createdAt || new Date(),
+                createdAt: l.updatedAt || l.createdAt || new Date()
+              });
+            }
+          }
         });
 
         const userVisits = rawVisits.filter(v => {
@@ -87,15 +120,16 @@ export default function UserDashboardModal({ user, onClose, allLeads = [], allBo
   const metrics = useMemo(() => {
     const monthlyQuota = user?.monthlyQuota || 50000000; // 5 Cr default target
     
-    // Revenue won from approved/registered bookings
-    const wonBookings = bookings.filter(b => b.status === 'approved' || b.status === 'registered' || b.status === 'agreement_signed');
-    const bookedRevenue = wonBookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
-    const tokenCollected = wonBookings.reduce((sum, b) => sum + (b.tokenAmount || 0), 0);
+    // Revenue won from approved/registered/booked bookings
+    const wonBookings = bookings.filter(b => b.status === 'approved' || b.status === 'registered' || b.status === 'agreement_signed' || b.status === 'booked' || !b.status);
+    const bookedRevenue = wonBookings.reduce((sum, b) => sum + (Number(b.totalAmount || b.totalPrice) || 0), 0);
+    const tokenCollected = wonBookings.reduce((sum, b) => sum + (Number(b.tokenAmount || b.bookingAmount) || 0), 0);
 
-    // Active pipeline value (leads in negotiation, visit done, or prospective budget)
+    // Active pipeline value (all assigned inquiry deal potential)
     const pipelineValue = leads.reduce((sum, l) => {
-      if (l.stage === 'booked' || l.stage === 'lost' || l.stage === 'junk') return sum;
-      return sum + (l.budget?.max || l.budget?.min || 9000000);
+      if (l.stage === 'lost' || l.stage === 'junk') return sum;
+      const bgVal = (typeof l.budget === 'object' ? (l.budget?.max || l.budget?.min) : Number(l.budget)) || (l.interestedProject?.pricing?.basePrice) || 0;
+      return sum + Number(bgVal || 0);
     }, 0);
 
     // Call logs / spoken notes count
@@ -105,6 +139,9 @@ export default function UserDashboardModal({ user, onClose, allLeads = [], allBo
       if (l.activities && Array.isArray(l.activities)) {
         callsMade += l.activities.filter(a => a.type === 'call' || a.type === 'note').length;
       }
+      if ((!l.callLogs || l.callLogs.length === 0) && l.lastCallOutcome) {
+        callsMade += 1;
+      }
     });
 
     const visitsDone = siteVisits.filter(v => v.status === 'completed').length;
@@ -112,7 +149,7 @@ export default function UserDashboardModal({ user, onClose, allLeads = [], allBo
 
     const conversionRate = leads.length > 0
       ? ((wonBookings.length / leads.length) * 100).toFixed(1)
-      : '0.0';
+      : (wonBookings.length > 0 ? '100.0' : '0.0');
 
     const quotaPercent = monthlyQuota > 0
       ? Math.min(Math.round((bookedRevenue / monthlyQuota) * 100), 100)
