@@ -72,10 +72,26 @@ const leadSchema = new mongoose.Schema({
   assignedAt: { type: Date },
   team: { type: mongoose.Schema.Types.ObjectId, ref: 'Team' },
 
-  // Project Interest
+  // Project & Unit Interest
   interestedProject: { type: mongoose.Schema.Types.ObjectId, ref: 'Project' },
   interestedUnitType: { type: String },
   interestedArea: { type: String },
+  interestedUnits: [{ 
+    unit: { type: mongoose.Schema.Types.ObjectId, ref: 'Unit' },
+    addedAt: { type: Date, default: Date.now },
+    notes: { type: String },
+  }],
+
+  // Active Bookings Tracking (for multiple independent bookings)
+  activeBookings: [{ 
+    booking: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking' },
+    unit: { type: mongoose.Schema.Types.ObjectId, ref: 'Unit' },
+    status: {
+      type: String,
+      enum: ['pending_approval', 'approved', 'agreement_sent', 'agreement_signed', 'registered', 'cancelled'],
+    },
+    createdAt: { type: Date, default: Date.now },
+  }],
 
   // Flags
   isDuplicate: { type: Boolean, default: false },

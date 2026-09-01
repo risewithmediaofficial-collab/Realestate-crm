@@ -4,12 +4,13 @@ import {
   LayoutDashboard, Users, TrendingUp, MessageSquare, CheckSquare,
   GitBranch, Building2, Warehouse, DollarSign, Scale, MapPin,
   FileText, CreditCard, Handshake, User, Zap, BarChart3,
-  Settings, ChevronRight, LogOut, Building, X
+  Settings, ChevronRight, LogOut, Building, X, Bell
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { getInitials } from '../../utils/formatters';
 import { getAccessibleNavConfig } from '../../utils/rbac';
+import NotificationCenter from '../notifications/NotificationCenter';
 
 const navConfig = [
   {
@@ -191,6 +192,7 @@ export default function Sidebar() {
   const location = useLocation();
   const { user, logout } = useAuth();
   const { isMobileMenuOpen, closeMobileMenu, simulatedRole } = useUI();
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
   const effectiveRole = simulatedRole || user?.role || 'admin';
   const effectiveUser = user ? { ...user, role: effectiveRole } : null;
@@ -271,6 +273,14 @@ export default function Sidebar() {
             <div className="sidebar-brand-sub">Real Estate Revenue OS</div>
           </div>
           <button 
+            className="btn btn-ghost btn-icon btn-sm"
+            onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+            title="Notifications"
+            style={{ color: '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Bell size={18} />
+          </button>
+          <button 
             className="btn btn-ghost btn-icon btn-sm sidebar-mobile-close"
             onClick={closeMobileMenu}
             title="Close Menu"
@@ -278,6 +288,12 @@ export default function Sidebar() {
             <X size={18} />
           </button>
         </div>
+
+        <NotificationCenter 
+          isOpen={isNotificationOpen}
+          onClose={() => setIsNotificationOpen(false)}
+          userId={user?._id}
+        />
 
         {/* Nav */}
         <nav className="sidebar-nav">

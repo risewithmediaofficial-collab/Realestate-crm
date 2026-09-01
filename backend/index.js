@@ -25,6 +25,7 @@ const usersRoutes = require('./routes/users.routes');
 const reportsRoutes = require('./routes/reports.routes');
 const campaignsRoutes = require('./routes/campaigns.routes');
 const metaIntegrationRoutes = require('./routes/metaIntegration.routes');
+const notificationsRoutes = require('./routes/notifications.routes');
 
 const app = express();
 
@@ -92,6 +93,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/reports', cacheMiddleware(15), reportsRoutes);
 app.use('/api/campaigns', campaignsRoutes);
 app.use('/api/integrations/meta', metaIntegrationRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` }));
