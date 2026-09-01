@@ -7,7 +7,7 @@ import {
   Building, Settings, TrendingUp, DollarSign, MapPin, FileText, CreditCard,
   Zap, BarChart3, MessageSquare, Warehouse, GitBranch, Handshake, UserCheck,
   Shield, Download, Upload, Filter, CheckCircle2, XCircle, Info, RefreshCw,
-  HelpCircle, ShieldAlert, Clock, Building2, UserX
+  HelpCircle, ShieldAlert, Clock, Building2, UserX, Copy, Mail, Phone, Calendar, User
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
@@ -25,6 +25,7 @@ import {
   resetToDefaultPermissions
 } from '../../utils/rbac';
 import api from '../../services/api';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 // Icon Map for dynamic module rendering
 const ICON_MAP = {
@@ -84,6 +85,16 @@ export default function SuperAdminDashboardPage() {
   const [searchApproval, setSearchApproval] = useState('');
   const [rejectModalUser, setRejectModalUser] = useState(null);
   const [rejectionReasonInput, setRejectionReasonInput] = useState('Organization registration details require verification.');
+  const [viewingApplicantDetails, setViewingApplicantDetails] = useState(null);
+  const [copiedField, setCopiedField] = useState('');
+
+  const handleCopy = (text, fieldName) => {
+    if (!text) return;
+    navigator.clipboard?.writeText(text);
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(''), 2000);
+    showNotification(`Copied ${fieldName} to clipboard!`);
+  };
 
   // Simulator State
   const [simulatorRole, setSimulatorRole] = useState('sales_executive');
@@ -111,12 +122,14 @@ export default function SuperAdminDashboardPage() {
     try {
       const { data } = await api.get('/users');
       if (data?.data && Array.isArray(data.data)) {
-        setUsersList(data.data.filter(u => u.role !== 'super_admin' && u.email !== 'superadmin@crm.com'));
+        const filtered = data.data.filter(u => u.role !== 'super_admin' && u.email !== 'superadmin@crm.com');
+        setUsersList(filtered);
+        localStorage.setItem('crm_local_users_cache', JSON.stringify(filtered));
       } else {
         throw new Error('No user data returned');
       }
     } catch (e) {
-      // Fallback default users if backend is running offline
+      // Fallback to locally cached users if backend is temporarily unreachable
       const storedUsers = localStorage.getItem('crm_local_users_cache');
       if (storedUsers) {
         try {
@@ -125,18 +138,7 @@ export default function SuperAdminDashboardPage() {
           return;
         } catch {}
       }
-      const initialUsers = [
-        { _id: '1', name: 'Workspace Admin', email: 'admin@crm.com', phone: '+91 98765 43210', organization: 'Rise With RealtyHub', role: 'admin', approvalStatus: 'approved', isApproved: true, isActive: true, createdAt: new Date() },
-        { _id: '2', name: 'Priya Sharma', email: 'sales.head@crm.com', phone: '+91 98765 43211', organization: 'Rise With RealtyHub', role: 'sales_head', approvalStatus: 'approved', isApproved: true, isActive: true, createdAt: new Date() },
-        { _id: '3', name: 'Amit Singh', email: 'sales1@crm.com', phone: '+91 98765 43212', organization: 'Rise With RealtyHub', role: 'sales_executive', approvalStatus: 'approved', isApproved: true, isActive: true, createdAt: new Date() },
-        { _id: '4', name: 'Neha Patel', email: 'sales2@crm.com', phone: '+91 98765 43213', organization: 'Rise With RealtyHub', role: 'sales_rep', approvalStatus: 'approved', isApproved: true, isActive: true, createdAt: new Date() },
-        { _id: '5', name: 'Ravi Verma', email: 'telecaller1@crm.com', phone: '+91 98765 43214', organization: 'Rise With RealtyHub', role: 'telecaller', approvalStatus: 'approved', isApproved: true, isActive: true, createdAt: new Date() },
-        { _id: '6', name: 'Sunita Rao', email: 'marketing@crm.com', phone: '+91 98765 43215', organization: 'Rise With RealtyHub', role: 'marketing_head', approvalStatus: 'approved', isApproved: true, isActive: true, createdAt: new Date() },
-        { _id: '7', name: 'Vikram Mehta', email: 'finance@crm.com', phone: '+91 98765 43216', organization: 'Rise With RealtyHub', role: 'finance_manager', approvalStatus: 'approved', isApproved: true, isActive: true, createdAt: new Date() },
-        { _id: '8', name: 'Kavita Reddy', email: 'presales@crm.com', phone: '+91 98765 43217', organization: 'Rise With RealtyHub', role: 'pre_sales_manager', approvalStatus: 'approved', isApproved: true, isActive: true, createdAt: new Date() }
-      ];
-      setUsersList(initialUsers);
-      localStorage.setItem('crm_local_users_cache', JSON.stringify(initialUsers));
+      setUsersList([]);
     } finally {
       setLoadingUsers(false);
     }
@@ -451,35 +453,57 @@ export default function SuperAdminDashboardPage() {
   // Save / Update User Account
   const handleSaveUserAccount = async (e) => {
     e.preventDefault();
+    const cleanRole = typeof userFormData.role === 'object' && userFormData.role ? (userFormData.role.value || userFormData.role.target?.value || 'sales_executive') : (userFormData.role || 'sales_executive');
+    const normalizedEmail = userFormData.email.trim().toLowerCase();
+    const normalizedUsername = userFormData.username ? userFormData.username.trim().toLowerCase() : normalizedEmail.split('@')[0];
+
+    const payload = {
+      name: userFormData.name.trim(),
+      email: normalizedEmail,
+      username: normalizedUsername,
+      phone: userFormData.phone ? userFormData.phone.trim() : '',
+      organization: userFormData.organization ? userFormData.organization.trim() : 'MRP REAL ESTATE',
+      role: cleanRole,
+      password: userFormData.password || 'Password@123',
+      isApproved: true,
+      approvalStatus: 'approved',
+      isActive: userFormData.isActive !== false
+    };
+
     if (editingUserAccount) {
-      const updatedUser = { ...editingUserAccount, ...userFormData };
       try {
-        await api.put(`/users/${editingUserAccount._id}`, userFormData);
-      } catch {}
-      setUsersList(prev => {
-        const updated = prev.map(u => u._id === editingUserAccount._id ? updatedUser : u);
-        localStorage.setItem('crm_local_users_cache', JSON.stringify(updated));
-        return updated;
-      });
-      showNotification(`User account "${userFormData.name}" updated successfully!`);
+        const { data } = await api.put(`/users/${editingUserAccount._id}`, payload);
+        const updatedUser = data?.data || { ...editingUserAccount, ...payload };
+        setUsersList(prev => {
+          const updated = prev.map(u => u._id === editingUserAccount._id ? updatedUser : u);
+          localStorage.setItem('crm_local_users_cache', JSON.stringify(updated));
+          return updated;
+        });
+        showNotification(`User account "${userFormData.name}" updated successfully!`);
+        setShowUserModal(false);
+      } catch (err) {
+        const errMsg = err.response?.data?.message || err.message || 'Failed to update user';
+        showNotification(`Error: ${errMsg}`);
+      }
     } else {
-      const newUser = {
-        _id: 'usr_' + Date.now(),
-        ...userFormData,
-        createdAt: new Date()
-      };
       try {
-        const { data } = await api.post('/users', userFormData);
-        if (data?.data?._id) newUser._id = data.data._id;
-      } catch {}
-      setUsersList(prev => {
-        const updated = [newUser, ...prev];
-        localStorage.setItem('crm_local_users_cache', JSON.stringify(updated));
-        return updated;
-      });
-      showNotification(`New user "${userFormData.name}" created successfully!`);
+        const { data } = await api.post('/users', payload);
+        if (data?.data) {
+          setUsersList(prev => {
+            const updated = [data.data, ...prev];
+            localStorage.setItem('crm_local_users_cache', JSON.stringify(updated));
+            return updated;
+          });
+          showNotification(`New user "${userFormData.name}" (${cleanRole}) created successfully!`);
+          setShowUserModal(false);
+        } else {
+          throw new Error('No user data returned from server');
+        }
+      } catch (err) {
+        const errMsg = err.response?.data?.message || err.message || 'Failed to create user account';
+        showNotification(`Error: ${errMsg}`);
+      }
     }
-    setShowUserModal(false);
   };
 
   // Toggle User Active Status
@@ -1126,10 +1150,19 @@ export default function SuperAdminDashboardPage() {
                     const isRejected = status === 'rejected';
 
                     return (
-                      <tr key={u._id} style={{
-                        borderBottom: '1px solid #f1f5f9',
-                        background: isPending ? '#fffdfa' : idx % 2 === 0 ? '#ffffff' : '#f8fafc'
-                      }}>
+                      <tr
+                        key={u._id}
+                        onClick={() => setViewingApplicantDetails(u)}
+                        style={{
+                          borderBottom: '1px solid #f1f5f9',
+                          background: isPending ? '#fffdfa' : idx % 2 === 0 ? '#ffffff' : '#f8fafc',
+                          cursor: 'pointer',
+                          transition: 'background 0.15s ease'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.backgroundColor = isPending ? '#fef9ee' : '#f1f5f9'}
+                        onMouseLeave={e => e.currentTarget.style.backgroundColor = isPending ? '#fffdfa' : idx % 2 === 0 ? '#ffffff' : '#f8fafc'}
+                        title="Click to view all submitted application details"
+                      >
                         <td style={{ padding: '14px 18px' }}>
                           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                             <div style={{
@@ -1143,7 +1176,8 @@ export default function SuperAdminDashboardPage() {
                               fontSize: '14px',
                               fontWeight: 800,
                               color: 'white',
-                              flexShrink: 0
+                              flexShrink: 0,
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.08)'
                             }}>
                               <Building2 size={20} />
                             </div>
@@ -1258,10 +1292,38 @@ export default function SuperAdminDashboardPage() {
 
                         <td style={{ padding: '14px 18px', textAlign: 'right' }}>
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                            {/* Dedicated View Details Button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setViewingApplicantDetails(u);
+                              }}
+                              style={{
+                                padding: '6px 12px',
+                                background: '#f8fafc',
+                                color: '#334155',
+                                border: '1px solid #cbd5e1',
+                                borderRadius: '8px',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                transition: 'all 0.15s'
+                              }}
+                              title="Inspect full applicant & organization details"
+                            >
+                              <Eye size={13} color="#2563eb" /> View Details
+                            </button>
+
                             {isPending && (
                               <>
                                 <button
-                                  onClick={() => handleApproveAccount(u)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleApproveAccount(u);
+                                  }}
                                   className="btn"
                                   style={{
                                     padding: '6px 14px',
@@ -1282,7 +1344,10 @@ export default function SuperAdminDashboardPage() {
                                 </button>
 
                                 <button
-                                  onClick={() => handleOpenRejectModal(u)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenRejectModal(u);
+                                  }}
                                   style={{
                                     padding: '6px 12px',
                                     background: '#fee2e2',
@@ -1305,7 +1370,10 @@ export default function SuperAdminDashboardPage() {
                             {isApproved && (
                               <>
                                 <button
-                                  onClick={() => handleRevokeApproval(u)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRevokeApproval(u);
+                                  }}
                                   style={{
                                     padding: '5px 10px',
                                     background: '#f8fafc',
@@ -1321,7 +1389,8 @@ export default function SuperAdminDashboardPage() {
                                 </button>
 
                                 <button
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     setActiveTab('users');
                                     handleOpenUserOverride(u);
                                   }}
@@ -1347,7 +1416,10 @@ export default function SuperAdminDashboardPage() {
                             {isRejected && (
                               <>
                                 <button
-                                  onClick={() => handleApproveAccount(u)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleApproveAccount(u);
+                                  }}
                                   style={{
                                     padding: '5px 10px',
                                     background: '#dcfce7',
@@ -1363,7 +1435,10 @@ export default function SuperAdminDashboardPage() {
                                 </button>
 
                                 <button
-                                  onClick={() => handleDeleteUser(u._id, u.name)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteUser(u._id, u.name);
+                                  }}
                                   style={{
                                     padding: '5px 8px',
                                     background: '#fef2f2',
@@ -1741,44 +1816,31 @@ export default function SuperAdminDashboardPage() {
               />
             </div>
 
-            <select
-              value={roleFilter}
-              onChange={e => setRoleFilter(e.target.value)}
-              style={{
-                padding: '8px 12px',
-                background: '#f8fafc',
-                border: '1px solid #cbd5e1',
-                borderRadius: '6px',
-                color: '#334155',
-                fontSize: '13px',
-                outline: 'none',
-                fontWeight: 600
-              }}
-            >
-              <option value="all">All Organization Roles</option>
-              {Object.entries(USER_ROLES).filter(([k]) => k !== 'super_admin').map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
-              ))}
-            </select>
+            <div style={{ minWidth: 200 }}>
+              <CustomSelect
+                value={roleFilter}
+                onChange={val => setRoleFilter(typeof val === 'object' && val.target ? val.target.value : val)}
+                options={[
+                  { value: 'all', label: 'All Organization Roles' },
+                  ...Object.entries(USER_ROLES).filter(([k]) => k !== 'super_admin').map(([k, v]) => ({
+                    value: k,
+                    label: v.label
+                  }))
+                ]}
+              />
+            </div>
 
-            <select
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-              style={{
-                padding: '8px 12px',
-                background: '#f8fafc',
-                border: '1px solid #cbd5e1',
-                borderRadius: '6px',
-                color: '#334155',
-                fontSize: '13px',
-                outline: 'none',
-                fontWeight: 600
-              }}
-            >
-              <option value="all">All Statuses</option>
-              <option value="active">Active Only</option>
-              <option value="inactive">Inactive Only</option>
-            </select>
+            <div style={{ minWidth: 150 }}>
+              <CustomSelect
+                value={statusFilter}
+                onChange={val => setStatusFilter(typeof val === 'object' && val.target ? val.target.value : val)}
+                options={[
+                  { value: 'all', label: 'All Statuses' },
+                  { value: 'active', label: 'Active Only', icon: '🟢' },
+                  { value: 'inactive', label: 'Inactive Only', icon: '🔴' }
+                ]}
+              />
+            </div>
           </div>
 
           {/* Users Table */}
@@ -2101,26 +2163,18 @@ export default function SuperAdminDashboardPage() {
             flexWrap: 'wrap',
             gap: '14px'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <label style={{ fontSize: '13px', fontWeight: 700, color: '#334155' }}>Select Target Role to Audit:</label>
-              <select
-                value={simulatorRole}
-                onChange={e => setSimulatorRole(e.target.value)}
-                style={{
-                  padding: '8px 14px',
-                  background: '#f8fafc',
-                  border: '1.5px solid #2563eb',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: 700,
-                  color: '#1e40af',
-                  outline: 'none'
-                }}
-              >
-                {Object.entries(USER_ROLES).map(([k, v]) => (
-                  <option key={k} value={k}>{v.label}</option>
-                ))}
-              </select>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 260 }}>
+              <label style={{ fontSize: '13px', fontWeight: 700, color: '#334155', whiteSpace: 'nowrap' }}>Select Target Role to Audit:</label>
+              <div style={{ flex: 1 }}>
+                <CustomSelect
+                  value={simulatorRole}
+                  onChange={val => setSimulatorRole(typeof val === 'object' && val.target ? val.target.value : val)}
+                  options={Object.entries(USER_ROLES).map(([k, v]) => ({
+                    value: k,
+                    label: v.label
+                  }))}
+                />
+              </div>
             </div>
 
             <div style={{ fontSize: '13px', color: '#64748b' }}>
@@ -2395,26 +2449,28 @@ export default function SuperAdminDashboardPage() {
                 <div className="form-row" style={{ marginBottom: 14 }}>
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: 6 }}>Organizational Role</label>
-                    <select
-                      className="form-select"
+                    <CustomSelect
                       value={userFormData.role}
-                      onChange={e => setUserFormData(p => ({ ...p, role: e.target.value }))}
-                    >
-                      {Object.entries(USER_ROLES).filter(([k]) => k !== 'super_admin').map(([k, v]) => (
-                        <option key={k} value={k}>{v.label}</option>
-                      ))}
-                    </select>
+                      onChange={val => setUserFormData(p => ({ ...p, role: typeof val === 'object' && val.target ? val.target.value : val }))}
+                      options={Object.entries(USER_ROLES).filter(([k]) => k !== 'super_admin').map(([k, v]) => ({
+                        value: k,
+                        label: v.label
+                      }))}
+                    />
                   </div>
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: 6 }}>Account Access Status</label>
-                    <select
-                      className="form-select"
+                    <CustomSelect
                       value={userFormData.isActive ? 'active' : 'inactive'}
-                      onChange={e => setUserFormData(p => ({ ...p, isActive: e.target.value === 'active' }))}
-                    >
-                      <option value="active">Active (Access Enabled)</option>
-                      <option value="inactive">Inactive (Suspended)</option>
-                    </select>
+                      onChange={val => {
+                        const actualVal = typeof val === 'object' && val.target ? val.target.value : val;
+                        setUserFormData(p => ({ ...p, isActive: actualVal === 'active' }));
+                      }}
+                      options={[
+                        { value: 'active', label: 'Active (Access Enabled)', icon: '🟢' },
+                        { value: 'inactive', label: 'Inactive (Suspended)', icon: '🔴' }
+                      ]}
+                    />
                   </div>
                 </div>
 
@@ -2440,6 +2496,480 @@ export default function SuperAdminDashboardPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════
+          APPLICANT & ORGANIZATION DETAILS MODAL
+      ═══════════════════════════════════════════ */}
+      {viewingApplicantDetails && (
+        <div
+          className="modal-overlay"
+          onClick={() => setViewingApplicantDetails(null)}
+          style={{
+            background: 'rgba(15, 23, 42, 0.7)',
+            backdropFilter: 'blur(6px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+        >
+          <div
+            className="modal"
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxWidth: '720px',
+              width: '100%',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: '20px',
+              overflow: 'hidden',
+              border: '1px solid #cbd5e1',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              background: '#ffffff'
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+              color: '#ffffff',
+              padding: '24px 28px',
+              position: 'relative'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{
+                    width: '54px',
+                    height: '54px',
+                    borderRadius: '16px',
+                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                    boxShadow: '0 8px 16px rgba(245, 158, 11, 0.35)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#ffffff',
+                    fontSize: '22px',
+                    fontWeight: 800,
+                    flexShrink: 0
+                  }}>
+                    <Building2 size={28} />
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                      <h3 style={{ fontSize: '20px', fontWeight: 800, color: '#ffffff', margin: 0, letterSpacing: '-0.01em' }}>
+                        {viewingApplicantDetails.organization || 'RealtyHub Organization'}
+                      </h3>
+                      {viewingApplicantDetails.city && (
+                        <span style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          background: 'rgba(255, 255, 255, 0.15)',
+                          color: '#f8fafc',
+                          padding: '3px 9px',
+                          borderRadius: '999px',
+                          backdropFilter: 'blur(4px)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          <MapPin size={11} /> {viewingApplicantDetails.city}
+                        </span>
+                      )}
+                    </div>
+
+                    <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0 }}>
+                      Inbound RealtyHub Organization Registration & Workspace Application
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  className="btn btn-ghost btn-icon btn-sm"
+                  onClick={() => setViewingApplicantDetails(null)}
+                  style={{
+                    color: '#94a3b8',
+                    background: 'rgba(255,255,255,0.08)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '32px',
+                    height: '32px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Status Pill Badge in Header */}
+              <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                {(viewingApplicantDetails.approvalStatus === 'pending' || (!viewingApplicantDetails.isApproved && viewingApplicantDetails.approvalStatus !== 'approved' && viewingApplicantDetails.approvalStatus !== 'rejected')) ? (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '5px 12px',
+                    borderRadius: '999px',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    background: '#fef3c7',
+                    color: '#92400e',
+                    border: '1px solid #fde68a'
+                  }}>
+                    <Clock size={14} /> Pending Super Admin Review
+                  </span>
+                ) : (viewingApplicantDetails.approvalStatus === 'approved' || viewingApplicantDetails.isApproved) ? (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '5px 12px',
+                    borderRadius: '999px',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    background: '#dcfce7',
+                    color: '#15803d',
+                    border: '1px solid #86efac'
+                  }}>
+                    <CheckCircle2 size={14} /> Approved & Active Workspace
+                  </span>
+                ) : (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '5px 12px',
+                    borderRadius: '999px',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    background: '#fee2e2',
+                    color: '#b91c1c',
+                    border: '1px solid #fca5a5'
+                  }}>
+                    <XCircle size={14} /> Application Rejected
+                  </span>
+                )}
+
+                <span style={{ fontSize: '12px', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Calendar size={13} /> Submitted: {formatDate(viewingApplicantDetails.createdAt || new Date())} at {new Date(viewingApplicantDetails.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Body - Scrollable */}
+            <div style={{
+              padding: '24px 28px',
+              overflowY: 'auto',
+              maxHeight: 'calc(90vh - 190px)',
+              background: '#f8fafc',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px'
+            }}>
+              {/* Section 1: Top 3 Quick Stats Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                <div style={{ background: '#ffffff', padding: '14px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Requested Role</div>
+                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#1d4ed8', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <ShieldCheck size={16} /> {USER_ROLES[viewingApplicantDetails.role]?.label || viewingApplicantDetails.role || 'Organization Admin'}
+                  </div>
+                </div>
+
+                <div style={{ background: '#ffffff', padding: '14px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Workspace Partition</div>
+                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#059669', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Layers size={16} /> Isolated Tenant DB
+                  </div>
+                </div>
+
+                <div style={{ background: '#ffffff', padding: '14px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Account Status</div>
+                  <div style={{ fontSize: '14px', fontWeight: 800, color: viewingApplicantDetails.isActive ? '#059669' : '#d97706', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Power size={16} /> {viewingApplicantDetails.isActive ? 'Active (Enabled)' : 'Pending Approval'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Two Column Detailed Applicant Info */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                {/* Card A: Contact Person & Credentials */}
+                <div style={{ background: '#ffffff', borderRadius: '14px', padding: '18px 20px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                  <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                    <User size={16} color="#2563eb" /> Applicant & Contact Profile
+                  </h4>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div>
+                      <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, marginBottom: '2px' }}>FULL APPLICANT NAME</div>
+                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
+                        {viewingApplicantDetails.name || 'Not provided'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, marginBottom: '2px' }}>EMAIL ADDRESS (LOGIN ID)</div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', background: '#f8fafc', padding: '6px 10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', wordBreak: 'break-all' }}>
+                          {viewingApplicantDetails.email}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(viewingApplicantDetails.email, 'Email')}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: copiedField === 'Email' ? '#16a34a' : '#64748b', display: 'flex', alignItems: 'center', padding: '2px' }}
+                          title="Copy Email"
+                        >
+                          {copiedField === 'Email' ? <Check size={14} /> : <Copy size={14} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, marginBottom: '2px' }}>PHONE / MOBILE NUMBER</div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', background: '#f8fafc', padding: '6px 10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>
+                          {viewingApplicantDetails.phone || 'No phone number provided'}
+                        </span>
+                        {viewingApplicantDetails.phone && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(viewingApplicantDetails.phone, 'Phone')}
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: copiedField === 'Phone' ? '#16a34a' : '#64748b', display: 'flex', alignItems: 'center', padding: '2px' }}
+                            title="Copy Phone"
+                          >
+                            {copiedField === 'Phone' ? <Check size={14} /> : <Copy size={14} />}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, marginBottom: '2px' }}>USERNAME / USER ID</div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
+                        {viewingApplicantDetails.username || viewingApplicantDetails.email?.split('@')[0] || 'Auto-derived from email'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card B: Organization & Workspace Configuration */}
+                <div style={{ background: '#ffffff', borderRadius: '14px', padding: '18px 20px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                  <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
+                    <Building2 size={16} color="#059669" /> Organization & Workspace Scope
+                  </h4>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div>
+                      <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, marginBottom: '2px' }}>COMPANY / FIRM NAME</div>
+                      <div style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>
+                        {viewingApplicantDetails.organization || 'RealtyHub Organization'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, marginBottom: '2px' }}>OPERATING CITY / REGION</div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#334155', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <MapPin size={13} color="#64748b" /> {viewingApplicantDetails.city || 'Headquarters / Main'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, marginBottom: '2px' }}>CRM MODULE ACCESS</div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#059669' }}>
+                        All 17 Real Estate CRM Modules (Full Suite)
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, marginBottom: '2px' }}>MULTI-TENANT DATA PROTECTION</div>
+                      <div style={{ fontSize: '12px', color: '#64748b', lineHeight: 1.4 }}>
+                        🔒 Strict Tenant Scoping: Zero data bleed. Only accounts created within <strong>{viewingApplicantDetails.organization || 'this Organization'}</strong> can view or manage their leads and projects.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Audit & Decision Banner */}
+              {viewingApplicantDetails.rejectionReason && (
+                <div style={{
+                  background: '#fef2f2',
+                  border: '1.5px solid #fca5a5',
+                  borderRadius: '12px',
+                  padding: '14px 18px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px'
+                }}>
+                  <XCircle size={20} color="#dc2626" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#991b1b', marginBottom: '2px' }}>
+                      Rejection Reason Logged:
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#b91c1c' }}>
+                      "{viewingApplicantDetails.rejectionReason}"
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {(viewingApplicantDetails.approvalStatus === 'pending' || (!viewingApplicantDetails.isApproved && viewingApplicantDetails.approvalStatus !== 'approved' && viewingApplicantDetails.approvalStatus !== 'rejected')) && (
+                <div style={{
+                  background: '#fffbeb',
+                  border: '1.5px solid #fde68a',
+                  borderRadius: '12px',
+                  padding: '14px 18px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px'
+                }}>
+                  <Info size={20} color="#d97706" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div style={{ fontSize: '13px', color: '#92400e', lineHeight: 1.5 }}>
+                    <strong>Super Admin Review Notice:</strong> Approving this application will immediately activate the applicant's isolated organization workspace. They can then log in using <strong>{viewingApplicantDetails.email}</strong>.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer Controls */}
+            <div style={{
+              background: '#ffffff',
+              borderTop: '1px solid #e2e8f0',
+              padding: '16px 28px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px'
+            }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setViewingApplicantDetails(null)}
+                style={{ padding: '8px 18px', fontWeight: 600 }}
+              >
+                Close
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {(viewingApplicantDetails.approvalStatus === 'pending' || (!viewingApplicantDetails.isApproved && viewingApplicantDetails.approvalStatus !== 'approved' && viewingApplicantDetails.approvalStatus !== 'rejected')) && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => {
+                        const target = viewingApplicantDetails;
+                        setViewingApplicantDetails(null);
+                        handleOpenRejectModal(target);
+                      }}
+                      style={{
+                        background: '#fee2e2',
+                        color: '#dc2626',
+                        border: '1px solid #fecaca',
+                        padding: '9px 18px',
+                        borderRadius: '10px',
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <X size={15} /> Reject Request
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={async () => {
+                        const target = viewingApplicantDetails;
+                        await handleApproveAccount(target);
+                        setViewingApplicantDetails(prev => prev ? { ...prev, approvalStatus: 'approved', isApproved: true, isActive: true } : null);
+                      }}
+                      style={{
+                        background: '#16a34a',
+                        color: '#ffffff',
+                        border: 'none',
+                        padding: '9px 22px',
+                        borderRadius: '10px',
+                        fontSize: '13px',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        boxShadow: '0 4px 12px rgba(22, 163, 74, 0.3)'
+                      }}
+                    >
+                      <Check size={16} /> Approve Workspace & Grant Access
+                    </button>
+                  </>
+                )}
+
+                {(viewingApplicantDetails.approvalStatus === 'approved' || viewingApplicantDetails.isApproved) && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={async () => {
+                        const target = viewingApplicantDetails;
+                        await handleRevokeApproval(target);
+                        setViewingApplicantDetails(prev => prev ? { ...prev, approvalStatus: 'pending', isApproved: false, isActive: false } : null);
+                      }}
+                      style={{
+                        background: '#fffbeb',
+                        border: '1px solid #fde68a',
+                        color: '#b45309',
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Revoke Approval
+                    </button>
+                    <span style={{ fontSize: '13px', color: '#16a34a', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <CheckCircle2 size={16} /> Workspace is Active
+                    </span>
+                  </>
+                )}
+
+                {viewingApplicantDetails.approvalStatus === 'rejected' && (
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={async () => {
+                      const target = viewingApplicantDetails;
+                      await handleApproveAccount(target);
+                      setViewingApplicantDetails(prev => prev ? { ...prev, approvalStatus: 'approved', isApproved: true, isActive: true } : null);
+                    }}
+                    style={{
+                      background: '#16a34a',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '9px 20px',
+                      borderRadius: '10px',
+                      fontSize: '13px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <Check size={15} /> Re-Approve Workspace
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

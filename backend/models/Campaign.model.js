@@ -23,7 +23,7 @@ const campaignSchema = new mongoose.Schema({
 
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   // Organization & Multi-Tenancy Scoping
-  organization: { type: String, trim: true, default: 'Rise With RealtyHub' },
+  organization: { type: String, trim: true, required: true },
   description: { type: String },
   tags: [String],
 }, { timestamps: true });

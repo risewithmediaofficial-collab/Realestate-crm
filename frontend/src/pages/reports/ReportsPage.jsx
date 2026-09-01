@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChart3, TrendingUp, DollarSign, Users, Award,
   Download, Calendar, Filter, FileSpreadsheet, Layers, Building, CheckCircle2, MessageSquare,
-  CreditCard, AlertCircle, ShieldCheck, Receipt, PieChart as PieIcon
+  CreditCard, AlertCircle, ShieldCheck, Receipt, PieChart as PieIcon, LayoutDashboard, Eye
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -11,6 +11,16 @@ import {
 } from 'recharts';
 import api from '../../services/api';
 import { formatCurrency } from '../../utils/formatters';
+import { useAuth } from '../../context/AuthContext';
+import { useUI } from '../../context/UIContext';
+import UserDashboardModal from '../../components/users/UserDashboardModal';
+import {
+  exportFinanceReportCSV,
+  exportSalesRealizationCSV,
+  exportLeadFunnelRoiCSV,
+  exportTeamScorecardCSV,
+  exportInventoryAbsorptionCSV
+} from '../../utils/exportTemplates';
 
 const DEFAULT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -34,10 +44,10 @@ const PAYMENT_MODE_COLORS = {
 };
 
 const PAYMENT_MODE_LABELS = {
-  bank_transfer: 'Bank Transfer (NEFT/RTGS)',
-  upi: 'UPI / QR',
+  bank_transfer: 'Bank Wire / RTGS / NEFT',
+  upi: 'Instant UPI Transfer',
   cheque: 'Bank Cheque / DD',
-  cash: 'Cash Payment',
+  cash: 'Cash Receipt',
   loan_disbursement: 'Home Loan Bank Disbursement',
   card: 'Credit / Debit Card',
   other: 'Other / Adjustments'
@@ -58,6 +68,7 @@ export default function ReportsPage() {
   const [tab, setTab] = useState(getTabFromPath());
   const [dateRange, setDateRange] = useState('all_time');
   const [loading, setLoading] = useState(true);
+  const [selectedUserDashboard, setSelectedUserDashboard] = useState(null);
 
   // Live Dynamic Data States
   const [leads, setLeads] = useState([]);
@@ -70,17 +81,60 @@ export default function ReportsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [leadsRes, bookingsRes, visitsRes, projectsRes, usersRes, paymentsRes] = await Promise.all([
+      const [leadsRes, bookingsRes, visitsRes, projectsRes, usersRes, paymentsRes, invRes] = await Promise.all([
         api.get('/leads?limit=1000').catch(() => ({ data: { data: [] } })),
-        api.get('/bookings').catch(() => ({ data: { data: [] } })),
+        api.get('/bookings?limit=1000').catch(() => ({ data: { data: [] } })),
         api.get('/site-visits').catch(() => ({ data: { data: [] } })),
         api.get('/projects').catch(() => ({ data: { data: [] } })),
         api.get('/users').catch(() => ({ data: { data: [] } })),
-        api.get('/payments').catch(() => ({ data: { data: [] } }))
+        api.get('/payments').catch(() => ({ data: { data: [] } })),
+        api.get('/inventory?limit=1000').catch(() => ({ data: { data: [] } }))
       ]);
 
-      setLeads(leadsRes.data?.data || []);
-      setBookings(bookingsRes.data?.data || []);
+      const rawBookings = bookingsRes.data?.data || [];
+      const rawInv = invRes.data?.data || [];
+      const rawLeads = leadsRes.data?.data || [];
+
+      // Merge booked/registered inventory units into bookings
+      const mergedBookings = [...rawBookings];
+      rawInv.forEach(un => {
+        if (['booked', 'registered', 'sold'].includes(un.status) && un.bookingCustomer) {
+          const exists = mergedBookings.some(b => b.unit?._id === un._id || b.unit === un._id || b.customerName === un.bookingCustomer.name);
+          if (!exists) {
+            mergedBookings.push({
+              _id: `inv-${un._id}`,
+              customerName: un.bookingCustomer.name,
+              customerPhone: un.bookingCustomer.phone,
+              totalAmount: un.pricing?.totalPrice || un.totalPrice || 0,
+              tokenAmount: un.bookingCustomer.tokenAmount || 0,
+              handledBy: { name: un.bookingCustomer.agentName || 'Sales Team' },
+              createdAt: un.updatedAt || new Date()
+            });
+          }
+        }
+      });
+
+      // Merge leads in 'booked' stage
+      rawLeads.forEach(l => {
+        if (l.stage === 'booked') {
+          const exists = mergedBookings.some(b => b.customerName === l.name || (b.customerPhone && l.phone && b.customerPhone === l.phone));
+          if (!exists) {
+            const bgVal = (typeof l.budget === 'object' ? (l.budget?.max || l.budget?.min) : Number(l.budget)) || 2220000;
+            mergedBookings.push({
+              _id: `lead-${l._id}`,
+              customerName: l.name,
+              customerPhone: l.phone,
+              totalAmount: bgVal,
+              tokenAmount: 100000,
+              handledBy: l.assignedTo ? (typeof l.assignedTo === 'object' ? l.assignedTo : { name: 'Sales Rep' }) : { name: 'Sales Rep' },
+              createdAt: l.updatedAt || new Date()
+            });
+          }
+        }
+      });
+
+      setLeads(rawLeads);
+      setBookings(mergedBookings);
       setSiteVisits(visitsRes.data?.data || []);
       setProjects(projectsRes.data?.data || []);
       setUsers(usersRes.data?.data || []);
@@ -162,23 +216,52 @@ export default function ReportsPage() {
 
   // 3. Compute Team Scorecard
   const teamScorecard = useMemo(() => {
-    return users.map(u => {
-      const userLeads = leads.filter(l => l.assignedTo?._id === u._id || l.assignedTo === u._id);
-      const userVisits = siteVisits.filter(v => v.assignedTo?._id === u._id || v.assignedTo === u._id);
-      const userBookings = bookings.filter(b => b.bookedBy?._id === u._id || b.bookedBy === u._id || b.handledBy?._id === u._id);
-      const totalSalesValue = userBookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+    return users
+      .filter(u => u.role !== 'super_admin')
+      .map(u => {
+        const uId = u._id?.toString();
+        const uName = (u.name || '').trim().toLowerCase();
 
-      return {
-        name: u.name,
-        role: u.role?.replace(/_/g, ' ') || 'Staff',
-        assignedLeads: userLeads.length,
-        connectedCalls: 0,
-        siteVisitsDone: userVisits.length,
-        bookingsClosed: userBookings.length,
-        revenue: totalSalesValue,
-        achievement: userBookings.length > 0 ? 'Active' : '0%'
-      };
-    });
+        const userLeads = leads.filter(l => {
+          const aId = l.assignedTo?._id?.toString() || l.assignedTo?.toString();
+          if (aId && aId === uId) return true;
+          const lName = (l.assignedTo?.name || '').trim().toLowerCase();
+          return lName && uName && (lName === uName || lName.includes(uName) || uName.includes(lName));
+        });
+
+        const userVisits = siteVisits.filter(v => {
+          const aId = v.assignedTo?._id?.toString() || v.assignedTo?.toString() || v.assignedExecutive?._id?.toString() || v.assignedExecutive?.toString();
+          return aId === uId;
+        });
+
+        const userBookings = bookings.filter(b => {
+          const hId = b.bookedBy?._id?.toString() || b.bookedBy?.toString() || b.handledBy?._id?.toString() || b.handledBy?.toString() || b.assignedAgent?.toString();
+          if (hId && hId === uId) return true;
+          const bName = (b.handledBy?.name || b.agentName || '').trim().toLowerCase();
+          if (bName && uName && (bName === uName || bName.includes(uName) || uName.includes(bName))) return true;
+          // Match if customer phone or name matches a lead assigned to this user
+          if (b.customerPhone && userLeads.some(ul => ul.phone === b.customerPhone)) return true;
+          if (b.customerName && userLeads.some(ul => ul.name?.toLowerCase() === b.customerName?.toLowerCase())) return true;
+          return false;
+        });
+
+        const totalSalesValue = userBookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+        const conversionPct = userLeads.length > 0
+          ? `${((userBookings.length / userLeads.length) * 100).toFixed(0)}%`
+          : (userBookings.length > 0 ? '100%' : '0%');
+
+        return {
+          user: u,
+          name: u.name,
+          role: u.role?.replace(/_/g, ' ') || 'Staff',
+          assignedLeads: userLeads.length,
+          connectedCalls: userLeads.reduce((acc, l) => acc + (l.callLogs?.length || 0), 0),
+          siteVisitsDone: userVisits.length,
+          bookingsClosed: userBookings.length,
+          revenue: totalSalesValue,
+          achievement: conversionPct
+        };
+      });
   }, [users, leads, siteVisits, bookings]);
 
   // 4. Compute Financial & Collections Aggregations
@@ -238,22 +321,28 @@ export default function ReportsPage() {
     };
   }, [payments]);
 
+  const { user } = useAuth();
+  const { showNotification } = useUI();
+
   const handleExportCSV = () => {
-    let csvContent = '';
+    const orgName = user?.organization || 'MRP REAL ESTATE';
+
     if (tab === 'finance') {
-      csvContent = "data:text/csv;charset=utf-8,Demand #,Customer,Unit,Milestone,Demanded,Paid,Balance,Status,Payment Mode\n"
-        + payments.map(p => `"${p.demandNumber || ''}","${p.customerName || p.booking?.customerName || ''}","${p.unitNumber || p.unit?.unitNumber || ''}","${p.milestoneName || ''}",${p.demandAmount || 0},${p.paidAmount || 0},${p.balanceAmount || 0},"${p.status || ''}","${p.paymentMode || ''}"`).join("\n");
-    } else {
-      csvContent = "data:text/csv;charset=utf-8,Channel,Spend,Leads,Bookings,Revenue\n"
-        + sourceRoiData.map(e => `${e.source},${e.spend},${e.leads},${e.bookings},${e.revenue}`).join("\n");
+      exportFinanceReportCSV(payments, orgName);
+      showNotification('Exported Financial Demand & Realization Ledger!');
+    } else if (tab === 'sales') {
+      exportSalesRealizationCSV(revenueData, orgName);
+      showNotification('Exported Sales & Revenue Realization Report!');
+    } else if (tab === 'leads') {
+      exportLeadFunnelRoiCSV(sourceRoiData, orgName);
+      showNotification('Exported Lead Channel Sourcing & ROI Report!');
+    } else if (tab === 'team') {
+      exportTeamScorecardCSV(teamScorecard, orgName);
+      showNotification('Exported Sales Force Productivity Scorecard!');
+    } else if (tab === 'inventory') {
+      exportInventoryAbsorptionCSV(projects, bookings, orgName);
+      showNotification('Exported Inventory Absorption Report!');
     }
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `real_estate_bi_${tab}_report_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   return (
@@ -498,9 +587,16 @@ export default function ReportsPage() {
       {/* TAB 3: Team Scorecard */}
       {tab === 'team' && (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: 20, borderBottom: '1px solid #f1f5f9' }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Sales Force Productivity & Conversion Scorecard</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: 12, margin: '4px 0 0' }}>Real-time conversion metrics per sales executive</p>
+          <div style={{ padding: 20, borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Sales Force Productivity & Conversion Scorecard</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: 12, margin: '4px 0 0' }}>
+                Real-time conversion metrics per sales executive · Click any executive to view their live user dashboard
+              </p>
+            </div>
+            <span className="badge badge-info" style={{ fontSize: 11 }}>
+              💡 Click any row to open User Dashboard
+            </span>
           </div>
           <div className="table-wrapper" style={{ border: 'none' }}>
             <table>
@@ -512,30 +608,70 @@ export default function ReportsPage() {
                   <th>Deals Closed</th>
                   <th>Closed Sales Value (₹)</th>
                   <th>Status</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {teamScorecard.length === 0 ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>No staff members found.</td></tr>
+                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>No staff members found.</td></tr>
                 ) : (
                   teamScorecard.map((m, i) => (
-                    <tr key={i}>
+                    <tr
+                      key={i}
+                      style={{ cursor: 'pointer', transition: 'background 0.15s ease' }}
+                      className="table-row-hover"
+                      onClick={() => setSelectedUserDashboard(m.user)}
+                      title={`Click to view ${m.name}'s Dashboard`}
+                    >
                       <td>
-                        <div style={{ fontWeight: 700 }}>{m.name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{m.role}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            background: '#eff6ff',
+                            color: 'var(--primary)',
+                            fontWeight: 700,
+                            fontSize: 12,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: '1px solid #dbeafe'
+                          }}>
+                            {m.name?.charAt(0)?.toUpperCase()}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 700, color: 'var(--primary)' }}>{m.name}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{m.role}</div>
+                          </div>
+                        </div>
                       </td>
-                      <td>{m.assignedLeads}</td>
-                      <td><strong>{m.siteVisitsDone}</strong></td>
+                      <td><strong>{m.assignedLeads}</strong> Leads</td>
+                      <td><strong>{m.siteVisitsDone}</strong> Visits</td>
                       <td>
                         <span className={`badge ${m.bookingsClosed > 0 ? 'badge-success' : 'badge-gray'}`} style={{ fontWeight: 700 }}>
-                          {m.bookingsClosed}
+                          {m.bookingsClosed} Won
                         </span>
                       </td>
-                      <td><strong style={{ color: m.revenue > 0 ? 'var(--primary)' : 'var(--text-muted)' }}>{formatCurrency(m.revenue)}</strong></td>
+                      <td><strong style={{ color: m.revenue > 0 ? '#15803d' : 'var(--text-muted)' }}>{formatCurrency(m.revenue)}</strong></td>
                       <td>
                         <span className={`badge ${m.bookingsClosed > 0 ? 'badge-success' : 'badge-gray'}`} style={{ fontSize: 12 }}>
                           {m.achievement}
                         </span>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-ghost"
+                          style={{ fontSize: 11, gap: 4, color: 'var(--primary)', fontWeight: 600, padding: '4px 8px', borderRadius: 6, border: '1px solid #dbeafe', background: '#eff6ff' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedUserDashboard(m.user);
+                          }}
+                          title={`Open ${m.name}'s dedicated dashboard`}
+                        >
+                          <LayoutDashboard size={12} /> View Dashboard
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -561,17 +697,17 @@ export default function ReportsPage() {
               </button>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: 16 }}>
               {projects.map((p, i) => {
                 const totalUnits = p.totalUnits || 0;
                 const bookedUnits = bookings.filter(b => b.project?._id === p._id || b.project === p._id).length;
                 const available = Math.max(0, totalUnits - bookedUnits);
 
                 return (
-                  <div key={p._id || i} className="card" style={{ padding: 24 }}>
+                  <div key={p._id || i} className="card" style={{ padding: 'clamp(16px, 2.5vw, 22px)' }}>
                     <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>{p.name}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>{p.location || p.city || 'Active Project'}</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))', gap: 10, marginBottom: 14 }}>
                       <div style={{ background: '#f8fafc', padding: 10, borderRadius: 8 }}>
                         <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>AVAILABLE STOCK</div>
                         <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--success)' }}>{available} / {totalUnits}</div>
@@ -590,6 +726,17 @@ export default function ReportsPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* User Dashboard Modal for Admin Inspection */}
+      {selectedUserDashboard && (
+        <UserDashboardModal
+          user={selectedUserDashboard}
+          onClose={() => setSelectedUserDashboard(null)}
+          allLeads={leads}
+          allBookings={bookings}
+          allSiteVisits={siteVisits}
+        />
       )}
     </div>
   );

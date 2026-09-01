@@ -108,8 +108,8 @@ const register = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'An account with this email or username already exists' });
     }
 
-    const validRoles = ['admin', 'sales_head', 'sales_manager', 'sales_executive', 'telecaller', 'finance_manager', 'channel_partner', 'developer'];
-    const assignedRole = validRoles.includes(role) ? role : 'admin';
+    // Workspace registration creates the Organization Administrator account
+    const assignedRole = 'admin';
 
     const user = await User.create({
       name: name.trim(),

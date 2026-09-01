@@ -46,15 +46,15 @@ export default function SuperAdminLoginPage() {
 
   return (
     <div style={{
-      height: '100vh',
-      maxHeight: '100vh',
+      minHeight: '100vh',
+      width: '100%',
       overflowY: 'auto',
       overflowX: 'hidden',
       background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '24px',
+      padding: '24px 16px',
       position: 'relative',
       fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
       color: '#0f172a',
@@ -81,7 +81,9 @@ export default function SuperAdminLoginPage() {
         borderRadius: '20px',
         padding: '36px 32px',
         position: 'relative',
-        zIndex: 1
+        zIndex: 1,
+        margin: 'auto',
+        boxSizing: 'border-box'
       }}>
         {/* Top Header Badge */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>

@@ -8,6 +8,7 @@ import {
 import { useUI } from '../../context/UIContext';
 import api from '../../services/api';
 import { formatCurrency, formatArea, formatDate } from '../../utils/formatters';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 export default function PricingPage() {
   const location = useLocation();
@@ -153,31 +154,37 @@ export default function PricingPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Project</label>
-              <select className="form-select" value={project} onChange={e => setProject(e.target.value)}>
-                {projects.length > 0 ? (
-                  projects.map(p => (
-                    <option key={p._id} value={p._id}>{p.name} ({p.city || p.code})</option>
-                  ))
-                ) : (
-                  <option value="1">Primary Project</option>
-                )}
-              </select>
+              <CustomSelect
+                label="Project"
+                value={project}
+                onChange={val => setProject(val)}
+                searchable={true}
+                placeholder="Select Project"
+                options={projects.length > 0
+                  ? projects.map(p => ({ value: p._id, label: p.name, subtext: p.city || p.code, icon: '🏢' }))
+                  : [{ value: '1', label: 'Primary Project', icon: '🏢' }]
+                }
+              />
             </div>
 
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Unit Type</label>
-                <select className="form-select" value={unitType} onChange={e => {
-                  setUnitType(e.target.value);
-                  if (e.target.value === '2BHK') setSuperArea(950);
-                  if (e.target.value === '3BHK') setSuperArea(1350);
-                  if (e.target.value === '4BHK') setSuperArea(1850);
-                }}>
-                  <option value="2BHK">2 BHK (950 sq.ft)</option>
-                  <option value="3BHK">3 BHK (1,350 sq.ft)</option>
-                  <option value="4BHK">4 BHK (1,850 sq.ft)</option>
-                </select>
+              <CustomSelect
+                label="Unit Type"
+                value={unitType}
+                onChange={val => {
+                  setUnitType(val);
+                  if (val === '2BHK') setSuperArea(950);
+                  if (val === '3BHK') setSuperArea(1350);
+                  if (val === '4BHK') setSuperArea(1850);
+                }}
+                options={[
+                  { value: '2BHK', label: '2 BHK (950 sq.ft)', icon: '🏠' },
+                  { value: '3BHK', label: '3 BHK (1,350 sq.ft)', icon: '🏠' },
+                  { value: '4BHK', label: '4 BHK (1,850 sq.ft)', icon: '🏠' }
+                ]}
+              />
               </div>
               <div className="form-group">
                 <label className="form-label">Floor Number</label>
@@ -203,30 +210,42 @@ export default function PricingPage() {
 
             <div className="form-group">
               <label className="form-label">PLC (Corner / Premium Facing)</label>
-              <select className="form-select" value={plcRate} onChange={e => setPlcRate(Number(e.target.value))}>
-                <option value="0">Standard / No PLC (₹0/sq.ft)</option>
-                <option value="150">Garden Facing (+₹150/sq.ft)</option>
-                <option value="250">East Facing + Corner (+₹250/sq.ft)</option>
-                <option value="400">Top Floor Sky Penthouse (+₹400/sq.ft)</option>
-              </select>
+              <CustomSelect
+                label="PLC (Corner / Premium Facing)"
+                value={String(plcRate)}
+                onChange={val => setPlcRate(Number(val))}
+                options={[
+                  { value: '0', label: 'Standard / No PLC (₹0/sq.ft)', icon: '⬡' },
+                  { value: '150', label: 'Garden Facing (+₹150/sq.ft)', icon: '🌿' },
+                  { value: '250', label: 'East Facing + Corner (+₹250/sq.ft)', icon: '🦭' },
+                  { value: '400', label: 'Top Floor Sky Penthouse (+₹400/sq.ft)', icon: '⭐' }
+                ]}
+              />
             </div>
 
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Covered Car Parkings</label>
-                <select className="form-select" value={carParkingCount} onChange={e => setCarParkingCount(Number(e.target.value))}>
-                  <option value="1">1 Covered Slot</option>
-                  <option value="2">2 Covered Slots</option>
-                  <option value="0">No Slot</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Payment Scheme</label>
-                <select className="form-select" value={paymentPlan} onChange={e => setPaymentPlan(e.target.value)}>
-                  <option value="clp">Construction Linked</option>
-                  <option value="dp">Down Payment (5% Disc)</option>
-                  <option value="subvention">20:80 Subvention</option>
-                </select>
+              <CustomSelect
+                label="Covered Car Parkings"
+                value={String(carParkingCount)}
+                onChange={val => setCarParkingCount(Number(val))}
+                options={[
+                  { value: '1', label: '1 Covered Slot', icon: '🚗' },
+                  { value: '2', label: '2 Covered Slots', icon: '🚗' },
+                  { value: '0', label: 'No Slot', icon: '✘' }
+                ]}
+              />
+              <CustomSelect
+                label="Payment Scheme"
+                value={paymentPlan}
+                onChange={val => setPaymentPlan(val)}
+                options={[
+                  { value: 'clp', label: 'Construction Linked', icon: '🚧' },
+                  { value: 'dp', label: 'Down Payment (5% Disc)', icon: '💰' },
+                  { value: 'subvention', label: '20:80 Subvention', icon: '🏦' }
+                ]}
+              />
               </div>
             </div>
           </div>

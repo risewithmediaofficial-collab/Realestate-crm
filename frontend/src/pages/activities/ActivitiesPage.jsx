@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CheckSquare, Plus, Clock, Phone, MapPin, Calendar, Check, Trash2, X, AlertCircle, Edit, List, Columns, User } from 'lucide-react';
+import { CheckSquare, Plus, Clock, Phone, MapPin, Calendar, Check, Trash2, X, AlertCircle, Edit, List, Columns, User, Search } from 'lucide-react';
 import api from '../../services/api';
 import { useUI } from '../../context/UIContext';
 import { TASK_TYPES, TASK_STATUSES, TASK_PRIORITIES } from '../../utils/constants';
 import { formatDateTime, timeAgo, isOverdue } from '../../utils/formatters';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 const mockTasks = [];
 
@@ -122,65 +123,67 @@ const TaskModal = ({ initialTask, onClose, onSaved }) => {
               <label className="form-label">Task Title <span className="required">*</span></label>
               <input className="form-input" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Follow-up call for booking token" required />
             </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Activity Type</label>
-                <select className="form-select" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
-                  {Object.entries(TASK_TYPES).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Priority</label>
-                <select className="form-select" value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
-                </select>
-              </div>
+            <div className="form-row" style={{ marginBottom: 14 }}>
+              <CustomSelect
+                label="Activity Type"
+                value={form.type}
+                onChange={val => setForm(p => ({ ...p, type: val }))}
+                options={Object.entries(TASK_TYPES).map(([k, v]) => ({ value: k, label: v.label, icon: v.icon }))}
+              />
+              <CustomSelect
+                label="Priority"
+                value={form.priority}
+                onChange={val => setForm(p => ({ ...p, priority: val }))}
+                options={[
+                  { value: 'low', label: 'Low', icon: '🟢' },
+                  { value: 'medium', label: 'Medium', icon: '🟡' },
+                  { value: 'high', label: 'High', icon: '🔴' },
+                  { value: 'urgent', label: 'Urgent', icon: '🚨' }
+                ]}
+              />
             </div>
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Due Date & Time <span className="required">*</span></label>
                 <input type="datetime-local" className="form-input" value={form.dueDate} onChange={e => setForm(p => ({ ...p, dueDate: e.target.value }))} required />
               </div>
-              <div className="form-group">
-                <label className="form-label">Assigned Executive</label>
-                <select
-                  className="form-select"
-                  value={form.assignedTo}
-                  onChange={e => {
-                    const uId = e.target.value;
-                    const uObj = users.find(u => u._id === uId);
-                    setForm(p => ({ ...p, assignedTo: uId, assignedToName: uObj?.name || p.assignedToName }));
-                  }}
-                >
-                  {users.length === 0 ? (
-                    <option value="">Loading sales reps...</option>
-                  ) : (
-                    users.map(u => (
-                      <option key={u._id} value={u._id}>{u.name} ({u.role?.replace(/_/g, ' ')})</option>
-                    ))
-                  )}
-                </select>
-              </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Related Lead</label>
-              <select
-                className="form-select"
-                value={form.leadId}
-                onChange={e => {
-                  const lId = e.target.value;
-                  const lObj = leads.find(l => l._id === lId);
-                  setForm(p => ({ ...p, leadId: lId, leadName: lObj?.name || p.leadName }));
+              <CustomSelect
+                label="Assigned Executive"
+                value={form.assignedTo}
+                onChange={val => {
+                  const uObj = users.find(u => u._id === val);
+                  setForm(p => ({ ...p, assignedTo: val, assignedToName: uObj?.name || p.assignedToName }));
                 }}
-              >
-                <option value="">-- General Task / Select Lead --</option>
-                {leads.map(l => (
-                  <option key={l._id} value={l._id}>{l.name} ({l.phone}) - {l.interestedProject?.name || 'General'}</option>
-                ))}
-              </select>
+                searchable={true}
+                placeholder="Loading sales reps..."
+                options={users.map(u => ({
+                  value: u._id,
+                  label: u.name,
+                  subtext: u.role?.replace(/_/g, ' '),
+                  avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=4f46e5&color=fff&size=64`
+                }))}
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 14 }}>
+              <CustomSelect
+                label="Related Lead"
+                value={form.leadId}
+                onChange={val => {
+                  const lObj = leads.find(l => l._id === val);
+                  setForm(p => ({ ...p, leadId: val, leadName: lObj?.name || p.leadName }));
+                }}
+                searchable={true}
+                placeholder="-- General Task / Select Lead --"
+                options={[
+                  { value: '', label: '-- General Task / Select Lead --', icon: '📋' },
+                  ...leads.map(l => ({
+                    value: l._id,
+                    label: l.name,
+                    subtext: `${l.phone} · ${l.interestedProject?.name || 'General'}`,
+                    icon: l.leadType === 'hot' ? '🔥' : '📞'
+                  }))
+                ]}
+              />
             </div>
             <div className="form-group">
               <label className="form-label">Notes / Instructions</label>
@@ -198,7 +201,7 @@ const TaskModal = ({ initialTask, onClose, onSaved }) => {
 };
 
 // ── Tasks Kanban View Component ───────────────────
-const TasksKanbanView = ({ tasks, onEditTask, onDeleteTask, onToggleTask, onStatusChange }) => {
+const TasksKanbanView = ({ tasks, onEditTask, onDeleteTask, onToggleTask, onStatusChange, onAddTask }) => {
   const [draggedId, setDraggedId] = useState(null);
   const [dragOverCol, setDragOverCol] = useState(null);
 
@@ -286,6 +289,21 @@ const TasksKanbanView = ({ tasks, onEditTask, onDeleteTask, onToggleTask, onStat
                   {colTasks.length}
                 </span>
               </div>
+
+              {onAddTask && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-icon btn-sm"
+                  style={{ width: 22, height: 22, padding: 0, color: 'var(--primary)', borderRadius: 4, background: '#f1f5f9' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddTask(col.id);
+                  }}
+                  title={`Create task in ${col.title}`}
+                >
+                  <Plus size={13} />
+                </button>
+              )}
             </div>
 
             {/* Column Body */}
@@ -305,19 +323,48 @@ const TasksKanbanView = ({ tasks, onEditTask, onDeleteTask, onToggleTask, onStat
                 <div
                   style={{
                     textAlign: 'center',
-                    padding: '30px 12px',
+                    padding: '24px 12px',
                     color: 'var(--text-muted)',
                     fontSize: 12,
-                    border: '1px dashed #cbd5e1',
-                    borderRadius: 8,
-                    background: 'white'
+                    border: '1.5px dashed #cbd5e1',
+                    borderRadius: 10,
+                    background: 'white',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 8,
+                    margin: '4px 0'
                   }}
                 >
-                  Drag tasks here to mark as {col.title}
+                  <span>No tasks in {col.title}</span>
+                  {onAddTask && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      style={{
+                        fontSize: 11.5,
+                        padding: '4px 10px',
+                        height: 28,
+                        gap: 4,
+                        background: '#f8fafc',
+                        borderColor: '#cbd5e1',
+                        color: 'var(--primary)',
+                        fontWeight: 600,
+                        borderRadius: 8
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddTask(col.id);
+                      }}
+                    >
+                      <Plus size={13} /> Add Task
+                    </button>
+                  )}
                 </div>
               ) : (
-                colTasks.map(t => {
-                  const overdue = t.status !== 'completed' && isOverdue(t.dueDate);
+                <>
+                  {colTasks.map(t => {
+                    const overdue = t.status !== 'completed' && isOverdue(t.dueDate);
                   const typeConf = TASK_TYPES[t.type] || { icon: '📋', label: t.type };
                   const priorityConf = TASK_PRIORITIES[t.priority] || { label: t.priority, badge: 'badge-gray' };
                   const isDragging = draggedId === t._id;
@@ -383,12 +430,36 @@ const TasksKanbanView = ({ tasks, onEditTask, onDeleteTask, onToggleTask, onStat
                       </div>
                     </div>
                   );
-                })
-              )}
-            </div>
+                })}
+                {onAddTask && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    style={{
+                      width: '100%',
+                      fontSize: 11.5,
+                      padding: '6px',
+                      gap: 4,
+                      color: 'var(--text-muted)',
+                      border: '1px dashed #cbd5e1',
+                      borderRadius: 8,
+                      marginTop: 4,
+                      background: '#fafbfc'
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddTask(col.id);
+                    }}
+                  >
+                    <Plus size={12} /> Add Task
+                  </button>
+                )}
+              </>
+            )}
           </div>
-        );
-      })}
+        </div>
+      );
+    })}
     </div>
   );
 };
@@ -406,8 +477,15 @@ export default function ActivitiesPage() {
 
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState('list'); // 'list' | 'kanban'
+  const [view, setView] = useState('kanban'); // 'kanban' (Board 1st default) | 'list'
   const [filter, setFilter] = useState(getFilterFromPath());
+  const [search, setSearch] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
+  const [taskTypeFilter, setTaskTypeFilter] = useState('');
+  const [dateRangeFilter, setDateRangeFilter] = useState('');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [sortBy, setSortBy] = useState('due_asc');
   const [showModal, setShowModal] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const { showNotification } = useUI();
@@ -468,14 +546,73 @@ export default function ActivitiesPage() {
     }
   };
 
-  const filtered = tasks.filter(t => {
-    if (filter === 'overdue') return t.status !== 'completed' && isOverdue(t.dueDate);
-    if (filter === 'call') return t.type === 'call';
-    if (filter === 'meeting') return t.type === 'meeting' || t.type === 'site_visit';
-    if (filter === 'pending') return t.status === 'pending';
-    if (filter === 'completed') return t.status === 'completed';
-    return true;
-  });
+  const filtered = tasks
+    .filter(t => {
+      if (filter === 'overdue') {
+        if (t.status === 'completed' || !isOverdue(t.dueDate)) return false;
+      } else if (filter === 'call') {
+        if (t.type !== 'call') return false;
+      } else if (filter === 'meeting') {
+        if (t.type !== 'meeting' && t.type !== 'site_visit') return false;
+      } else if (filter === 'pending') {
+        if (t.status !== 'pending') return false;
+      } else if (filter === 'completed') {
+        if (t.status !== 'completed') return false;
+      }
+
+      if (taskTypeFilter && t.type !== taskTypeFilter) return false;
+      if (priorityFilter && t.priority !== priorityFilter) return false;
+
+      if (dateRangeFilter) {
+        const d = new Date(t.dueDate || t.createdAt || Date.now());
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        if (dateRangeFilter === 'today') {
+          const endOfToday = new Date(startOfToday.getTime() + 86400000);
+          if (d < startOfToday || d >= endOfToday) return false;
+        }
+        if (dateRangeFilter === 'tomorrow') {
+          const startOfTomorrow = new Date(startOfToday.getTime() + 86400000);
+          const endOfTomorrow = new Date(startOfToday.getTime() + 2 * 86400000);
+          if (d < startOfTomorrow || d >= endOfTomorrow) return false;
+        }
+        if (dateRangeFilter === 'this_week') {
+          const endOfWeek = new Date(startOfToday.getTime() + 7 * 86400000);
+          if (d < startOfToday || d >= endOfWeek) return false;
+        }
+        if (dateRangeFilter === 'custom') {
+          if (customFrom) {
+            const fromTime = new Date(customFrom + 'T00:00:00').getTime();
+            if (d.getTime() < fromTime) return false;
+          }
+          if (customTo) {
+            const toTime = new Date(customTo + 'T23:59:59.999').getTime();
+            if (d.getTime() > toTime) return false;
+          }
+        }
+      }
+
+      if (search) {
+        const q = search.toLowerCase();
+        const matchesTitle = t.title?.toLowerCase().includes(q);
+        const matchesDesc = t.description?.toLowerCase().includes(q);
+        const matchesLead = t.lead?.name?.toLowerCase().includes(q);
+        const matchesUser = t.assignedTo?.name?.toLowerCase().includes(q);
+        if (!matchesTitle && !matchesDesc && !matchesLead && !matchesUser) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'due_asc') return new Date(a.dueDate || 0) - new Date(b.dueDate || 0);
+      if (sortBy === 'due_desc') return new Date(b.dueDate || 0) - new Date(a.dueDate || 0);
+      if (sortBy === 'created_desc') return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      if (sortBy === 'priority_desc') {
+        const weight = { high: 3, medium: 2, low: 1 };
+        return (weight[b.priority] || 0) - (weight[a.priority] || 0);
+      }
+      if (sortBy === 'title_asc') return (a.title || '').localeCompare(b.title || '');
+      return 0;
+    });
 
   return (
     <div>
@@ -516,39 +653,120 @@ export default function ActivitiesPage() {
           ))}
         </div>
 
-        {/* View Switcher: List vs Kanban */}
+        {/* View Switcher: Board vs List */}
         <div style={{ display: 'inline-flex', background: '#f1f5f9', padding: 3, borderRadius: 8, gap: 2 }}>
           <button
+            className={`btn btn-sm ${view === 'kanban' ? 'btn-primary' : 'btn-ghost'}`}
+            style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, gap: 4, fontWeight: 600 }}
+            onClick={() => setView('kanban')}
+            title="Kanban Board View (Default)"
+          >
+            <Columns size={14} /> Board
+          </button>
+          <button
             className={`btn btn-sm ${view === 'list' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6 }}
+            style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, gap: 4, fontWeight: 600 }}
             onClick={() => setView('list')}
             title="List / Table View"
           >
             <List size={14} /> List
           </button>
-          <button
-            className={`btn btn-sm ${view === 'kanban' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6 }}
-            onClick={() => setView('kanban')}
-            title="Kanban Board"
-          >
-            <Columns size={14} /> Kanban
-          </button>
         </div>
+      </div>
+
+      {/* Filter & Sort Bar */}
+      <div className="filter-bar">
+        <div className="filter-search">
+          <Search size={14} color="var(--text-muted)" />
+          <input
+            placeholder="Search task title, lead, note, or assignee…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+
+        <CustomSelect
+          variant="filter"
+          value={priorityFilter}
+          onChange={val => setPriorityFilter(val)}
+          options={[
+            { value: '', label: 'All Priorities' },
+            { value: 'high', label: '🔴 High Priority' },
+            { value: 'medium', label: '🟡 Medium Priority' },
+            { value: 'low', label: '🟢 Low Priority' }
+          ]}
+        />
+
+        <CustomSelect
+          variant="filter"
+          value={taskTypeFilter}
+          onChange={val => setTaskTypeFilter(val)}
+          options={[
+            { value: '', label: 'All Activity Types' },
+            { value: 'call', label: '📞 Phone Call' },
+            { value: 'meeting', label: '🤝 Meeting' },
+            { value: 'site_visit', label: '📍 Site Visit' },
+            { value: 'whatsapp', label: '💬 WhatsApp' },
+            { value: 'email', label: '📧 Email' }
+          ]}
+        />
+
+        <CustomSelect
+          variant="filter"
+          value={dateRangeFilter}
+          onChange={val => {
+            setDateRangeFilter(val);
+            if (val !== 'custom') { setCustomFrom(''); setCustomTo(''); }
+          }}
+          options={[
+            { value: '', label: '📅 All Due Dates' },
+            { value: 'today', label: 'Due Today' },
+            { value: 'tomorrow', label: 'Due Tomorrow' },
+            { value: 'this_week', label: 'Due in 7 Days' },
+            { value: 'custom', label: '📆 Custom Date (From - To)...' }
+          ]}
+        />
+
+        {dateRangeFilter === 'custom' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f8fafc', padding: '4px 10px', borderRadius: 8, border: '1px solid var(--card-border)' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>From:</span>
+            <input type="date" className="form-input" style={{ padding: '3px 8px', fontSize: 12, height: 32, width: 135 }} value={customFrom} onChange={e => setCustomFrom(e.target.value)} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>To:</span>
+            <input type="date" className="form-input" style={{ padding: '3px 8px', fontSize: 12, height: 32, width: 135 }} value={customTo} onChange={e => setCustomTo(e.target.value)} />
+            {(customFrom || customTo) && (
+              <button type="button" className="btn btn-ghost btn-icon btn-sm" style={{ padding: 2, height: 24, width: 24, color: 'var(--danger)' }} onClick={() => { setCustomFrom(''); setCustomTo(''); setDateRangeFilter(''); }} title="Clear Custom Date Filter"><X size={13} /></button>
+            )}
+          </div>
+        )}
+
+        <CustomSelect
+          variant="filter"
+          buttonStyle={{ fontWeight: 600, color: 'var(--primary)' }}
+          value={sortBy}
+          onChange={val => setSortBy(val)}
+          options={[
+            { value: 'due_asc', label: 'Sort: ⏰ Due Date (Earliest / Overdue First)' },
+            { value: 'due_desc', label: 'Sort: ⏰ Due Date (Latest First)' },
+            { value: 'priority_desc', label: 'Sort: 🔥 Priority (High to Low)' },
+            { value: 'created_desc', label: 'Sort: ⚡ Recently Created' },
+            { value: 'title_asc', label: 'Sort: 🔤 Title (A → Z)' }
+          ]}
+        />
       </div>
 
       {/* Task Content */}
       {loading ? <div className="loading-overlay"><div className="spinner" /></div> :
-        filtered.length === 0 ? (
-          <div className="card"><div className="empty-state"><div className="empty-state-icon"><CheckSquare size={28} /></div><div className="empty-state-title">No tasks in this category</div><button className="btn btn-primary" onClick={() => { setEditingTask(null); setShowModal(true); }}><Plus size={14} /> Create Task</button></div></div>
-        ) : view === 'kanban' ? (
+        view === 'kanban' ? (
           <TasksKanbanView
             tasks={filtered}
             onEditTask={t => { setEditingTask(t); setShowModal(true); }}
             onDeleteTask={deleteTask}
             onToggleTask={toggleTask}
             onStatusChange={handleStatusChange}
+            onAddTask={() => { setEditingTask(null); setShowModal(true); }}
           />
+        ) : filtered.length === 0 ? (
+          <div className="card"><div className="empty-state"><div className="empty-state-icon"><CheckSquare size={28} /></div><div className="empty-state-title">No tasks in this category</div><button className="btn btn-primary" onClick={() => { setEditingTask(null); setShowModal(true); }}><Plus size={14} /> Create Task</button></div></div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {filtered.map(t => {

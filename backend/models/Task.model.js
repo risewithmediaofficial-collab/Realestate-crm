@@ -22,7 +22,7 @@ const taskSchema = new mongoose.Schema({
   reminderAt: { type: Date },
   isReminderSent: { type: Boolean, default: false },
   // Organization & Multi-Tenancy Scoping
-  organization: { type: String, trim: true, default: 'Rise With RealtyHub' },
+  organization: { type: String, trim: true, required: true },
   tags: [String],
 }, { timestamps: true });
 

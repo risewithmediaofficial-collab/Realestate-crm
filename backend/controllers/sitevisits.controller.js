@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const SiteVisit = require('../models/SiteVisit.model');
 const Lead = require('../models/Lead.model');
 
@@ -8,8 +9,11 @@ const getSiteVisits = async (req, res, next) => {
 
     const isSuperAdmin = req.user?.role === 'super_admin';
     const userOrg = req.user?.organization;
-    if (!isSuperAdmin || req.query.organization) {
-      query.organization = req.query.organization || userOrg || 'Rise With RealtyHub';
+    if (isSuperAdmin) {
+      if (req.query.organization) query.organization = req.query.organization;
+    } else {
+      if (!userOrg) return res.json({ success: true, data: [], total: 0 });
+      query.organization = userOrg;
     }
 
     if (status) query.status = status;
@@ -35,7 +39,13 @@ const getSiteVisits = async (req, res, next) => {
 
 const getSiteVisit = async (req, res, next) => {
   try {
-    const visit = await SiteVisit.findById(req.params.id)
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const query = { _id: req.params.id };
+    if (!isSuperAdmin) {
+      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    }
+
+    const visit = await SiteVisit.findOne(query)
       .populate('lead', 'name phone email city budget interestedUnitType stage')
       .populate('project', 'name city address')
       .populate('assignedExecutive', 'name phone email avatar')
@@ -45,13 +55,16 @@ const getSiteVisit = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-const mongoose = require('mongoose');
 const createSiteVisit = async (req, res, next) => {
   try {
+    const isSuperAdmin = req.user?.role === 'super_admin';
     const payload = { ...req.body };
-    const userOrg = req.user?.organization || 'Rise With RealtyHub';
-    if (!payload.organization) {
+    const userOrg = req.user?.organization;
+    if (!isSuperAdmin || !payload.organization) {
       payload.organization = userOrg;
+    }
+    if (!payload.organization) {
+      return res.status(400).json({ success: false, message: 'User organization is required to create a site visit' });
     }
     if (!payload.createdBy && req.user?._id && mongoose.Types.ObjectId.isValid(req.user._id)) {
       payload.createdBy = req.user._id;
@@ -80,7 +93,13 @@ const createSiteVisit = async (req, res, next) => {
 
 const updateSiteVisit = async (req, res, next) => {
   try {
-    const visit = await SiteVisit.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const query = { _id: req.params.id };
+    if (!isSuperAdmin) {
+      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    }
+
+    const visit = await SiteVisit.findOneAndUpdate(query, req.body, { new: true, runValidators: true })
       .populate('lead', 'name phone').populate('project', 'name').populate('assignedExecutive', 'name');
     if (!visit) return res.status(404).json({ success: false, message: 'Site visit not found' });
     res.json({ success: true, data: visit });
@@ -89,8 +108,14 @@ const updateSiteVisit = async (req, res, next) => {
 
 const checkIn = async (req, res, next) => {
   try {
-    const visit = await SiteVisit.findByIdAndUpdate(
-      req.params.id,
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const query = { _id: req.params.id };
+    if (!isSuperAdmin) {
+      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    }
+
+    const visit = await SiteVisit.findOneAndUpdate(
+      query,
       { status: 'in_progress', checkInTime: new Date(), checkInLocation: req.body.location, otpVerified: req.body.otpVerified || false },
       { new: true }
     );
@@ -101,9 +126,15 @@ const checkIn = async (req, res, next) => {
 
 const checkOut = async (req, res, next) => {
   try {
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const query = { _id: req.params.id };
+    if (!isSuperAdmin) {
+      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    }
+
     const { outcome, feedback, rating, unitsShown, shortlistedUnit } = req.body;
-    const visit = await SiteVisit.findByIdAndUpdate(
-      req.params.id,
+    const visit = await SiteVisit.findOneAndUpdate(
+      query,
       { status: 'completed', checkOutTime: new Date(), outcome, feedback, rating, unitsShown, shortlistedUnit },
       { new: true }
     ).populate('lead');
@@ -121,7 +152,13 @@ const checkOut = async (req, res, next) => {
 
 const deleteSiteVisit = async (req, res, next) => {
   try {
-    const visit = await SiteVisit.findByIdAndDelete(req.params.id);
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const query = { _id: req.params.id };
+    if (!isSuperAdmin) {
+      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    }
+
+    const visit = await SiteVisit.findOneAndDelete(query);
     if (!visit) return res.status(404).json({ success: false, message: 'Site visit not found' });
     res.json({ success: true, message: 'Site visit deleted successfully' });
   } catch (err) { next(err); }
@@ -131,15 +168,21 @@ const getSiteVisitStats = async (req, res, next) => {
   try {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const userOrg = req.user?.organization;
+    const match = isSuperAdmin
+      ? (req.query.organization ? { organization: req.query.organization } : {})
+      : { organization: userOrg || '__NO_ORG__' };
+
     const [total, todayVisits, completed, scheduled, cancelled] = await Promise.all([
-      SiteVisit.countDocuments(),
-      SiteVisit.countDocuments({ scheduledDate: { $gte: today, $lt: tomorrow } }),
-      SiteVisit.countDocuments({ status: 'completed' }),
-      SiteVisit.countDocuments({ status: { $in: ['scheduled', 'confirmed'] } }),
-      SiteVisit.countDocuments({ status: 'cancelled' }),
+      SiteVisit.countDocuments(match),
+      SiteVisit.countDocuments({ ...match, scheduledDate: { $gte: today, $lt: tomorrow } }),
+      SiteVisit.countDocuments({ ...match, status: 'completed' }),
+      SiteVisit.countDocuments({ ...match, status: { $in: ['scheduled', 'confirmed'] } }),
+      SiteVisit.countDocuments({ ...match, status: 'cancelled' }),
     ]);
     const outcomeStats = await SiteVisit.aggregate([
-      { $match: { status: 'completed', outcome: { $exists: true } } },
+      { $match: { ...match, status: 'completed', outcome: { $exists: true } } },
       { $group: { _id: '$outcome', count: { $sum: 1 } } },
     ]);
     res.json({ success: true, data: { total, todayVisits, completed, scheduled, cancelled, outcomeStats } });

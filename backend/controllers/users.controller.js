@@ -5,6 +5,15 @@ const getUsers = async (req, res, next) => {
   try {
     const { role, isActive, approvalStatus, search, page = 1, limit = 50 } = req.query;
     const query = {};
+
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const userOrg = req.user?.organization;
+    if (isSuperAdmin) {
+      if (req.query.organization) query.organization = req.query.organization;
+    } else {
+      query.organization = userOrg || '__NO_ORG__';
+    }
+
     if (role) query.role = role;
     if (isActive !== undefined) query.isActive = isActive === 'true';
     if (approvalStatus) query.approvalStatus = approvalStatus;
@@ -23,9 +32,9 @@ const getUsers = async (req, res, next) => {
         .select('-password')
         .populate('approvedBy', 'name email'),
       User.countDocuments(query),
-      User.countDocuments({ approvalStatus: 'pending', role: { $ne: 'super_admin' } }),
-      User.countDocuments({ approvalStatus: 'approved', role: { $ne: 'super_admin' } }),
-      User.countDocuments({ approvalStatus: 'rejected', role: { $ne: 'super_admin' } }),
+      User.countDocuments({ ...query, approvalStatus: 'pending', role: { $ne: 'super_admin' } }),
+      User.countDocuments({ ...query, approvalStatus: 'approved', role: { $ne: 'super_admin' } }),
+      User.countDocuments({ ...query, approvalStatus: 'rejected', role: { $ne: 'super_admin' } }),
     ]);
     res.json({
       success: true,
@@ -38,7 +47,13 @@ const getUsers = async (req, res, next) => {
 
 const getUser = async (req, res, next) => {
   try {
-    const user = await User.findById(req.params.id).select('-password').populate('approvedBy', 'name email');
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const query = { _id: req.params.id };
+    if (!isSuperAdmin) {
+      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    }
+
+    const user = await User.findOne(query).select('-password').populate('approvedBy', 'name email');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     res.json({ success: true, data: user });
   } catch (err) { next(err); }
@@ -46,21 +61,49 @@ const getUser = async (req, res, next) => {
 
 const createUser = async (req, res, next) => {
   try {
-    const { name, email, password, role, phone, organization, city, isApproved, approvalStatus } = req.body;
-    const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ success: false, message: 'Email already exists' });
+    const { name, email, username, password, role, phone, organization, city, isApproved, approvalStatus } = req.body;
+    const normalizedEmail = (email || '').trim().toLowerCase();
+    const normalizedUsername = (username || (email ? email.split('@')[0] : '')).trim().toLowerCase();
+    const isSuperAdmin = req.user?.role === 'super_admin';
+
+    if (!name || !normalizedEmail || !password || !String(password).trim()) {
+      return res.status(400).json({ success: false, message: 'Name, email, and password are required to create an employee account.' });
+    }
+
+    // Role sanitization: ensure clean string
+    let sanitizedRole = 'telecaller';
+    if (typeof role === 'string' && role.trim()) {
+      sanitizedRole = role.trim();
+    } else if (typeof role === 'object' && role !== null) {
+      sanitizedRole = role.value || role.target?.value || 'telecaller';
+    }
+
+    const existingUser = await User.findOne({
+      $or: [
+        { email: normalizedEmail },
+        ...(normalizedUsername ? [{ username: normalizedUsername }] : [])
+      ]
+    });
+    if (existingUser) return res.status(400).json({ success: false, message: 'Email or username already exists' });
+
+    // Target organization inheritance
+    const targetOrg = isSuperAdmin
+      ? (organization && organization !== 'RealtyHub Organization' ? organization.trim() : (req.user?.organization || 'MRP REAL ESTATE'))
+      : (req.user?.organization || (organization && organization !== 'RealtyHub Organization' ? organization.trim() : 'MRP REAL ESTATE'));
+
     const user = await User.create({
-      name,
-      email,
-      password: password || 'Password@123',
-      role,
-      phone,
-      organization: organization || 'RealtyHub Organization',
-      city,
-      approvalStatus: approvalStatus || (isApproved ? 'approved' : 'pending'),
-      isApproved: isApproved !== undefined ? isApproved : true,
+      name: name.trim(),
+      email: normalizedEmail,
+      username: normalizedUsername,
+      password,
+      role: sanitizedRole,
+      phone: phone ? phone.trim() : '',
+      organization: targetOrg,
+      city: city ? city.trim() : '',
+      approvalStatus: 'approved',
+      isApproved: true,
       isActive: true,
-      approvedAt: isApproved ? new Date() : undefined,
+      approvedAt: new Date(),
       approvedBy: req.user?._id
     });
     res.status(201).json({ success: true, data: user.toJSON() });
@@ -69,7 +112,10 @@ const createUser = async (req, res, next) => {
 
 const updateUser = async (req, res, next) => {
   try {
-    const { password, ...updateData } = req.body;
+    const { password, username, ...updateData } = req.body;
+    if (username) {
+      updateData.username = username.trim().toLowerCase();
+    }
     if (password) {
       updateData.password = await bcrypt.hash(password, 12);
     }

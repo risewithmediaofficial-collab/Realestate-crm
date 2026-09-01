@@ -1,54 +1,67 @@
 const mongoose = require('mongoose');
 
 const pricingSchema = new mongoose.Schema({
+  baseRate: { type: Number, default: 0 },
+  rateType: {
+    type: String,
+    enum: ['per_sqft', 'per_sqyard', 'per_cent', 'per_guntha', 'per_ground', 'per_acre', 'per_bigha', 'fixed'],
+    default: 'per_sqft'
+  },
   basePrice: { type: Number, default: 0 },
+  developmentCharges: { type: Number, default: 0 },
+  registrationCharges: { type: Number, default: 0 },
+  otherCharges: { type: Number, default: 0 },
+  totalPackagePrice: { type: Number, default: 0 },
+  totalPrice: { type: Number, default: 0 },
   plc: { type: Number, default: 0 },         // Preferential Location Charges
   floorRise: { type: Number, default: 0 },
   parkingCharges: { type: Number, default: 0 },
   amenityCharges: { type: Number, default: 0 },
   gst: { type: Number, default: 0 },          // percentage
-  otherCharges: { type: Number, default: 0 },
   discount: { type: Number, default: 0 },
-  totalPrice: { type: Number, default: 0 },
 });
 
 const unitSchema = new mongoose.Schema({
   // Identity
-  unitNumber: { type: String, required: true },  // e.g. "A-502"
+  unitNumber: { type: String, required: true, trim: true },  // e.g. "Plot 105", "A-502", "Farm Lot 12"
   unitName: { type: String },
   project: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true },
-  tower: { type: String, required: true },       // Tower code e.g. "A"
+  tower: { type: String, default: 'Main' },                  // Tower / Block / Sector code e.g. "A"
+  block: { type: String, trim: true },                       // Sector / Zone / Block Name e.g. "Sector A", "Zone 1"
   towerName: { type: String },
-  floor: { type: Number, required: true },
+  floor: { type: Number, default: 1 },
   floorName: { type: String },
 
-  // Unit Details
-  type: { type: String, required: true },        // e.g. "3BHK", "30x40 Plot", "Office Suite", "Retail Shop"
-  category: {
+  // Property Type & Land Category
+  propertyType: {
     type: String,
     enum: [
-      'residential', 'residential_apartment',
-      'villa',
-      'plots', 'plotted_development',
-      'commercial', 'commercial_office',
-      'retail', 'retail_shop',
-      'industrial', 'industrial_warehouse',
-      'farmland',
-      'mixed', 'mixed_use',
-      'other'
+      'agricultural_land', 'farmland', 'plots', 'layouts', 'resort_plots',
+      'residential_apartment', 'villa', 'commercial_office', 'retail_shop',
+      'industrial_warehouse', 'mixed_use', 'other', 'custom'
     ],
-    default: 'residential'
+    default: 'plots'
   },
+  type: { type: String, required: true },                    // e.g. "Agricultural Land", "Farm Land", "3BHK", "Residential Plot"
+  landType: { type: String },                                // e.g. "Agricultural Land", "Farm Land", "Plantation Land", "Residential Plot", "Commercial Plot", "Other"
+  category: { type: String, default: 'plots' },
   facing: {
     type: String,
-    enum: ['north', 'south', 'east', 'west', 'ne', 'nw', 'se', 'sw', 'corner', 'road_facing', 'park_facing', 'other'],
+    enum: ['north', 'south', 'east', 'west', 'ne', 'nw', 'se', 'sw', 'corner', 'road_facing', 'park_facing', 'custom', 'other'],
     default: 'east'
   },
+  customFacing: { type: String },
+
+  // Area Structure (Canonical sq.ft + User Extent + Unit)
   area: {
+    extent: { type: Number },                                // User entered extent e.g. 0.5
+    unit: { type: String, default: 'sqft' },                 // 'sqft', 'sqyard', 'acre', 'guntha', 'cent', 'ground', 'bigha', 'custom'
+    sqft: { type: Number },                                  // Canonical Total Sq.Ft
+    customSqFtPerUnit: { type: Number },
     carpet: { type: Number },
     builtUp: { type: Number },
     superBuiltUp: { type: Number },
-    plotArea: { type: Number },          // in sq.ft / sq.yards for plots & villas
+    plotArea: { type: Number },                              // in sq.ft for plots
     carpetArea: { type: Number },
   },
   bedrooms: { type: Number },
@@ -56,47 +69,81 @@ const unitSchema = new mongoose.Schema({
   balconies: { type: Number, default: 0 },
   parking: { type: Number, default: 0 },
 
-  // Category-Specific Specs
+  // Physical Features
+  physicalDetails: {
+    facing: { type: String },
+    roadWidth: { type: Number },                             // in ft e.g. 30, 40, 60
+    isCorner: { type: Boolean, default: false },
+    electricity: {
+      type: String,
+      enum: ['available', 'nearby', 'not_available', 'none', ''],
+      default: 'available'
+    },
+    waterSource: {
+      type: String,
+      enum: ['borewell', 'open_well', 'canal', 'lake', 'rainwater', 'other', 'none', ''],
+      default: 'borewell'
+    },
+    customWaterSource: { type: String },
+    frontage: { type: Number },                              // in ft
+    ceilingHeight: { type: Number },
+    suitableFor: { type: String },
+    fitoutStatus: { type: String, default: 'unspecified' },
+  },
+
+  // Agricultural Specifications
+  agriculturalDetails: {
+    plantation: { type: String },                            // e.g. "Alphonso Mango, Sandalwood, Teak"
+    irrigation: {
+      type: String,
+      enum: ['borewell', 'drip', 'sprinkler', 'canal', 'automated_drip', 'rain_fed', 'other', 'none', ''],
+      default: 'drip'
+    },
+    customIrrigation: { type: String },
+    fencing: {
+      type: String,
+      enum: ['none', 'chain_link', 'stone_fencing', 'compound_wall', 'live_fencing', 'other', ''],
+      default: 'none'
+    },
+    customFencing: { type: String },
+  },
+
+  // Legacy compatibility structures
   dimensions: {
-    length: { type: Number },            // e.g. 40 ft
-    width: { type: Number },             // e.g. 30 ft
+    length: { type: Number },
+    width: { type: Number },
     unit: { type: String, default: 'ft' }
   },
   plotDetails: {
-    dimensionStr: { type: String },      // e.g. "30 x 40 ft"
-    roadWidth: { type: Number },         // e.g. 40 ft road
+    dimensionStr: { type: String },
+    roadWidth: { type: Number },
     isCornerPlot: { type: Boolean, default: false },
     boundaryWall: { type: Boolean, default: false },
-    approvalAuthority: { type: String }, // e.g. "DTCP Approved"
+    approvalAuthority: { type: String },
   },
   villaDetails: {
-    levels: { type: String },            // e.g. "G+1", "G+2"
-    gardenArea: { type: Number },        // in sq.ft
+    levels: { type: String },
+    gardenArea: { type: Number },
     coveredCarParks: { type: Number, default: 1 },
     privateTerrace: { type: Boolean, default: false },
   },
   commercialDetails: {
-    frontage: { type: Number },          // in ft (for retail shops)
-    ceilingHeight: { type: Number },     // in ft
-    fitoutStatus: { type: String, enum: ['bare_shell', 'warm_shell', 'fully_furnished', 'plug_and_play', 'unspecified'], default: 'unspecified' },
+    frontage: { type: Number },
+    ceilingHeight: { type: Number },
+    fitoutStatus: { type: String, default: 'unspecified' },
     powerBackupKva: { type: Number },
-    suitableFor: { type: String },       // e.g. "IT Office, Clinic, Bank, Restaurant"
-  },
-  industrialDetails: {
-    clearHeight: { type: Number },       // in ft (e.g. 32ft)
-    loadingDocks: { type: Number },
-    flooringCapacityMt: { type: Number },
+    suitableFor: { type: String },
   },
   farmlandDetails: {
     extentAcres: { type: Number },
-    plantationType: { type: String },    // e.g. "Teak / Mango / Organic"
-    waterSource: { type: String },       // e.g. "Borewell + Drip Irrigation"
+    plantationType: { type: String },
+    waterSource: { type: String },
   },
 
-  // Status & Holds
+  // Status & Holds (standardized across CRM)
   status: {
     type: String,
-    enum: ['available', 'on_hold', 'blocked', 'booked', 'sold', 'not_for_sale'],
+    enum: ['available', 'reserved', 'on_hold', 'blocked', 'booked', 'registered', 'sold', 'cancelled', 'not_for_sale'],
     default: 'available',
   },
   holdExpiry: { type: Date },
@@ -126,6 +173,7 @@ const unitSchema = new mongoose.Schema({
     paymentMode: { type: String },
     transactionRef: { type: String },
     bookingDate: { type: Date, default: Date.now },
+    bookingStatus: { type: String, default: 'approved' },
     coApplicantName: { type: String },
     coApplicantPhone: { type: String },
     coApplicantRelation: { type: String },
@@ -144,7 +192,7 @@ const unitSchema = new mongoose.Schema({
   isPenthouse: { type: Boolean, default: false },
   floorPlan: { type: String },
   // Organization & Multi-Tenancy Scoping
-  organization: { type: String, trim: true, default: 'Rise With RealtyHub' },
+  organization: { type: String, trim: true, required: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 
   isActive: { type: Boolean, default: true },
@@ -153,5 +201,6 @@ const unitSchema = new mongoose.Schema({
 unitSchema.index({ organization: 1 });
 unitSchema.index({ project: 1, status: 1 });
 unitSchema.index({ project: 1, tower: 1, floor: 1 });
+unitSchema.index({ project: 1, block: 1, unitNumber: 1 });
 
 module.exports = mongoose.model('Unit', unitSchema);

@@ -8,15 +8,24 @@ const getProjects = async (req, res, next) => {
 
     const isSuperAdmin = req.user?.role === 'super_admin';
     const userOrg = req.user?.organization;
-    if (!isSuperAdmin || req.query.organization) {
-      query.organization = req.query.organization || userOrg || 'Rise With RealtyHub';
+    const requestedOrg = req.query.organization;
+
+    if (isSuperAdmin) {
+      if (requestedOrg) {
+        query.organization = { $regex: new RegExp(`^${requestedOrg.trim()}$`, 'i') };
+      }
+    } else {
+      if (!userOrg) {
+        return res.json({ success: true, data: [] });
+      }
+      query.organization = { $regex: new RegExp(`^${userOrg.trim()}$`, 'i') };
     }
 
     if (status) query.status = status;
     if (city) query.city = { $regex: city, $options: 'i' };
     if (type) query.type = type;
     if (search) query.$or = [{ name: { $regex: search, $options: 'i' } }, { code: { $regex: search, $options: 'i' } }];
-    const projects = await Project.find(query).populate('salesHead', 'name email').sort('-createdAt');
+    const projects = await Project.find(query).populate('createdBy', 'name email').sort('-createdAt');
     
     // Attach unitStats for each project
     const projectListWithStats = await Promise.all(projects.map(async (p) => {
@@ -38,7 +47,15 @@ const getProjects = async (req, res, next) => {
 
 const getProject = async (req, res, next) => {
   try {
-    const project = await Project.findById(req.params.id).populate('salesHead', 'name email phone');
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const query = { _id: req.params.id };
+    if (!isSuperAdmin) {
+      const userOrg = req.user?.organization;
+      if (!userOrg) return res.status(404).json({ success: false, message: 'Project not found' });
+      query.organization = { $regex: new RegExp(`^${userOrg.trim()}$`, 'i') };
+    }
+
+    const project = await Project.findOne(query).populate('createdBy', 'name email phone');
     if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
     const unitStats = await Unit.aggregate([
       { $match: { project: project._id } },
@@ -50,11 +67,17 @@ const getProject = async (req, res, next) => {
 
 const createProject = async (req, res, next) => {
   try {
+    const isSuperAdmin = req.user?.role === 'super_admin';
     const payload = { ...req.body };
-    const userOrg = req.user?.organization || 'Rise With RealtyHub';
-    if (!payload.organization) {
+    const userOrg = req.user?.organization;
+
+    if (!isSuperAdmin || !payload.organization) {
       payload.organization = userOrg;
     }
+    if (!payload.organization) {
+      return res.status(400).json({ success: false, message: 'User organization is required to create a project' });
+    }
+
     if (!payload.createdBy && req.user?._id) {
       payload.createdBy = req.user._id;
     }
@@ -73,7 +96,13 @@ const createProject = async (req, res, next) => {
 
 const updateProject = async (req, res, next) => {
   try {
-    const project = await Project.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const query = { _id: req.params.id };
+    if (!isSuperAdmin) {
+      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    }
+
+    const project = await Project.findOneAndUpdate(query, req.body, { new: true, runValidators: true });
     if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
     res.json({ success: true, data: project });
   } catch (err) { next(err); }
@@ -81,7 +110,13 @@ const updateProject = async (req, res, next) => {
 
 const deleteProject = async (req, res, next) => {
   try {
-    const project = await Project.findByIdAndDelete(req.params.id);
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const query = { _id: req.params.id };
+    if (!isSuperAdmin) {
+      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    }
+
+    const project = await Project.findOneAndDelete(query);
     if (!project) return res.status(404).json({ success: false, message: 'Project not found' });
     await Unit.deleteMany({ project: req.params.id });
     res.json({ success: true, message: 'Project and associated inventory deleted' });

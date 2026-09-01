@@ -6,9 +6,12 @@ import {
   CreditCard, UserCheck, CheckCircle
 } from 'lucide-react';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { UNIT_STATUSES, REAL_ESTATE_CATEGORIES, CATEGORY_TYPOLOGIES, FACING_OPTIONS } from '../../utils/constants';
 import { formatCurrency, formatArea } from '../../utils/formatters';
+import AddInventoryModal from '../../components/inventory/AddInventoryModal';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 // ─── Co-Applicant Relationships ─────────────────────────────
 const CO_APPLICANT_RELATIONS = [
@@ -29,7 +32,7 @@ const CO_APPLICANT_RELATIONS = [
 const defaultLeads = [];
 
 // ─── Inventory Kanban View ────────────────────────
-const InventoryKanbanView = ({ units, onUnitClick, onUpdateStatus, onDeleteUnit }) => {
+const InventoryKanbanView = ({ units, onUnitClick, onUpdateStatus, onDeleteUnit, isAdmin }) => {
   const [draggedId, setDraggedId] = useState(null);
   const [dragOverCol, setDragOverCol] = useState(null);
 
@@ -220,14 +223,16 @@ const InventoryKanbanView = ({ units, onUnitClick, onUpdateStatus, onDeleteUnit 
                           >
                             <Eye size={12} />
                           </button>
-                          <button
-                            className="btn btn-ghost btn-icon btn-sm"
-                            style={{ padding: 2, height: 20, width: 20, color: 'var(--danger)' }}
-                            title="Delete Unit"
-                            onClick={() => onDeleteUnit(unit._id, unit.unitNumber)}
-                          >
-                            <Trash2 size={12} />
-                          </button>
+                          {isAdmin && (
+                            <button
+                              className="btn btn-ghost btn-icon btn-sm"
+                              style={{ padding: 2, height: 20, width: 20, color: 'var(--danger)' }}
+                              title="Delete Unit"
+                              onClick={() => onDeleteUnit(unit._id, unit.unitNumber)}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -245,7 +250,7 @@ const InventoryKanbanView = ({ units, onUnitClick, onUpdateStatus, onDeleteUnit 
 const initialMockMatrix = {};
 
 // Unit detail drawer
-const UnitPopup = ({ unit, onClose, onOpenHoldModal, onOpenBookingModal, onReleaseHold, onDeleteUnit }) => {
+const UnitPopup = ({ unit, onClose, onOpenHoldModal, onOpenBookingModal, onReleaseHold, onDeleteUnit, isAdmin }) => {
   const navigate = useNavigate();
   const { showNotification } = useUI();
 
@@ -302,18 +307,46 @@ const UnitPopup = ({ unit, onClose, onOpenHoldModal, onOpenBookingModal, onRelea
             </div>
           )}
 
-          {/* Booked Customer Banner */}
+          {/* Booked Customer KYC & Application Banner */}
           {unit.status === 'booked' && (
-            <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                <Check size={14} /> Official Customer Booking
+            <div style={{ background: '#eff6ff', border: '1.5px solid #bfdbfe', borderRadius: 10, padding: 14, marginBottom: 18 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, paddingBottom: 6, borderBottom: '1px solid #dbeafe' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Check size={15} color="#2563eb" /> Official Customer Booking Record
+                </span>
+                <span className="badge badge-primary" style={{ fontSize: 10 }}>Booked</span>
               </div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#1e40af' }}>
-                👤 {unit.bookingCustomer?.name || 'Primary Applicant'}
-              </div>
-              <div style={{ fontSize: 12, color: '#1e40af', marginTop: 3 }}>
-                📞 {unit.bookingCustomer?.phone || 'No phone'}
-                {unit.bookingCustomer?.tokenAmount && ` • Token Paid: ${formatCurrency(unit.bookingCustomer.tokenAmount)} (${unit.bookingCustomer.paymentMode || 'NEFT'})`}
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, fontSize: 12 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>PRIMARY APPLICANT</div>
+                  <div style={{ fontWeight: 800, color: '#1e40af', fontSize: 13, marginTop: 1 }}>{unit.bookingCustomer?.name || 'Primary Applicant'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>CONTACT PHONE</div>
+                  <div style={{ fontWeight: 700, color: '#1e293b', marginTop: 1 }}>📞 {unit.bookingCustomer?.phone || 'No phone'}</div>
+                </div>
+                {unit.bookingCustomer?.email && (
+                  <div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>EMAIL ADDRESS</div>
+                    <div style={{ color: '#1e293b', marginTop: 1 }}>✉️ {unit.bookingCustomer.email}</div>
+                  </div>
+                )}
+                {unit.bookingCustomer?.panNumber && (
+                  <div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>PAN NUMBER</div>
+                    <div style={{ fontWeight: 700, fontFamily: 'monospace', color: '#1e293b', marginTop: 1 }}>{unit.bookingCustomer.panNumber}</div>
+                  </div>
+                )}
+                {unit.bookingCustomer?.tokenAmount && (
+                  <div style={{ background: '#dcfce7', padding: '6px 8px', borderRadius: 6, gridColumn: 'span 2' }}>
+                    <div style={{ fontSize: 10, color: '#15803d', fontWeight: 700 }}>TOKEN ADVANCE PAID</div>
+                    <div style={{ fontWeight: 800, color: '#166534', fontSize: 14, marginTop: 1 }}>
+                      {formatCurrency(unit.bookingCustomer.tokenAmount)} ({unit.bookingCustomer.paymentMode || 'NEFT'})
+                      {unit.bookingCustomer.transactionRef && ` • Ref: ${unit.bookingCustomer.transactionRef}`}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -390,12 +423,26 @@ const UnitPopup = ({ unit, onClose, onOpenHoldModal, onOpenBookingModal, onRelea
               </button>
             </>
           )}
+          {unit.status === 'booked' && (
+            <button
+              className="btn btn-primary btn-sm"
+              style={{ gap: 5 }}
+              onClick={() => {
+                onClose();
+                navigate('/bookings');
+              }}
+            >
+              <FileText size={13} /> Open in Bookings Register →
+            </button>
+          )}
           <button className="btn btn-secondary btn-sm" onClick={handleCostSheet}>
             <FileText size={13} /> Cost Sheet
           </button>
-          <button className="btn btn-ghost btn-sm text-danger" style={{ color: 'var(--danger)', marginLeft: 'auto' }} onClick={() => onDeleteUnit(unit._id, unit.unitNumber)}>
-            <Trash2 size={13} /> Delete
-          </button>
+          {isAdmin && (
+            <button className="btn btn-ghost btn-sm text-danger" style={{ color: 'var(--danger)', marginLeft: 'auto' }} onClick={() => onDeleteUnit(unit._id, unit.unitNumber)}>
+              <Trash2 size={13} /> Delete
+            </button>
+          )}
         </div>
       </div>
     </>
@@ -425,7 +472,10 @@ export default function InventoryPage() {
   const [selectedUnit, setSelectedUnit] = useState(null);
   const [selectedProject, setSelectedProject] = useState('');
   const [showAddUnitModal, setShowAddUnitModal] = useState(false);
-  const { showNotification } = useUI();
+  const { user } = useAuth();
+  const { simulatedRole, showNotification } = useUI();
+  const effectiveRole = simulatedRole || user?.role || 'admin';
+  const isAdmin = ['admin', 'super_admin', 'director'].includes(effectiveRole);
   const [leadsList, setLeadsList] = useState([]);
 
   // Customer Hold & Booking Modals State
@@ -439,7 +489,7 @@ export default function InventoryPage() {
     customerEmail: '',
     durationHours: '',
     holdReason: '',
-    agentName: 'Sales Representative'
+    agentName: ''
   });
 
   const [bookingForm, setBookingForm] = useState({
@@ -455,12 +505,12 @@ export default function InventoryPage() {
     coApplicantEmail: '',
     coApplicantPan: '',
     coApplicantAadhaar: '',
-    coApplicantRelation: 'Spouse',
+    coApplicantRelation: '',
     tokenAmount: '',
-    paymentMode: 'Cheque',
+    paymentMode: '',
     transactionRef: '',
-    bookingDate: new Date().toISOString().split('T')[0],
-    agentName: 'Sales Representative',
+    bookingDate: '',
+    agentName: '',
     specialNotes: ''
   });
 
@@ -487,7 +537,7 @@ export default function InventoryPage() {
       customerEmail: '',
       durationHours: '',
       holdReason: '',
-      agentName: 'Sales Representative'
+      agentName: ''
     });
   };
 
@@ -512,8 +562,6 @@ export default function InventoryPage() {
 
   const openBookingModal = (unit) => {
     setBookingUnit(unit);
-    const defaultToken = String(Math.min(200000, Math.round((unit.pricing?.totalPrice || 5000000) * 0.05)));
-
     if (unit.holdCustomer?.name) {
       const matchedLead = leadsList.find(l => l.name?.toLowerCase() === unit.holdCustomer.name?.toLowerCase() || l.phone === unit.holdCustomer.phone);
       setBookingForm({
@@ -529,12 +577,12 @@ export default function InventoryPage() {
         coApplicantEmail: '',
         coApplicantPan: '',
         coApplicantAadhaar: '',
-        coApplicantRelation: 'Spouse',
-        tokenAmount: defaultToken,
-        paymentMode: 'Cheque',
-        transactionRef: `TXN-${Date.now().toString().slice(-6)}`,
-        bookingDate: new Date().toISOString().split('T')[0],
-        agentName: unit.holdCustomer.agentName || 'Sales Representative',
+        coApplicantRelation: '',
+        tokenAmount: '',
+        paymentMode: '',
+        transactionRef: '',
+        bookingDate: '',
+        agentName: unit.holdCustomer.agentName || '',
         specialNotes: unit.holdCustomer.reason || ''
       });
     } else {
@@ -551,12 +599,12 @@ export default function InventoryPage() {
         coApplicantEmail: '',
         coApplicantPan: '',
         coApplicantAadhaar: '',
-        coApplicantRelation: 'Spouse',
-        tokenAmount: defaultToken,
-        paymentMode: 'Cheque',
-        transactionRef: `TXN-${Date.now().toString().slice(-6)}`,
-        bookingDate: new Date().toISOString().split('T')[0],
-        agentName: 'Sales Representative',
+        coApplicantRelation: '',
+        tokenAmount: '',
+        paymentMode: '',
+        transactionRef: '',
+        bookingDate: '',
+        agentName: '',
         specialNotes: ''
       });
     }
@@ -727,27 +775,15 @@ export default function InventoryPage() {
           setProjectsList(data.data);
           setSelectedProject(data.data[0]._id);
         } else {
-          const savedLocal = localStorage.getItem('crm_user_projects');
-          const parsed = savedLocal ? JSON.parse(savedLocal) : [];
-          setProjectsList(parsed);
-          if (parsed.length > 0) {
-            setSelectedProject(parsed[0]._id);
-          } else {
-            setSelectedProject('');
-            setMatrix({});
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch projects for inventory:', err);
-        const savedLocal = localStorage.getItem('crm_user_projects');
-        const parsed = savedLocal ? JSON.parse(savedLocal) : [];
-        setProjectsList(parsed);
-        if (parsed.length > 0) {
-          setSelectedProject(parsed[0]._id);
-        } else {
+          setProjectsList([]);
           setSelectedProject('');
           setMatrix({});
         }
+      } catch (err) {
+        console.error('Failed to fetch projects for inventory:', err);
+        setProjectsList([]);
+        setSelectedProject('');
+        setMatrix({});
       } finally {
         setLoading(false);
       }
@@ -757,14 +793,15 @@ export default function InventoryPage() {
 
   // New Unit Form state
   const [newUnitForm, setNewUnitForm] = useState({
+    project: '',
     unitNumber: '',
-    tower: 'A',
-    floor: '1',
-    type: '2BHK',
-    area: '950',
-    totalPrice: '8100000',
-    basePrice: '6840000',
-    facing: 'east',
+    tower: '',
+    floor: '',
+    type: '',
+    area: '',
+    totalPrice: '',
+    basePrice: '',
+    facing: '',
     status: 'available'
   });
 
@@ -785,7 +822,7 @@ export default function InventoryPage() {
     const fetchMatrix = async () => {
       setLoading(true);
       try {
-        const { data } = await api.get(`/inventory/matrix/${selectedProject}`);
+        const { data } = await api.get('/inventory/matrix', { params: { project: selectedProject } });
         if (data.data && Object.keys(data.data).length > 0) {
           setMatrix(data.data);
           const firstTower = Object.keys(data.data)[0];
@@ -843,6 +880,12 @@ export default function InventoryPage() {
 
   const handleAddUnit = async (e) => {
     e.preventDefault();
+    const targetProject = newUnitForm.project || selectedProject || (projectsList[0]?._id);
+    if (!targetProject) {
+      showNotification('Please select a project first to add inventory units!', 'error');
+      return;
+    }
+
     const tower = newUnitForm.tower;
     const floor = Number(newUnitForm.floor);
     const uNum = newUnitForm.unitNumber || `${tower}-${floor}0${Math.floor(Math.random() * 8) + 1}`;
@@ -850,15 +893,15 @@ export default function InventoryPage() {
     const bPrice = Number(newUnitForm.basePrice);
 
     const payload = {
-      project: selectedProject || (projectsList[0]?._id),
+      project: targetProject,
       unitNumber: uNum,
       tower,
       floor,
-      type: newUnitForm.type,
-      status: newUnitForm.status,
-      area: { superBuiltUp: Number(newUnitForm.area) },
+      type: newUnitForm.type || '3 BHK',
+      status: newUnitForm.status || 'available',
+      area: { superBuiltUp: Number(newUnitForm.area) || 1200 },
       pricing: { totalPrice: totPrice, basePrice: bPrice, gst: Math.round(totPrice * 0.05) },
-      facing: newUnitForm.facing
+      facing: newUnitForm.facing || 'East'
     };
 
     try {
@@ -930,17 +973,23 @@ export default function InventoryPage() {
               ⚖️ Compare ({compareUnits.length}) Units
             </button>
           )}
-          <button className="btn btn-primary btn-sm" onClick={() => { setNewUnitForm(p => ({ ...p, tower: selectedTower || 'A' })); setShowAddUnitModal(true); }}>
-            <Plus size={14} /> Add New Unit
-          </button>
+          {isAdmin && (
+            <button className="btn btn-primary btn-sm" onClick={() => { setNewUnitForm(p => ({ ...p, tower: selectedTower || 'A' })); setShowAddUnitModal(true); }}>
+              <Plus size={14} /> Add New Unit
+            </button>
+          )}
           {projectsList.length > 0 && (
-            <select className="filter-select" value={selectedProject} onChange={e => {
-              setSelectedProject(e.target.value);
-            }}>
-              {projectsList.map(p => (
-                <option key={p._id} value={p._id}>{p.name} ({p.city || p.code})</option>
-              ))}
-            </select>
+            <CustomSelect
+              variant="filter"
+              value={selectedProject}
+              onChange={val => setSelectedProject(val)}
+              options={projectsList.map(p => ({
+                value: p._id,
+                label: p.name,
+                subtext: p.city || p.code,
+                icon: '🏢'
+              }))}
+            />
           )}
         </div>
       </div>
@@ -1082,14 +1131,16 @@ export default function InventoryPage() {
                             Release
                           </button>
                         )}
-                        <button
-                          className="btn btn-ghost btn-icon btn-sm"
-                          style={{ color: 'var(--danger)' }}
-                          title="Delete Unit"
-                          onClick={() => handleDeleteUnit(unit._id, unit.unitNumber)}
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {isAdmin && (
+                          <button
+                            className="btn btn-ghost btn-icon btn-sm"
+                            style={{ color: 'var(--danger)' }}
+                            title="Delete Unit"
+                            onClick={() => handleDeleteUnit(unit._id, unit.unitNumber)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1112,11 +1163,13 @@ export default function InventoryPage() {
                 <div style={{ fontSize: 36, marginBottom: 8 }}>🏢</div>
                 <div style={{ fontSize: 16, fontWeight: 700 }}>No units in this tower yet</div>
                 <div style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4, marginBottom: 16 }}>
-                  Click "+ Add New Unit" to add your first apartment or office suite to this tower.
+                  {isAdmin ? 'Click "+ Add New Unit" to add your first apartment or office suite to this tower.' : 'No units have been added to this tower yet.'}
                 </div>
-                <button className="btn btn-primary btn-sm" onClick={() => { setNewUnitForm(p => ({ ...p, tower: selectedTower || 'A' })); setShowAddUnitModal(true); }}>
-                  <Plus size={14} /> Add New Unit
-                </button>
+                {isAdmin && (
+                  <button className="btn btn-primary btn-sm" onClick={() => { setNewUnitForm(p => ({ ...p, tower: selectedTower || 'A' })); setShowAddUnitModal(true); }}>
+                    <Plus size={14} /> Add New Unit
+                  </button>
+                )}
               </div>
             ) : (
               <div className="inventory-matrix">
@@ -1189,6 +1242,7 @@ export default function InventoryPage() {
         onOpenBookingModal={openBookingModal}
         onReleaseHold={handleReleaseHold}
         onDeleteUnit={handleDeleteUnit}
+        isAdmin={isAdmin}
       />
 
       {/* Add Unit Drawer */}
@@ -1201,9 +1255,35 @@ export default function InventoryPage() {
             </div>
             <form onSubmit={handleAddUnit}>
               <div className="modal-body">
+                {/* Step 1: Project Selector */}
+                <div className="form-group" style={{ marginBottom: 14 }}>
+                  <label className="form-label" style={{ fontWeight: 700 }}>
+                    1. Select Project <span className="required">*</span>
+                  </label>
+                  {projectsList.length === 0 ? (
+                    <div style={{ background: '#fffbeb', border: '1px solid #fde68a', padding: '10px 12px', borderRadius: 8, fontSize: 12, color: '#92400e' }}>
+                      ⚠️ No projects found in your organization. Please <a href="/projects" style={{ color: '#2563eb', fontWeight: 700 }}>create a project</a> first before adding inventory units.
+                    </div>
+                  ) : (
+                    <CustomSelect
+                      value={newUnitForm.project || selectedProject || ''}
+                      onChange={val => {
+                        const pId = typeof val === 'object' && val.target ? val.target.value : val;
+                        setNewUnitForm(p => ({ ...p, project: pId }));
+                        setSelectedProject(pId);
+                      }}
+                      placeholder="-- Choose Project --"
+                      options={projectsList.map(prj => ({
+                        value: prj._id,
+                        label: `${prj.name} (${prj.city})`
+                      }))}
+                    />
+                  )}
+                </div>
+
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Tower / Wing / Sector</label>
+                    <label className="form-label">Tower / Wing / Sector <span className="required">*</span></label>
                     <input
                       className="form-input"
                       value={newUnitForm.tower}
@@ -1213,8 +1293,8 @@ export default function InventoryPage() {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Floor / Level Number</label>
-                    <input type="number" className="form-input" value={newUnitForm.floor} onChange={e => setNewUnitForm(p => ({ ...p, floor: e.target.value }))} required />
+                    <label className="form-label">Floor / Level Number <span className="required">*</span></label>
+                    <input type="number" className="form-input" value={newUnitForm.floor} onChange={e => setNewUnitForm(p => ({ ...p, floor: e.target.value }))} placeholder="e.g. 4" required />
                   </div>
                 </div>
 
@@ -1225,11 +1305,15 @@ export default function InventoryPage() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Typology / Configuration</label>
-                    <select className="form-select" value={newUnitForm.type} onChange={e => setNewUnitForm(p => ({ ...p, type: e.target.value }))}>
-                      {['1 BHK', '2 BHK', '3 BHK', '4 BHK', 'Penthouse', '30 x 40 ft (1,200 sq.ft)', '30 x 50 ft (1,500 sq.ft)', '40 x 60 ft (2,400 sq.ft)', '3 BHK Villa (G+1)', '4 BHK Luxury Villa (G+2)', 'Office Suite', 'Ground Floor High-Street'].map(typ => (
-                        <option key={typ} value={typ}>{typ}</option>
-                      ))}
-                    </select>
+                    <CustomSelect
+                      value={newUnitForm.type}
+                      onChange={val => setNewUnitForm(p => ({ ...p, type: typeof val === 'object' && val.target ? val.target.value : val }))}
+                      placeholder="Select typology"
+                      options={['1 BHK', '2 BHK', '3 BHK', '4 BHK', 'Penthouse', '30 x 40 ft (1,200 sq.ft)', '30 x 50 ft (1,500 sq.ft)', '40 x 60 ft (2,400 sq.ft)', '3 BHK Villa (G+1)', '4 BHK Luxury Villa (G+2)', 'Office Suite', 'Ground Floor High-Street'].map(typ => ({
+                        value: typ,
+                        label: typ
+                      }))}
+                    />
                   </div>
                 </div>
 
@@ -1240,11 +1324,15 @@ export default function InventoryPage() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Facing Direction</label>
-                    <select className="form-select" value={newUnitForm.facing} onChange={e => setNewUnitForm(p => ({ ...p, facing: e.target.value }))}>
-                      {FACING_OPTIONS.map(f => (
-                        <option key={f.value} value={f.value}>{f.label}</option>
-                      ))}
-                    </select>
+                    <CustomSelect
+                      value={newUnitForm.facing}
+                      onChange={val => setNewUnitForm(p => ({ ...p, facing: typeof val === 'object' && val.target ? val.target.value : val }))}
+                      placeholder="Select facing"
+                      options={FACING_OPTIONS.map(f => ({
+                        value: f.value,
+                        label: f.label
+                      }))}
+                    />
                   </div>
                 </div>
 
@@ -1261,12 +1349,17 @@ export default function InventoryPage() {
 
                 <div className="form-group">
                   <label className="form-label">Initial Availability Status</label>
-                  <select className="form-select" value={newUnitForm.status} onChange={e => setNewUnitForm(p => ({ ...p, status: e.target.value }))}>
-                    <option value="available">🟢 Available (Open for Sale)</option>
-                    <option value="on_hold">🟡 On Hold (48h Reservation)</option>
-                    <option value="blocked">🔴 Blocked (Management)</option>
-                    <option value="booked">🔵 Booked (Token Paid)</option>
-                  </select>
+                  <CustomSelect
+                    value={newUnitForm.status}
+                    onChange={val => setNewUnitForm(p => ({ ...p, status: typeof val === 'object' && val.target ? val.target.value : val }))}
+                    placeholder="Select initial status"
+                    options={[
+                      { value: 'available', label: 'Available', icon: '🟢', subtext: 'Open for Sale' },
+                      { value: 'on_hold', label: 'On Hold', icon: '🟡', subtext: '48h Reservation' },
+                      { value: 'blocked', label: 'Blocked', icon: '🔴', subtext: 'Management Hold' },
+                      { value: 'booked', label: 'Booked', icon: '🔵', subtext: 'Token Paid' }
+                    ]}
+                  />
                 </div>
               </div>
               <div className="modal-footer">
@@ -1318,19 +1411,20 @@ export default function InventoryPage() {
                   <label className="form-label" style={{ color: '#1e40af', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                     <UserCheck size={14} color="#2563eb" /> Select Buyer / Prospect from Leads Database
                   </label>
-                  <select
-                    className="form-select"
+                  <CustomSelect
                     value={holdForm.selectedLeadId}
-                    onChange={e => handleHoldLeadSelect(e.target.value)}
-                    style={{ background: 'white' }}
-                  >
-                    <option value="">-- ➕ Enter New Customer Manually --</option>
-                    {leadsList.map(lead => (
-                      <option key={lead._id} value={lead._id}>
-                        {lead.name} ({lead.phone}) — {lead.stage ? lead.stage.replace(/_/g, ' ').toUpperCase() : 'LEAD'} • {lead.source || 'Direct'}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={val => handleHoldLeadSelect(typeof val === 'object' && val.target ? val.target.value : val)}
+                    placeholder="-- ➕ Enter New Customer Manually --"
+                    searchable
+                    options={[
+                      { value: '', label: '➕ Enter New Customer Manually' },
+                      ...leadsList.map(lead => ({
+                        value: lead._id,
+                        label: `${lead.name} (${lead.phone})`,
+                        subtext: `${lead.stage ? lead.stage.replace(/_/g, ' ').toUpperCase() : 'LEAD'} • ${lead.source || 'Direct'}`
+                      }))
+                    ]}
+                  />
                   {holdForm.selectedLeadId && (
                     <div style={{ fontSize: 11, color: '#15803d', marginTop: 6, fontWeight: 600 }}>
                       ✓ Auto-filled prospect details from CRM database
@@ -1375,16 +1469,16 @@ export default function InventoryPage() {
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Hold Duration (Reservation Window)</label>
-                    <select
-                      className="form-select"
+                    <CustomSelect
                       value={holdForm.durationHours}
-                      onChange={e => setHoldForm(p => ({ ...p, durationHours: e.target.value }))}
-                    >
-                      <option value="24">24 Hours (1 Day Priority)</option>
-                      <option value="48">48 Hours (Standard Executive Hold)</option>
-                      <option value="72">72 Hours (Weekend Window)</option>
-                      <option value="168">7 Days (Management Approval)</option>
-                    </select>
+                      onChange={val => setHoldForm(p => ({ ...p, durationHours: typeof val === 'object' && val.target ? val.target.value : val }))}
+                      options={[
+                        { value: '24', label: '24 Hours', subtext: '1 Day Priority' },
+                        { value: '48', label: '48 Hours', subtext: 'Standard Executive Hold' },
+                        { value: '72', label: '72 Hours', subtext: 'Weekend Window' },
+                        { value: '168', label: '7 Days', subtext: 'Management Approval' }
+                      ]}
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Sales Executive</label>
@@ -1470,19 +1564,20 @@ export default function InventoryPage() {
                   <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <UserCheck size={14} color="#2563eb" /> 1. Select Buyer / Prospect from Leads Database
                   </div>
-                  <select
-                    className="form-select"
+                  <CustomSelect
                     value={bookingForm.selectedLeadId}
-                    onChange={e => handleBookingLeadSelect(e.target.value)}
-                    style={{ background: 'white', fontWeight: 600, padding: '7px 12px', fontSize: 13 }}
-                  >
-                    <option value="">-- ➕ Enter New Customer (Manual KYC) --</option>
-                    {leadsList.map(lead => (
-                      <option key={lead._id} value={lead._id}>
-                        {lead.name} ({lead.phone}) — {lead.stage ? lead.stage.replace(/_/g, ' ').toUpperCase() : 'LEAD'} • {lead.source || 'Direct'}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={val => handleBookingLeadSelect(typeof val === 'object' && val.target ? val.target.value : val)}
+                    placeholder="-- ➕ Enter New Customer (Manual KYC) --"
+                    searchable
+                    options={[
+                      { value: '', label: '➕ Enter New Customer (Manual KYC)' },
+                      ...leadsList.map(lead => ({
+                        value: lead._id,
+                        label: `${lead.name} (${lead.phone})`,
+                        subtext: `${lead.stage ? lead.stage.replace(/_/g, ' ').toUpperCase() : 'LEAD'} • ${lead.source || 'Direct'}`
+                      }))
+                    ]}
+                  />
                   {bookingForm.selectedLeadId && (
                     <div style={{ fontSize: 11, color: '#15803d', marginTop: 4, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
                       <CheckCircle size={13} /> Sourced & auto-populated from CRM Lead Database
@@ -1589,16 +1684,12 @@ export default function InventoryPage() {
                     </div>
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <label className="form-label" style={{ fontSize: 12, marginBottom: 4 }}>Relationship to Primary Buyer</label>
-                      <select
-                        className="form-select"
-                        style={{ padding: '7px 12px', fontSize: 13 }}
+                      <CustomSelect
                         value={bookingForm.coApplicantRelation}
-                        onChange={e => setBookingForm(p => ({ ...p, coApplicantRelation: e.target.value }))}
-                      >
-                        {CO_APPLICANT_RELATIONS.map(rel => (
-                          <option key={rel.value} value={rel.value}>{rel.label}</option>
-                        ))}
-                      </select>
+                        onChange={val => setBookingForm(p => ({ ...p, coApplicantRelation: typeof val === 'object' && val.target ? val.target.value : val }))}
+                        placeholder="Select relationship"
+                        options={CO_APPLICANT_RELATIONS}
+                      />
                     </div>
                   </div>
 
@@ -1671,18 +1762,17 @@ export default function InventoryPage() {
                   </div>
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <label className="form-label" style={{ fontSize: 12, marginBottom: 4 }}>Payment Mode</label>
-                    <select
-                      className="form-select"
-                      style={{ padding: '7px 12px', fontSize: 13 }}
+                    <CustomSelect
                       value={bookingForm.paymentMode}
-                      onChange={e => setBookingForm(p => ({ ...p, paymentMode: e.target.value }))}
-                    >
-                      <option value="Cheque">Cheque / Demand Draft</option>
-                      <option value="NEFT/RTGS">NEFT / RTGS Bank Transfer</option>
-                      <option value="UPI">UPI / QR Payment</option>
-                      <option value="Debit/Credit Card">Debit / Credit Card</option>
-                      <option value="Bank Transfer">Direct Bank Transfer</option>
-                    </select>
+                      onChange={val => setBookingForm(p => ({ ...p, paymentMode: typeof val === 'object' && val.target ? val.target.value : val }))}
+                      options={[
+                        { value: 'Cheque', label: 'Cheque / Demand Draft', icon: '📝' },
+                        { value: 'NEFT/RTGS', label: 'NEFT / RTGS Bank Transfer', icon: '🏦' },
+                        { value: 'UPI', label: 'UPI / QR Payment', icon: '📱' },
+                        { value: 'Debit/Credit Card', label: 'Debit / Credit Card', icon: '💳' },
+                        { value: 'Bank Transfer', label: 'Direct Bank Transfer', icon: '🏛️' }
+                      ]}
+                    />
                   </div>
                 </div>
 
@@ -1822,6 +1912,26 @@ export default function InventoryPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Dynamic Add Land / Plot / Unit Inventory Modal */}
+      {showAddUnitModal && selectedProject && (
+        <AddInventoryModal
+          project={projectsList.find(p => p._id === selectedProject) || { _id: selectedProject, name: 'Active Project', type: 'residential_apartment' }}
+          onClose={() => setShowAddUnitModal(false)}
+          onUnitAdded={async (newUnit) => {
+            try {
+              const { data } = await api.get('/inventory/matrix', { params: { project: selectedProject } });
+              if (data.data) {
+                setMatrix(data.data);
+                const firstSection = Object.keys(data.data)[0];
+                if (firstSection && !data.data[selectedTower]) {
+                  setSelectedTower(firstSection);
+                }
+              }
+            } catch {}
+          }}
+        />
       )}
     </div>
   );

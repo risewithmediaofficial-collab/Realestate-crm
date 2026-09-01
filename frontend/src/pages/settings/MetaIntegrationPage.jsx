@@ -10,6 +10,7 @@ import api from '../../services/api';
 import { useUI } from '../../context/UIContext';
 import { META_INTEGRATION_STATUSES, META_WEBHOOK_STATUSES } from '../../utils/constants';
 import { formatDate, timeAgo } from '../../utils/formatters';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 export default function MetaIntegrationPage() {
   const navigate = useNavigate();
@@ -853,28 +854,30 @@ export default function MetaIntegrationPage() {
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Default Target Project</label>
-                    <select
-                      className="form-select"
+                    <CustomSelect
                       value={editingForm.defaultProject?._id || editingForm.defaultProject || ''}
-                      onChange={e => setEditingForm(p => ({ ...p, defaultProject: e.target.value }))}
-                    >
-                      <option value="">-- Auto-Detect / Any Project --</option>
-                      {projects.map(prj => (
-                        <option key={prj._id} value={prj._id}>{prj.name} ({prj.city})</option>
-                      ))}
-                    </select>
+                      onChange={val => setEditingForm(p => ({ ...p, defaultProject: typeof val === 'object' && val.target ? val.target.value : val }))}
+                      placeholder="-- Auto-Detect / Any Project --"
+                      options={[
+                        { value: '', label: 'Auto-Detect / Any Project' },
+                        ...projects.map(prj => ({
+                          value: prj._id,
+                          label: `${prj.name} (${prj.city})`
+                        }))
+                      ]}
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Default Initial Lead Stage</label>
-                    <select
-                      className="form-select"
+                    <CustomSelect
                       value={editingForm.defaultLeadStatus || 'new'}
-                      onChange={e => setEditingForm(p => ({ ...p, defaultLeadStatus: e.target.value }))}
-                    >
-                      <option value="new">New / Unassigned</option>
-                      <option value="contacted">Contacted</option>
-                      <option value="qualified">Pre-Qualified</option>
-                    </select>
+                      onChange={val => setEditingForm(p => ({ ...p, defaultLeadStatus: typeof val === 'object' && val.target ? val.target.value : val }))}
+                      options={[
+                        { value: 'new', label: 'New / Unassigned', icon: '🟢' },
+                        { value: 'contacted', label: 'Contacted', icon: '🟡' },
+                        { value: 'qualified', label: 'Pre-Qualified', icon: '🔵' }
+                      ]}
+                    />
                   </div>
                 </div>
 
@@ -882,38 +885,36 @@ export default function MetaIntegrationPage() {
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Auto-Assignment Rule</label>
-                    <select
-                      className="form-select"
+                    <CustomSelect
                       value={editingForm.assignmentRule?.type || 'round_robin'}
-                      onChange={e => setEditingForm(p => ({
+                      onChange={val => setEditingForm(p => ({
                         ...p,
-                        assignmentRule: { ...p.assignmentRule, type: e.target.value }
+                        assignmentRule: { ...p.assignmentRule, type: typeof val === 'object' && val.target ? val.target.value : val }
                       }))}
-                    >
-                      <option value="round_robin">Round Robin (Even Distribution)</option>
-                      <option value="project_based">Project Sales Team</option>
-                      <option value="specific_agent">Specific Sales Executive</option>
-                      <option value="no_assignment">No Assignment (Manual Pool)</option>
-                    </select>
+                      options={[
+                        { value: 'round_robin', label: 'Round Robin (Even Distribution)', icon: '🔄' },
+                        { value: 'project_based', label: 'Project Sales Team', icon: '🏢' },
+                        { value: 'specific_agent', label: 'Specific Sales Executive', icon: '👤' },
+                        { value: 'no_assignment', label: 'No Assignment (Manual Pool)', icon: '📋' }
+                      ]}
+                    />
                   </div>
 
                   {editingForm.assignmentRule?.type === 'specific_agent' && (
                     <div className="form-group">
                       <label className="form-label">Assign To Specific Rep</label>
-                      <select
-                        className="form-select"
+                      <CustomSelect
                         value={editingForm.assignmentRule?.agentId || ''}
-                        onChange={e => setEditingForm(p => ({
+                        onChange={val => setEditingForm(p => ({
                           ...p,
-                          assignmentRule: { ...p.assignmentRule, agentId: e.target.value }
+                          assignmentRule: { ...p.assignmentRule, agentId: typeof val === 'object' && val.target ? val.target.value : val }
                         }))}
-                        required
-                      >
-                        <option value="">-- Select Agent --</option>
-                        {users.map(u => (
-                          <option key={u._id} value={u._id}>{u.name} ({u.role})</option>
-                        ))}
-                      </select>
+                        placeholder="-- Select Agent --"
+                        options={users.map(u => ({
+                          value: u._id,
+                          label: `${u.name} (${u.role})`
+                        }))}
+                      />
                     </div>
                   )}
                 </div>
@@ -955,27 +956,28 @@ export default function MetaIntegrationPage() {
                         required
                       />
                       <ArrowRight size={14} color="var(--text-muted)" />
-                      <select
-                        className="form-select"
-                        value={m.crmField}
-                        onChange={e => {
-                          const val = e.target.value;
-                          setEditingForm(p => {
-                            const copy = [...p.fieldMappings];
-                            copy[idx].crmField = val;
-                            return { ...p, fieldMappings: copy };
-                          });
-                        }}
-                        style={{ flex: 1 }}
-                      >
-                        <option value="name">Customer Full Name</option>
-                        <option value="phone">Phone Number</option>
-                        <option value="email">Email Address</option>
-                        <option value="city">City / Locality</option>
-                        <option value="budget">Budget / Price Range</option>
-                        <option value="interestedUnitType">Unit Typology (2BHK/3BHK)</option>
-                        <option value="notes">Notes / Custom Question</option>
-                      </select>
+                      <div style={{ flex: 1 }}>
+                        <CustomSelect
+                          value={m.crmField}
+                          onChange={val => {
+                            const actualVal = typeof val === 'object' && val.target ? val.target.value : val;
+                            setEditingForm(p => {
+                              const copy = [...p.fieldMappings];
+                              copy[idx].crmField = actualVal;
+                              return { ...p, fieldMappings: copy };
+                            });
+                          }}
+                          options={[
+                            { value: 'name', label: 'Customer Full Name' },
+                            { value: 'phone', label: 'Phone Number' },
+                            { value: 'email', label: 'Email Address' },
+                            { value: 'city', label: 'City / Locality' },
+                            { value: 'budget', label: 'Budget / Price Range' },
+                            { value: 'interestedUnitType', label: 'Unit Typology (2BHK/3BHK)' },
+                            { value: 'notes', label: 'Notes / Custom Question' }
+                          ]}
+                        />
+                      </div>
                       <button
                         type="button"
                         className="btn btn-ghost btn-icon btn-sm text-danger"

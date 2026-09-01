@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useUI } from '../../context/UIContext';
 import { formatDateTime } from '../../utils/formatters';
+import CustomSelect from '../ui/CustomSelect';
 
 export const CALL_DISPOSITIONS = [
   { value: 'site_visit_requested', label: '🎯 Interested — Site Visit Requested', category: 'positive' },
@@ -295,17 +296,15 @@ export default function SmartDialerWidget() {
 
           <div className="form-group" style={{ marginBottom: 12 }}>
             <label className="form-label" style={{ fontSize: 11 }}>Select Call Disposition <span className="required">*</span></label>
-            <select
-              className="form-select"
-              style={{ fontSize: 12, padding: '7px 10px' }}
+            <CustomSelect
               value={disposition}
-              onChange={e => setDisposition(e.target.value)}
-              required
-            >
-              {CALL_DISPOSITIONS.map(d => (
-                <option key={d.value} value={d.value}>{d.label}</option>
-              ))}
-            </select>
+              onChange={val => setDisposition(typeof val === 'object' && val.target ? val.target.value : val)}
+              placeholder="Select disposition"
+              options={CALL_DISPOSITIONS.map(d => ({
+                value: d.value,
+                label: d.label
+              }))}
+            />
           </div>
 
           <div className="form-group" style={{ marginBottom: 12 }}>
@@ -337,17 +336,17 @@ export default function SmartDialerWidget() {
 
             {scheduleFollowUp && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 8 }}>
-                <select
-                  className="form-select"
-                  style={{ fontSize: 11, padding: '5px 8px' }}
+                <CustomSelect
                   value={followUpType}
-                  onChange={e => setFollowUpType(e.target.value)}
-                >
-                  <option value="call">📞 Follow-up Call</option>
-                  <option value="site_visit">🏠 Site Visit Tour</option>
-                  <option value="whatsapp">💬 Send Brochure on WhatsApp</option>
-                  <option value="meeting">🤝 Direct Meeting</option>
-                </select>
+                  onChange={val => setFollowUpType(typeof val === 'object' && val.target ? val.target.value : val)}
+                  size="sm"
+                  options={[
+                    { value: 'call', label: 'Follow-up Call', icon: '📞' },
+                    { value: 'site_visit', label: 'Site Visit Tour', icon: '🏠' },
+                    { value: 'whatsapp', label: 'Send Brochure on WhatsApp', icon: '💬' },
+                    { value: 'meeting', label: 'Direct Meeting', icon: '🤝' }
+                  ]}
+                />
                 <input
                   type="datetime-local"
                   className="form-input"

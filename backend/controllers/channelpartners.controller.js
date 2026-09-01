@@ -8,8 +8,11 @@ const getChannelPartners = async (req, res, next) => {
 
     const isSuperAdmin = req.user?.role === 'super_admin';
     const userOrg = req.user?.organization;
-    if (!isSuperAdmin || req.query.organization) {
-      query.organization = req.query.organization || userOrg || 'Rise With RealtyHub';
+    if (isSuperAdmin) {
+      if (req.query.organization) query.organization = req.query.organization;
+    } else {
+      if (!userOrg) return res.json({ success: true, data: [], total: 0 });
+      query.organization = userOrg;
     }
 
     if (status) query.status = status;
@@ -31,7 +34,13 @@ const getChannelPartners = async (req, res, next) => {
 
 const getChannelPartner = async (req, res, next) => {
   try {
-    const cp = await ChannelPartner.findById(req.params.id)
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const query = { _id: req.params.id };
+    if (!isSuperAdmin) {
+      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    }
+
+    const cp = await ChannelPartner.findOne(query)
       .populate('approvedBy', 'name email').populate('userAccount', 'name email phone');
     if (!cp) return res.status(404).json({ success: false, message: 'Channel partner not found' });
     res.json({ success: true, data: cp });
@@ -40,10 +49,14 @@ const getChannelPartner = async (req, res, next) => {
 
 const createChannelPartner = async (req, res, next) => {
   try {
+    const isSuperAdmin = req.user?.role === 'super_admin';
     const payload = { ...req.body };
-    const userOrg = req.user?.organization || 'Rise With RealtyHub';
-    if (!payload.organization) {
+    const userOrg = req.user?.organization;
+    if (!isSuperAdmin || !payload.organization) {
       payload.organization = userOrg;
+    }
+    if (!payload.organization) {
+      return res.status(400).json({ success: false, message: 'User organization is required to create a channel partner' });
     }
     if (!payload.createdBy && req.user?._id) {
       payload.createdBy = req.user._id;
@@ -59,7 +72,13 @@ const createChannelPartner = async (req, res, next) => {
 
 const updateChannelPartner = async (req, res, next) => {
   try {
-    const cp = await ChannelPartner.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const query = { _id: req.params.id };
+    if (!isSuperAdmin) {
+      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    }
+
+    const cp = await ChannelPartner.findOneAndUpdate(query, req.body, { new: true, runValidators: true });
     if (!cp) return res.status(404).json({ success: false, message: 'Channel partner not found' });
     res.json({ success: true, data: cp });
   } catch (err) { next(err); }
@@ -67,8 +86,14 @@ const updateChannelPartner = async (req, res, next) => {
 
 const approveChannelPartner = async (req, res, next) => {
   try {
-    const cp = await ChannelPartner.findByIdAndUpdate(
-      req.params.id,
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const query = { _id: req.params.id };
+    if (!isSuperAdmin) {
+      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    }
+
+    const cp = await ChannelPartner.findOneAndUpdate(
+      query,
       { status: 'approved', approvedBy: req.user._id, approvedAt: new Date() },
       { new: true }
     );
@@ -79,8 +104,14 @@ const approveChannelPartner = async (req, res, next) => {
 
 const rejectChannelPartner = async (req, res, next) => {
   try {
-    const cp = await ChannelPartner.findByIdAndUpdate(
-      req.params.id,
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const query = { _id: req.params.id };
+    if (!isSuperAdmin) {
+      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    }
+
+    const cp = await ChannelPartner.findOneAndUpdate(
+      query,
       { status: 'rejected', rejectionReason: req.body.reason },
       { new: true }
     );
@@ -91,7 +122,13 @@ const rejectChannelPartner = async (req, res, next) => {
 
 const deleteChannelPartner = async (req, res, next) => {
   try {
-    const cp = await ChannelPartner.findByIdAndDelete(req.params.id);
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const query = { _id: req.params.id };
+    if (!isSuperAdmin) {
+      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    }
+
+    const cp = await ChannelPartner.findOneAndDelete(query);
     if (!cp) return res.status(404).json({ success: false, message: 'Channel partner not found' });
     res.json({ success: true, message: 'Channel partner deleted successfully' });
   } catch (err) { next(err); }
@@ -99,11 +136,20 @@ const deleteChannelPartner = async (req, res, next) => {
 
 const getCPStats = async (req, res, next) => {
   try {
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const userOrg = req.user?.organization;
+    const match = isSuperAdmin
+      ? (req.query.organization ? { organization: req.query.organization } : {})
+      : { organization: userOrg || '__NO_ORG__' };
+
     const [total, approved, pending, totalBookings] = await Promise.all([
-      ChannelPartner.countDocuments({ isActive: true }),
-      ChannelPartner.countDocuments({ status: 'approved' }),
-      ChannelPartner.countDocuments({ status: 'pending' }),
-      ChannelPartner.aggregate([{ $group: { _id: null, bookings: { $sum: '$totalBookings' }, commission: { $sum: '$totalCommissionEarned' } } }]),
+      ChannelPartner.countDocuments({ ...match, isActive: true }),
+      ChannelPartner.countDocuments({ ...match, status: 'approved' }),
+      ChannelPartner.countDocuments({ ...match, status: 'pending' }),
+      ChannelPartner.aggregate([
+        ...(Object.keys(match).length ? [{ $match: match }] : []),
+        { $group: { _id: null, bookings: { $sum: '$totalBookings' }, commission: { $sum: '$totalCommissionEarned' } } }
+      ]),
     ]);
     res.json({ success: true, data: { total, approved, pending, totalBookings: totalBookings[0]?.bookings || 0, totalCommission: totalBookings[0]?.commission || 0 } });
   } catch (err) { next(err); }

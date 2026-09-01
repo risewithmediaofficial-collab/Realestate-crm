@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, DollarSign, Target, Calendar, Layers, Tag, FileText, CheckCircle2, Megaphone } from 'lucide-react';
+import CustomSelect from '../../../components/ui/CustomSelect';
 
 const CAMPAIGN_TYPES = {
   meta_ads: { label: 'Meta Ads (Facebook & Instagram)', icon: '📘' },
@@ -194,37 +195,43 @@ export default function CampaignModal({
 
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Marketing Platform Channel <span className="required">*</span></label>
-                  <select className="form-select" name="type" value={formData.type} onChange={handleChange} required>
-                    {Object.entries(CAMPAIGN_TYPES).map(([k, v]) => (
-                      <option key={k} value={k}>{v.icon} {v.label}</option>
-                    ))}
-                  </select>
+                  <CustomSelect
+                    label="Marketing Platform Channel"
+                    value={formData.type}
+                    onChange={val => setFormData(p => ({ ...p, type: val }))}
+                    options={Object.entries(CAMPAIGN_TYPES).map(([k, v]) => ({ value: k, label: v.label, icon: v.icon }))}
+                  />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Target Real Estate Project</label>
-                  <select className="form-select" name="project" value={formData.project} onChange={handleChange}>
-                    <option value="none">— All Projects (Universal / Portfolio) —</option>
-                    {projects.map(p => (
-                      <option key={p._id} value={p._id}>
-                        {p.name} {p.city ? `(${p.city})` : ''}
-                      </option>
-                    ))}
-                  </select>
+                  <CustomSelect
+                    label="Target Real Estate Project"
+                    value={formData.project}
+                    onChange={val => setFormData(p => ({ ...p, project: val }))}
+                    searchable={true}
+                    placeholder="— All Projects (Universal / Portfolio) —"
+                    options={[
+                      { value: 'none', label: '— All Projects (Universal / Portfolio) —', icon: '🏢' },
+                      ...projects.map(p => ({ value: p._id, label: p.name, subtext: p.city || '', icon: '🏢' }))
+                    ]}
+                  />
                 </div>
               </div>
 
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Campaign Delivery Status</label>
-                  <select className="form-select" name="status" value={formData.status} onChange={handleChange}>
-                    <option value="active">Active (Delivering)</option>
-                    <option value="paused">Paused</option>
-                    <option value="completed">Completed</option>
-                    <option value="draft">Draft / Planning</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
+                  <CustomSelect
+                    label="Campaign Delivery Status"
+                    value={formData.status}
+                    onChange={val => setFormData(p => ({ ...p, status: val }))}
+                    options={[
+                      { value: 'active', label: 'Active (Delivering)', icon: '🟢' },
+                      { value: 'paused', label: 'Paused', icon: '⏸️' },
+                      { value: 'completed', label: 'Completed', icon: '✅' },
+                      { value: 'draft', label: 'Draft / Planning', icon: '📝' },
+                      { value: 'cancelled', label: 'Cancelled', icon: '🔴' }
+                    ]}
+                  />
                 </div>
 
                 <div className="form-group">

@@ -46,7 +46,7 @@ const siteVisitSchema = new mongoose.Schema({
   cancelReason: { type: String },
   rescheduleReason: { type: String },
   // Organization & Multi-Tenancy Scoping
-  organization: { type: String, trim: true, default: 'Rise With RealtyHub' },
+  organization: { type: String, trim: true, required: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 

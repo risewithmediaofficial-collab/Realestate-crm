@@ -10,6 +10,7 @@ import {
   UserCheck, Tag, Briefcase, Hash, Map, UserPlus
 } from 'lucide-react';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency, formatDate, formatArea } from '../../utils/formatters';
 import {
@@ -21,6 +22,8 @@ import {
   APPROVAL_BODIES,
   getCategoryMeta
 } from '../../utils/constants';
+import AddInventoryModal from '../../components/inventory/AddInventoryModal';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 const STANDARD_APPROVAL_OPTIONS = [
   { id: 'RERA Approved', label: 'RERA Approved', icon: '🏛️' },
@@ -89,12 +92,17 @@ export default function ProjectsPage() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState(getTypeFromPath());
   const [statusFilter, setStatusFilter] = useState('');
+  const [cityFilter, setCityFilter] = useState('');
+  const [projectSortBy, setProjectSortBy] = useState('date_desc');
   const [activeProjectView, setActiveProjectView] = useState(null);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [showAddUnitModal, setShowAddUnitModal] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [showWorkflowGuide, setShowWorkflowGuide] = useState(true);
-  const { showNotification } = useUI();
+  const { user } = useAuth();
+  const { simulatedRole, showNotification } = useUI();
+  const effectiveRole = simulatedRole || user?.role || 'admin';
+  const isAdmin = ['admin', 'super_admin', 'director'].includes(effectiveRole);
 
   // Unit Filtering & Sorting State in Active Project View
   const [unitSearch, setUnitSearch] = useState('');
@@ -102,12 +110,13 @@ export default function ProjectsPage() {
   const [unitTypeFilter, setUnitTypeFilter] = useState('');
   const [unitStatusFilter, setUnitStatusFilter] = useState('');
   const [unitSortBy, setUnitSortBy] = useState('unitNumber');
-  const [unitViewMode, setUnitViewMode] = useState('table');
+  const [unitViewMode, setUnitViewMode] = useState('grid'); // 'grid' (Cards/Board 1st default) | 'table'
 
   // Hold & Booking Modals State
   const [holdingUnit, setHoldingUnit] = useState(null);
   const [bookingUnit, setBookingUnit] = useState(null);
   const [viewingHoldDetails, setViewingHoldDetails] = useState(null);
+  const [viewingBookingDetails, setViewingBookingDetails] = useState(null);
 
   // Hold Customer Form
   const [holdForm, setHoldForm] = useState({
@@ -134,12 +143,12 @@ export default function ProjectsPage() {
     coApplicantEmail: '',
     coApplicantPan: '',
     coApplicantAadhaar: '',
-    coApplicantRelation: 'Spouse',
+    coApplicantRelation: '',
     tokenAmount: '',
-    paymentMode: 'Cheque',
+    paymentMode: '',
     transactionRef: '',
-    bookingDate: new Date().toISOString().split('T')[0],
-    agentName: 'Sales Representative',
+    bookingDate: '',
+    agentName: '',
     specialNotes: ''
   });
 
@@ -149,11 +158,11 @@ export default function ProjectsPage() {
     code: '',
     city: '',
     address: '',
-    type: 'residential_apartment',
+    type: '',
     customCategoryName: '',
     customUnitTerm: '',
     isCustomCategory: false,
-    status: 'launched',
+    status: '',
     totalUnits: '',
     minPrice: '',
     maxPrice: '',
@@ -194,10 +203,10 @@ export default function ProjectsPage() {
     waterSource: '',
     basePrice: '',
     totalPrice: '',
-    facing: 'East',
+    facing: '',
     customFacing: '',
     isCustomFacing: false,
-    status: 'available'
+    status: ''
   });
 
   useEffect(() => {
@@ -206,11 +215,11 @@ export default function ProjectsPage() {
 
   // Lock body scroll when modal is open
   useEffect(() => {
-    if (showProjectModal || showAddUnitModal || holdingUnit || bookingUnit || viewingHoldDetails) {
+    if (showProjectModal || showAddUnitModal || holdingUnit || bookingUnit || viewingHoldDetails || viewingBookingDetails) {
       document.body.classList.add('no-scroll');
       return () => document.body.classList.remove('no-scroll');
     }
-  }, [showProjectModal, showAddUnitModal, holdingUnit, bookingUnit, viewingHoldDetails]);
+  }, [showProjectModal, showAddUnitModal, holdingUnit, bookingUnit, viewingHoldDetails, viewingBookingDetails]);
 
   const handleTypeChange = (type) => {
     setTypeFilter(type);
@@ -222,16 +231,14 @@ export default function ProjectsPage() {
     const fetch = async () => {
       try {
         const { data } = await api.get('/projects');
-        if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+        if (data.data && Array.isArray(data.data)) {
           setProjects(data.data);
         } else {
-          const saved = localStorage.getItem('crm_user_projects');
-          setProjects(saved ? JSON.parse(saved) : []);
+          setProjects([]);
         }
       } catch (err) {
         console.error('Failed to fetch projects:', err);
-        const saved = localStorage.getItem('crm_user_projects');
-        setProjects(saved ? JSON.parse(saved) : []);
+        setProjects([]);
       } finally { setLoading(false); }
     };
     fetch();
@@ -240,14 +247,14 @@ export default function ProjectsPage() {
     const fetchLeads = async () => {
       try {
         const { data } = await api.get('/leads?limit=200');
-        if (data.data?.length > 0) {
+        if (data.data && Array.isArray(data.data)) {
           setLeadsList(data.data);
         } else {
-          setLeadsList(defaultLeads);
+          setLeadsList([]);
         }
       } catch (err) {
         console.error('Failed to fetch leads:', err);
-        setLeadsList(defaultLeads);
+        setLeadsList([]);
       }
     };
     fetchLeads();
@@ -266,26 +273,35 @@ export default function ProjectsPage() {
               _id: u._id,
               unitNumber: u.unitNumber,
               tower: u.tower || activeProjectView.towers?.[0]?.name || 'Main Tower',
-              sector: u.sector || 'Sector A',
+              sector: u.sector || u.block || 'Sector A',
               phase: u.phase || 'Phase 1',
-              block: u.block || 'Block A',
+              block: u.block || u.sector || 'Main Block',
               floor: u.floor || 1,
-              type: u.type || '3 BHK',
-              area: u.area?.superBuiltUp || u.area?.carpetArea || (typeof u.area === 'number' ? u.area : 1200),
-              carpetArea: u.area?.carpet || Math.round((u.area?.superBuiltUp || 1200) * 0.75),
+              type: u.type || u.landType || 'Plot',
+              landType: u.landType || u.type,
+              area: u.area?.sqft || u.area?.superBuiltUp || u.area?.plotArea || (typeof u.area === 'number' ? u.area : 1200),
+              areaDetails: u.area,
+              carpetArea: u.area?.carpet || Math.round((u.area?.sqft || u.area?.superBuiltUp || 1200) * 0.75),
               dimensions: u.dimensions?.dimensionStr || u.plotDetails?.dimensionStr || '30 x 40 ft',
-              roadWidth: u.plotDetails?.roadWidth || 40,
-              isCornerPlot: u.plotDetails?.isCornerPlot || u.isCorner || false,
-              boundaryWall: u.plotDetails?.boundaryWall || true,
+              roadWidth: u.physicalDetails?.roadWidth || u.plotDetails?.roadWidth || 30,
+              isCornerPlot: u.physicalDetails?.isCorner || u.plotDetails?.isCornerPlot || u.isCorner || false,
+              boundaryWall: u.agriculturalDetails?.fencing !== 'none' || u.plotDetails?.boundaryWall || false,
               levels: u.villaDetails?.levels || 'G+1',
               gardenArea: u.villaDetails?.gardenArea || 400,
-              frontage: u.commercialDetails?.frontage || 18,
-              fitoutStatus: u.commercialDetails?.fitoutStatus || 'Bare Shell',
-              suitableFor: u.commercialDetails?.suitableFor || 'Retail / Office',
-              extentAcres: u.farmlandDetails?.extentAcres || 0.5,
-              plantationType: u.farmlandDetails?.plantationType || 'Organic Orchard',
-              basePrice: u.pricing?.basePrice || 5000000,
-              totalPrice: u.pricing?.totalPrice || 6000000,
+              frontage: u.physicalDetails?.frontage || u.commercialDetails?.frontage || 18,
+              fitoutStatus: u.physicalDetails?.fitoutStatus || u.commercialDetails?.fitoutStatus || 'Bare Shell',
+              suitableFor: u.physicalDetails?.suitableFor || u.commercialDetails?.suitableFor || 'Retail / Office',
+              extentAcres: u.area?.extent || u.farmlandDetails?.extentAcres || 0.5,
+              extentUnit: u.area?.unit || 'acre',
+              plantationType: u.agriculturalDetails?.plantation || u.farmlandDetails?.plantationType || '',
+              waterSource: u.physicalDetails?.waterSource || u.farmlandDetails?.waterSource || 'Borewell',
+              irrigation: u.agriculturalDetails?.irrigation || 'Drip',
+              fencing: u.agriculturalDetails?.fencing || 'None',
+              electricity: u.physicalDetails?.electricity || 'Available',
+              pricing: u.pricing,
+              basePrice: u.pricing?.baseRate || u.pricing?.basePrice || 5000000,
+              rateType: u.pricing?.rateType || 'per_sqft',
+              totalPrice: u.pricing?.totalPackagePrice || u.pricing?.totalPrice || 6000000,
               facing: u.facing ? (u.facing.charAt(0).toUpperCase() + u.facing.slice(1)) : 'East',
               status: u.status || 'available',
               holdCustomer: u.holdCustomer || null,
@@ -339,21 +355,13 @@ export default function ProjectsPage() {
 
     if (editingProject) {
       const updated = { ...editingProject, ...payload };
-      setProjects(prev => {
-        const next = prev.map(p => p._id === editingProject._id ? updated : p);
-        try { localStorage.setItem('crm_user_projects', JSON.stringify(next)); } catch {}
-        return next;
-      });
+      setProjects(prev => prev.map(p => p._id === editingProject._id ? updated : p));
       if (activeProjectView?._id === editingProject._id) setActiveProjectView(updated);
       try {
         const { data } = await api.put(`/projects/${editingProject._id}`, payload);
         if (data.data) {
           const fresh = data.data;
-          setProjects(prev => {
-            const next = prev.map(p => p._id === editingProject._id ? fresh : p);
-            try { localStorage.setItem('crm_user_projects', JSON.stringify(next)); } catch {}
-            return next;
-          });
+          setProjects(prev => prev.map(p => p._id === editingProject._id ? fresh : p));
           if (activeProjectView?._id === editingProject._id) setActiveProjectView(fresh);
         }
       } catch {}
@@ -365,20 +373,12 @@ export default function ProjectsPage() {
         unitStats: { available: 0, booked: 0, sold: 0, on_hold: 0, blocked: 0 },
         unitsList: []
       };
-      setProjects(prev => {
-        const next = [newProj, ...prev];
-        try { localStorage.setItem('crm_user_projects', JSON.stringify(next)); } catch {}
-        return next;
-      });
+      setProjects(prev => [newProj, ...prev]);
       try {
         const { data } = await api.post('/projects', payload);
         if (data.data) {
           const fresh = data.data;
-          setProjects(prev => {
-            const next = prev.map(p => p._id === newProj._id ? fresh : p);
-            try { localStorage.setItem('crm_user_projects', JSON.stringify(next)); } catch {}
-            return next;
-          });
+          setProjects(prev => prev.map(p => p._id === newProj._id ? fresh : p));
         }
       } catch {}
       showNotification(`Project "${form.name}" created successfully!`);
@@ -613,12 +613,12 @@ export default function ProjectsPage() {
         coApplicantEmail: '',
         coApplicantPan: '',
         coApplicantAadhaar: '',
-        coApplicantRelation: 'Spouse',
+        coApplicantRelation: '',
         tokenAmount: '',
-        paymentMode: 'Cheque',
+        paymentMode: '',
         transactionRef: '',
-        bookingDate: new Date().toISOString().split('T')[0],
-        agentName: unit.holdCustomer.agentName || 'Sales Representative',
+        bookingDate: '',
+        agentName: unit.holdCustomer.agentName || '',
         specialNotes: unit.holdCustomer.reason || ''
       });
     } else {
@@ -635,12 +635,12 @@ export default function ProjectsPage() {
         coApplicantEmail: '',
         coApplicantPan: '',
         coApplicantAadhaar: '',
-        coApplicantRelation: 'Spouse',
+        coApplicantRelation: '',
         tokenAmount: '',
-        paymentMode: 'Cheque',
+        paymentMode: '',
         transactionRef: '',
-        bookingDate: new Date().toISOString().split('T')[0],
-        agentName: 'Sales Representative',
+        bookingDate: '',
+        agentName: '',
         specialNotes: ''
       });
     }
@@ -787,11 +787,7 @@ export default function ProjectsPage() {
     try {
       await api.delete(`/projects/${projectId}`);
     } catch {}
-    setProjects(prev => {
-      const next = prev.filter(p => p._id !== projectId);
-      try { localStorage.setItem('crm_user_projects', JSON.stringify(next)); } catch {}
-      return next;
-    });
+    setProjects(prev => prev.filter(p => p._id !== projectId));
     if (activeProjectView?._id === projectId) setActiveProjectView(null);
     showNotification(`Project "${projectName}" deleted successfully!`);
   };
@@ -850,53 +846,62 @@ export default function ProjectsPage() {
 
   const openAddUnitModal = () => {
     if (!activeProjectView) return;
-    const cat = activeProjectView.type;
-    const typologies = CATEGORY_TYPOLOGIES[cat] || CATEGORY_TYPOLOGIES.residential_apartment;
     setUnitForm({
       unitNumber: '',
-      tower: activeProjectView.towers?.[0]?.name || 'Tower A',
-      sector: 'Sector A',
-      phase: 'Phase 1',
-      block: 'Ground Floor',
-      zone: 'Zone A',
-      floor: '1',
-      type: typologies[0] || 'Standard Unit',
+      tower: '',
+      sector: '',
+      phase: '',
+      block: '',
+      zone: '',
+      floor: '',
+      type: '',
       customType: '',
       isCustomType: false,
-      area: ['plots', 'layouts', 'agricultural_land', 'farmland', 'resort_plots'].includes(cat) ? '21780' : cat === 'villa' ? '2800' : '1050',
-      carpetArea: ['plots', 'layouts', 'agricultural_land', 'farmland'].includes(cat) ? '21780' : '780',
-      dimensions: '30 x 40 ft',
-      roadWidth: '40',
+      area: '',
+      carpetArea: '',
+      dimensions: '',
+      roadWidth: '',
       isCornerPlot: false,
       boundaryWall: true,
-      levels: 'G+1',
-      gardenArea: '400',
-      carParks: '2',
-      frontage: '18',
-      ceilingHeight: '14',
-      fitoutStatus: 'Bare Shell',
-      suitableFor: 'Retail / Office',
-      extentAcres: '0.5',
+      levels: '',
+      gardenArea: '',
+      carParks: '',
+      frontage: '',
+      ceilingHeight: '',
+      fitoutStatus: '',
+      suitableFor: '',
+      extentAcres: '',
       extentUnit: 'Acres',
-      plantationType: 'Mango, Teakwood & Coconut',
-      waterSource: 'Borewell + Drip System',
-      basePrice: activeProjectView.priceRange?.min ? String(Math.round(activeProjectView.priceRange.min * 0.85)) : '5000000',
-      totalPrice: activeProjectView.priceRange?.min ? String(activeProjectView.priceRange.min) : '6000000',
-      facing: 'East',
+      plantationType: '',
+      waterSource: '',
+      basePrice: '',
+      totalPrice: '',
+      facing: '',
       customFacing: '',
       isCustomFacing: false,
-      status: 'available'
+      status: ''
     });
     setShowAddUnitModal(true);
   };
 
   // Filtered Projects List
-  const filtered = projects.filter(p => {
-    if (search && !p.name.toLowerCase().includes(search.toLowerCase()) && !p.city.toLowerCase().includes(search.toLowerCase())) return false;
-    if (typeFilter && p.type !== typeFilter) return false;
-    if (statusFilter && p.status !== statusFilter) return false;
-    return true;
-  });
+  const filtered = projects
+    .filter(p => {
+      if (search && !p.name?.toLowerCase().includes(search.toLowerCase()) && !p.city?.toLowerCase().includes(search.toLowerCase()) && !p.code?.toLowerCase().includes(search.toLowerCase())) return false;
+      if (typeFilter && p.type !== typeFilter) return false;
+      if (statusFilter && p.status !== statusFilter) return false;
+      if (cityFilter && p.city?.toLowerCase() !== cityFilter.toLowerCase()) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (projectSortBy === 'date_desc') return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      if (projectSortBy === 'date_asc') return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+      if (projectSortBy === 'name_asc') return (a.name || '').localeCompare(b.name || '');
+      if (projectSortBy === 'units_desc') return (b.totalUnits || 0) - (a.totalUnits || 0);
+      if (projectSortBy === 'price_asc') return (a.priceRange?.min || 0) - (b.priceRange?.min || 0);
+      if (projectSortBy === 'price_desc') return (b.priceRange?.min || 0) - (a.priceRange?.min || 0);
+      return 0;
+    });
 
   // Filtered and Sorted Units in Active Project View
   const sortedAndFilteredUnits = useMemo(() => {
@@ -999,28 +1004,30 @@ export default function ProjectsPage() {
               <button className="btn btn-secondary btn-sm" onClick={() => setShowWorkflowGuide(p => !p)}>
                 <HelpCircle size={14} /> {showWorkflowGuide ? 'Hide Help' : 'Workflow Guide'}
               </button>
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={() => {
-                  setEditingProject(null);
-                  setForm({
-                    name: '',
-                    code: '',
-                    city: '',
-                    address: '',
-                    type: typeFilter || 'residential_apartment',
-                    status: 'launched',
-                    totalUnits: '',
-                    minPrice: '',
-                    maxPrice: '',
-                    approvalBody: 'RERA Approved',
-                    totalAcres: ''
-                  });
-                  setShowProjectModal(true);
-                }}
-              >
-                <Plus size={14} /> New Project
-              </button>
+              {isAdmin && (
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => {
+                    setEditingProject(null);
+                    setForm({
+                      name: '',
+                      code: '',
+                      city: '',
+                      address: '',
+                      type: typeFilter || 'residential_apartment',
+                      status: 'launched',
+                      totalUnits: '',
+                      minPrice: '',
+                      maxPrice: '',
+                      approvalBody: 'RERA Approved',
+                      totalAcres: ''
+                    });
+                    setShowProjectModal(true);
+                  }}
+                >
+                  <Plus size={14} /> New Project
+                </button>
+              )}
             </div>
           </div>
 
@@ -1058,21 +1065,55 @@ export default function ProjectsPage() {
 
           {/* Filter & Search Bar */}
           <div className="filter-bar">
-            <div className="filter-search" style={{ flex: 1 }}>
+            <div className="filter-search">
               <Search size={14} color="var(--text-muted)" />
               <input
-                placeholder="Search projects by name, city, location or code…"
+                type="text"
+                placeholder="Search projects by name, code, city..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
-            <select className="filter-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option value="">All Statuses</option>
-              <option value="launched">Launched</option>
-              <option value="under_construction">Under Construction</option>
-              <option value="ready_to_move">Ready to Move</option>
-              <option value="pre_launch">Pre-Launch</option>
-            </select>
+
+            {Array.from(new Set(projects.map(p => p.city).filter(Boolean))).length > 0 && (
+              <CustomSelect
+                variant="filter"
+                value={cityFilter}
+                onChange={val => setCityFilter(val)}
+                options={[
+                  { value: '', label: '🏙️ All Locations' },
+                  ...Array.from(new Set(projects.map(p => p.city).filter(Boolean))).map(city => ({ value: city, label: city, icon: '📍' }))
+                ]}
+              />
+            )}
+
+            <CustomSelect
+              variant="filter"
+              value={statusFilter}
+              onChange={val => setStatusFilter(val)}
+              options={[
+                { value: '', label: 'All Statuses' },
+                { value: 'launched', label: 'Launched', icon: '🚀' },
+                { value: 'under_construction', label: 'Under Construction', icon: '🚧' },
+                { value: 'ready_to_move', label: 'Ready to Move', icon: '🏠' },
+                { value: 'pre_launch', label: 'Pre-Launch', icon: '⏳' }
+              ]}
+            />
+
+            <CustomSelect
+              variant="filter"
+              buttonStyle={{ fontWeight: 600, color: 'var(--primary)' }}
+              value={projectSortBy}
+              onChange={val => setProjectSortBy(val)}
+              options={[
+                { value: 'date_desc', label: 'Sort: 📅 Newest Added' },
+                { value: 'date_asc', label: 'Sort: 📅 Oldest Added' },
+                { value: 'name_asc', label: 'Sort: 🔤 Project Name (A-Z)' },
+                { value: 'units_desc', label: 'Sort: 🏤 Most Units First' },
+                { value: 'price_asc', label: 'Sort: 💰 Starting Price: Low to High' },
+                { value: 'price_desc', label: 'Sort: 💰 Starting Price: High to Low' }
+              ]}
+            />
           </div>
 
           {/* Project Grid */}
@@ -1086,44 +1127,46 @@ export default function ProjectsPage() {
               <div className="empty-state-title" style={{ fontSize: 20, fontWeight: 800, color: '#0f172a' }}>
                 {projects.length === 0 ? 'No Real Estate Projects Yet' : 'No Projects Found in this Filter'}
               </div>
-              <div className="empty-state-desc" style={{ color: 'var(--text-secondary)', fontSize: 14, marginTop: 6, maxWidth: 540, margin: '6px auto 20px', lineHeight: 1.5 }}>
+              <div className="empty-state-desc" style={{ color: 'var(--text-secondary)', fontSize: 14, maxWidth: 540, margin: '6px auto 20px', lineHeight: 1.5 }}>
                 {projects.length === 0
-                  ? 'Your project portfolio is clean and ready. Add your first development across Residential Apartments, Plots, Farmlands, Agri Lands, Villas, Commercial, or enter a Custom Category.'
+                  ? (isAdmin ? 'Your project portfolio is clean and ready. Add your first development across Residential Apartments, Plots, Farmlands, Agri Lands, Villas, Commercial, or enter a Custom Category.' : 'No property developments have been added by your organization admin yet.')
                   : 'Try selecting "All Categories" or adjusting your search keyword to view your projects.'}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 24 }}>
-                <button
-                  className="btn btn-primary"
-                  style={{ gap: 8, padding: '10px 20px', fontSize: 14, fontWeight: 700 }}
-                  onClick={() => {
-                    setEditingProject(null);
-                    setForm({
-                      name: '',
-                      code: '',
-                      city: '',
-                      address: '',
-                      type: typeFilter || 'residential_apartment',
-                      status: 'launched',
-                      totalUnits: '',
-                      minPrice: '',
-                      maxPrice: '',
-                      approvalBody: 'RERA Approved',
-                      totalAcres: '',
-                      extentUnit: 'Acres',
-                      customCategoryName: '',
-                      customUnitTerm: '',
-                      isCustomCategory: false,
-                      customApprovalBody: ''
-                    });
-                    setShowProjectModal(true);
-                  }}
-                >
-                  <Plus size={16} /> + Create New Project
-                </button>
-              </div>
+              {isAdmin && (
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 24 }}>
+                  <button
+                    className="btn btn-primary"
+                    style={{ gap: 8, padding: '10px 20px', fontSize: 14, fontWeight: 700 }}
+                    onClick={() => {
+                      setEditingProject(null);
+                      setForm({
+                        name: '',
+                        code: '',
+                        city: '',
+                        address: '',
+                        type: typeFilter || 'residential_apartment',
+                        status: 'launched',
+                        totalUnits: '',
+                        minPrice: '',
+                        maxPrice: '',
+                        approvalBody: 'RERA Approved',
+                        totalAcres: '',
+                        extentUnit: 'Acres',
+                        customCategoryName: '',
+                        customUnitTerm: '',
+                        isCustomCategory: false,
+                        customApprovalBody: ''
+                      });
+                      setShowProjectModal(true);
+                    }}
+                  >
+                    <Plus size={16} /> + Create New Project
+                  </button>
+                </div>
+              )}
 
-              {projects.length === 0 && (
+              {isAdmin && projects.length === 0 && (
                 <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #f1f5f9' }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
                     ⚡ Quick Start by Category
@@ -1211,29 +1254,31 @@ export default function ProjectsPage() {
                             {project.address || `${project.city}, Maharashtra`}
                           </div>
                         </div>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <button
-                            className="btn btn-ghost btn-icon btn-sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              startEdit(project);
-                            }}
-                            title="Edit Project Details"
-                          >
-                            <Edit size={14} />
-                          </button>
-                          <button
-                            className="btn btn-ghost btn-icon btn-sm"
-                            style={{ color: 'var(--danger)' }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteProject(project._id, project.name);
-                            }}
-                            title="Delete Project"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
+                        {isAdmin && (
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <button
+                              className="btn btn-ghost btn-icon btn-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEdit(project);
+                              }}
+                              title="Edit Project Details"
+                            >
+                              <Edit size={14} />
+                            </button>
+                            <button
+                              className="btn btn-ghost btn-icon btn-sm"
+                              style={{ color: 'var(--danger)' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteProject(project._id, project.name);
+                              }}
+                              title="Delete Project"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       {/* Category Tag & Multi-Approvals */}
@@ -1342,14 +1387,16 @@ export default function ProjectsPage() {
                 </p>
               </div>
 
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn btn-primary btn-sm" onClick={openAddUnitModal} style={{ gap: 6 }}>
-                  <Plus size={14} /> Add {activeCategoryConf?.unitTerm}
-                </button>
-                <button className="btn btn-secondary btn-sm" onClick={() => startEdit(activeProjectView)}>
-                  <Edit size={14} /> Edit Project
-                </button>
-              </div>
+              {isAdmin && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn btn-primary btn-sm" onClick={openAddUnitModal} style={{ gap: 6 }}>
+                    <Plus size={14} /> Add {activeCategoryConf?.unitTerm}
+                  </button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => startEdit(activeProjectView)}>
+                    <Edit size={14} /> Edit Project
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Inventory Status Bar */}
@@ -1400,68 +1447,66 @@ export default function ProjectsPage() {
               </div>
 
               {/* Facing Filter */}
-              <select
-                className="filter-select"
+              <CustomSelect
+                variant="filter"
                 value={unitFacingFilter}
-                onChange={e => setUnitFacingFilter(e.target.value)}
-                style={{ minWidth: 140 }}
-              >
-                <option value="">All Facing</option>
-                {FACING_OPTIONS.map(f => (
-                  <option key={f.value} value={f.value}>{f.label}</option>
-                ))}
-              </select>
+                onChange={val => setUnitFacingFilter(val)}
+                options={[
+                  { value: '', label: 'All Facing' },
+                  ...FACING_OPTIONS.map(f => ({ value: f.value, label: f.label, icon: '🦭' }))
+                ]}
+              />
 
               {/* Status Filter */}
-              <select
-                className="filter-select"
+              <CustomSelect
+                variant="filter"
                 value={unitStatusFilter}
-                onChange={e => setUnitStatusFilter(e.target.value)}
-                style={{ minWidth: 130 }}
-              >
-                <option value="">All Statuses</option>
-                <option value="available">🟢 Available</option>
-                <option value="on_hold">🟡 On Hold</option>
-                <option value="booked">🔵 Booked</option>
-                <option value="sold">⚪ Sold</option>
-                <option value="blocked">🔴 Blocked</option>
-              </select>
+                onChange={val => setUnitStatusFilter(val)}
+                options={[
+                  { value: '', label: 'All Statuses' },
+                  { value: 'available', label: '🟢 Available' },
+                  { value: 'on_hold', label: '🟡 On Hold' },
+                  { value: 'booked', label: '🔵 Booked' },
+                  { value: 'sold', label: '⚪ Sold' },
+                  { value: 'blocked', label: '🔴 Blocked' }
+                ]}
+              />
 
               {/* Sort By Dropdown */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <ArrowUpDown size={14} color="var(--text-muted)" />
-                <select
-                  className="filter-select"
+                <CustomSelect
+                  variant="filter"
                   value={unitSortBy}
-                  onChange={e => setUnitSortBy(e.target.value)}
-                  style={{ minWidth: 160 }}
-                >
-                  <option value="unitNumber">Sort: {activeCategoryConf?.unitTerm} #</option>
-                  <option value="priceAsc">Price: Low to High</option>
-                  <option value="priceDesc">Price: High to Low</option>
-                  <option value="areaAsc">Area: Small to Large</option>
-                  <option value="areaDesc">Area: Large to Small</option>
-                  <option value="facing">Facing: A → Z</option>
-                </select>
+                  onChange={val => setUnitSortBy(val)}
+                  options={[
+                    { value: 'unitNumber', label: `Sort: ${activeCategoryConf?.unitTerm} #` },
+                    { value: 'priceAsc', label: 'Price: Low to High' },
+                    { value: 'priceDesc', label: 'Price: High to Low' },
+                    { value: 'areaAsc', label: 'Area: Small to Large' },
+                    { value: 'areaDesc', label: 'Area: Large to Small' },
+                    { value: 'facing', label: 'Facing: A → Z' }
+                  ]}
+                />
               </div>
 
-              {/* View Switcher */}
+              {/* View Switcher: Board/Cards 1st, Table 2nd */}
               <div style={{ display: 'flex', gap: 4, background: '#f1f5f9', padding: 3, borderRadius: 8 }}>
-                <button
-                  className={`btn btn-sm ${unitViewMode === 'table' ? 'btn-primary' : 'btn-ghost'}`}
-                  onClick={() => setUnitViewMode('table')}
-                  style={{ padding: '4px 8px' }}
-                  title="Table View"
-                >
-                  <Layers size={14} /> Table
-                </button>
                 <button
                   className={`btn btn-sm ${unitViewMode === 'grid' ? 'btn-primary' : 'btn-ghost'}`}
                   onClick={() => setUnitViewMode('grid')}
-                  style={{ padding: '4px 8px' }}
-                  title="Card Grid View"
+                  style={{ padding: '4px 10px', fontSize: 12, gap: 4, fontWeight: 600 }}
+                  title="Card Grid View (Default)"
                 >
                   <Grid size={14} /> Cards
+                </button>
+                <button
+                  className={`btn btn-sm ${unitViewMode === 'table' ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setUnitViewMode('table')}
+                  style={{ padding: '4px 10px', fontSize: 12, gap: 4, fontWeight: 600 }}
+                  title="Table View"
+                >
+                  <Layers size={14} /> Table
                 </button>
               </div>
             </div>
@@ -1473,11 +1518,13 @@ export default function ProjectsPage() {
               <div style={{ fontSize: 32, marginBottom: 8 }}>{activeCategoryConf?.icon}</div>
               <div style={{ fontSize: 16, fontWeight: 700 }}>No {activeCategoryConf?.unitTerm}s match your filters</div>
               <div style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>
-                Try adjusting your search criteria or add new {activeCategoryConf?.unitTerm}s to this project.
+                {isAdmin ? `Try adjusting your search criteria or add new ${activeCategoryConf?.unitTerm}s to this project.` : 'No units currently match your search filters.'}
               </div>
-              <button className="btn btn-primary" onClick={openAddUnitModal} style={{ marginTop: 14 }}>
-                <Plus size={14} /> Add First {activeCategoryConf?.unitTerm}
-              </button>
+              {isAdmin && (
+                <button className="btn btn-primary" onClick={openAddUnitModal} style={{ marginTop: 14 }}>
+                  <Plus size={14} /> Add First {activeCategoryConf?.unitTerm}
+                </button>
+              )}
             </div>
           ) : unitViewMode === 'table' ? (
             /* Category-Aware Dynamic Table */
@@ -1487,11 +1534,18 @@ export default function ProjectsPage() {
                   <thead>
                     <tr style={{ background: '#f8fafc' }}>
                       <th>{activeCategoryConf?.unitTerm} #</th>
-                      <th>Location / Zone</th>
-                      <th>Configuration / Typology</th>
-                      {activeProjectView.type === 'plots' ? (
+                      <th>Block / Sector</th>
+                      <th>Land Type / Typology</th>
+                      {['agricultural_land', 'farmland', 'resort_plots'].includes(activeProjectView.type) ? (
                         <>
-                          <th>Dimensions (L x W)</th>
+                          <th>Land Extent & Area</th>
+                          <th>Plantation & Trees</th>
+                          <th>Water & Irrigation</th>
+                          <th>Fencing & Boundary</th>
+                        </>
+                      ) : activeProjectView.type === 'plots' || activeProjectView.type === 'layouts' ? (
+                        <>
+                          <th>Plot Area / Extent</th>
                           <th>Road Width</th>
                         </>
                       ) : activeProjectView.type === 'retail_shop' ? (
@@ -1506,14 +1560,14 @@ export default function ProjectsPage() {
                         </>
                       ) : (
                         <>
-                          <th>Area (sq.ft)</th>
+                          <th>Super Built-Up Area</th>
                           <th>Carpet Area</th>
                         </>
                       )}
-                      <th>Orientation / Facing</th>
+                      <th>Facing</th>
                       <th>Base Rate (₹)</th>
-                      <th>Total Value (₹)</th>
-                      <th>Status & Customer</th>
+                      <th>Total Package Price (₹)</th>
+                      <th>Inventory Status</th>
                       <th style={{ textAlign: 'right' }}>Actions</th>
                     </tr>
                   </thead>
@@ -1528,27 +1582,43 @@ export default function ProjectsPage() {
                             </div>
                             {u.isCornerPlot && (
                               <span className="badge badge-warning" style={{ fontSize: 9, marginTop: 2 }}>
-                                Corner Plot (+5% PLC)
+                                Corner (+5% PLC)
                               </span>
                             )}
                           </td>
                           <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                            {u.sector || u.tower || u.phase || u.block || 'Main'}
-                            {u.floor !== undefined && activeProjectView.type !== 'plots' && ` • Floor ${u.floor}`}
+                            {u.block || u.sector || u.tower || 'Main Block'}
+                            {u.floor !== undefined && !['plots', 'layouts', 'agricultural_land', 'farmland'].includes(activeProjectView.type) && ` • Floor ${u.floor}`}
                           </td>
                           <td style={{ fontSize: 12, fontWeight: 600 }}>
-                            {u.type}
+                            {u.type || u.landType}
                           </td>
 
                           {/* Category-Specific Columns */}
-                          {activeProjectView.type === 'plots' ? (
+                          {['agricultural_land', 'farmland', 'resort_plots'].includes(activeProjectView.type) ? (
                             <>
                               <td style={{ fontSize: 12 }}>
-                                <strong>{u.dimensions || '30 x 40 ft'}</strong>
-                                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{u.area} sq.ft ({Math.round(u.area / 9)} sq.yd)</div>
+                                <strong>{u.extentAcres || u.areaDetails?.extent || 0.5} {u.extentUnit || u.areaDetails?.unit || 'Acres'}</strong>
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>({(u.area || 0).toLocaleString('en-IN')} sq.ft)</div>
+                              </td>
+                              <td style={{ fontSize: 12, color: '#15803d', fontWeight: 600 }}>
+                                {u.plantationType ? `🌴 ${u.plantationType}` : <span style={{ color: '#94a3b8' }}>None</span>}
                               </td>
                               <td style={{ fontSize: 12 }}>
-                                🛣️ {u.roadWidth || 40} ft Road
+                                💧 {u.irrigation || 'Drip'} ({u.waterSource || 'Borewell'})
+                              </td>
+                              <td style={{ fontSize: 12 }}>
+                                {u.fencing && u.fencing !== 'none' ? `🧱 ${u.fencing.replace(/_/g, ' ')}` : <span style={{ color: '#94a3b8' }}>None</span>}
+                              </td>
+                            </>
+                          ) : activeProjectView.type === 'plots' || activeProjectView.type === 'layouts' ? (
+                            <>
+                              <td style={{ fontSize: 12 }}>
+                                <strong>{u.area} sq.ft</strong>
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{Math.round(u.area / 9)} sq.yd {u.dimensions ? `• ${u.dimensions}` : ''}</div>
+                              </td>
+                              <td style={{ fontSize: 12 }}>
+                                🛣️ {u.roadWidth || 30} ft Road
                               </td>
                             </>
                           ) : activeProjectView.type === 'retail_shop' ? (
@@ -1606,9 +1676,14 @@ export default function ProjectsPage() {
                               </div>
                             )}
                             {/* Booked Customer Info Tag */}
-                            {u.status === 'booked' && u.bookingCustomer?.name && (
-                              <div style={{ fontSize: 11, color: '#1d4ed8', marginTop: 3, fontWeight: 600 }}>
-                                👤 {u.bookingCustomer.name}
+                            {u.status === 'booked' && (
+                              <div
+                                style={{ fontSize: 11, color: '#1d4ed8', marginTop: 3, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                                onClick={() => setViewingBookingDetails(u)}
+                                title="Click to view full Customer Booking & KYC Details"
+                              >
+                                👤 {u.bookingCustomer?.name || 'Primary Applicant'}
+                                <span style={{ fontSize: 10, textDecoration: 'underline', color: '#2563eb' }}>(View Details)</span>
                               </div>
                             )}
                           </td>
@@ -1642,6 +1717,15 @@ export default function ProjectsPage() {
                                     Release
                                   </button>
                                 </>
+                              ) : u.status === 'booked' ? (
+                                <button
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ padding: '3px 8px', fontSize: 11, gap: 4, background: '#eff6ff', borderColor: '#bfdbfe', color: '#1d4ed8', fontWeight: 600 }}
+                                  onClick={() => setViewingBookingDetails(u)}
+                                  title="View Customer Booking KYC & Token Payment Details"
+                                >
+                                  <FileCheck size={12} /> View Booking
+                                </button>
                               ) : null}
 
                               {u.status !== 'booked' && u.status !== 'sold' && (
@@ -1655,14 +1739,16 @@ export default function ProjectsPage() {
                                 </button>
                               )}
 
-                              <button
-                                className="btn btn-ghost btn-icon btn-sm"
-                                style={{ color: 'var(--danger)' }}
-                                title="Delete Unit"
-                                onClick={() => handleDeleteUnit(u._id, u.unitNumber)}
-                              >
-                                <Trash2 size={13} />
-                              </button>
+                              {isAdmin && (
+                                <button
+                                  className="btn btn-ghost btn-icon btn-sm"
+                                  style={{ color: 'var(--danger)' }}
+                                  title="Delete Unit"
+                                  onClick={() => handleDeleteUnit(u._id, u.unitNumber)}
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1734,13 +1820,20 @@ export default function ProjectsPage() {
                     )}
 
                     {/* Booked Customer Banner if booked */}
-                    {u.status === 'booked' && u.bookingCustomer?.name && (
-                      <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '6px 8px', marginBottom: 10, fontSize: 11 }}>
-                        <div style={{ fontWeight: 700, color: '#1d4ed8', display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <FileCheck size={12} /> Booked: {u.bookingCustomer.name}
+                    {u.status === 'booked' && (
+                      <div
+                        style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '8px 10px', marginBottom: 10, fontSize: 11, cursor: 'pointer' }}
+                        onClick={() => setViewingBookingDetails(u)}
+                        title="Click to view full Booking & KYC Details"
+                      >
+                        <div style={{ fontWeight: 700, color: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <FileCheck size={13} color="#2563eb" /> Booked: {u.bookingCustomer?.name || 'Primary Applicant'}
+                          </span>
+                          <span style={{ fontSize: 10, textDecoration: 'underline', color: '#2563eb' }}>View KYC →</span>
                         </div>
-                        <div style={{ color: '#1e40af', marginTop: 2 }}>
-                          Token Paid: {formatCurrency(u.bookingCustomer.tokenAmount || 100000)} ({u.bookingCustomer.paymentMode || 'NEFT'})
+                        <div style={{ color: '#1e40af', marginTop: 3 }}>
+                          Token Paid: {formatCurrency(u.bookingCustomer?.tokenAmount || 100000)} ({u.bookingCustomer?.paymentMode || 'NEFT'})
                         </div>
                       </div>
                     )}
@@ -1778,6 +1871,14 @@ export default function ProjectsPage() {
                             Release
                           </button>
                         </>
+                      ) : u.status === 'booked' ? (
+                        <button
+                          className="btn btn-secondary btn-sm flex-1"
+                          style={{ fontSize: 11, justifyContent: 'center', gap: 4, background: '#eff6ff', borderColor: '#bfdbfe', color: '#1d4ed8', fontWeight: 700 }}
+                          onClick={() => setViewingBookingDetails(u)}
+                        >
+                          <FileCheck size={13} /> View Booking Details
+                        </button>
                       ) : null}
 
                       {u.status !== 'booked' && u.status !== 'sold' && (
@@ -1790,14 +1891,16 @@ export default function ProjectsPage() {
                         </button>
                       )}
 
-                      <button
-                        className="btn btn-ghost btn-icon btn-sm"
-                        style={{ color: 'var(--danger)' }}
-                        onClick={() => handleDeleteUnit(u._id, u.unitNumber)}
-                        title="Delete Unit"
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      {isAdmin && (
+                        <button
+                          className="btn btn-ghost btn-icon btn-sm"
+                          style={{ color: 'var(--danger)' }}
+                          onClick={() => handleDeleteUnit(u._id, u.unitNumber)}
+                          title="Delete Unit"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -1848,19 +1951,20 @@ export default function ProjectsPage() {
                   <label className="form-label" style={{ color: '#1e40af', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                     <UserCheck size={14} color="#2563eb" /> Select Buyer / Prospect from Leads Database
                   </label>
-                  <select
-                    className="form-select"
+                  <CustomSelect
                     value={holdForm.selectedLeadId}
-                    onChange={e => handleHoldLeadSelect(e.target.value)}
-                    style={{ background: 'white' }}
-                  >
-                    <option value="">-- ➕ Enter New Customer Manually --</option>
-                    {leadsList.map(lead => (
-                      <option key={lead._id} value={lead._id}>
-                        {lead.name} ({lead.phone}) — {lead.stage ? lead.stage.replace(/_/g, ' ').toUpperCase() : 'LEAD'} • {lead.source || 'Direct'}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={val => handleHoldLeadSelect(typeof val === 'object' && val.target ? val.target.value : val)}
+                    placeholder="-- ➕ Enter New Customer Manually --"
+                    searchable
+                    options={[
+                      { value: '', label: '➕ Enter New Customer Manually' },
+                      ...leadsList.map(lead => ({
+                        value: lead._id,
+                        label: `${lead.name} (${lead.phone})`,
+                        subtext: `${lead.stage ? lead.stage.replace(/_/g, ' ').toUpperCase() : 'LEAD'} • ${lead.source || 'Direct'}`
+                      }))
+                    ]}
+                  />
                   {holdForm.selectedLeadId && (
                     <div style={{ fontSize: 11, color: '#15803d', marginTop: 6, fontWeight: 600 }}>
                       ✓ Auto-filled prospect details from CRM database
@@ -1906,16 +2010,16 @@ export default function ProjectsPage() {
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Hold Duration (Reservation Window)</label>
-                    <select
-                      className="form-select"
+                    <CustomSelect
                       value={holdForm.durationHours}
-                      onChange={e => setHoldForm(p => ({ ...p, durationHours: e.target.value }))}
-                    >
-                      <option value="24">24 Hours (1 Day Priority)</option>
-                      <option value="48">48 Hours (Standard Executive Hold)</option>
-                      <option value="72">72 Hours (Weekend Window)</option>
-                      <option value="168">7 Days (Management Approval Required)</option>
-                    </select>
+                      onChange={val => setHoldForm(p => ({ ...p, durationHours: typeof val === 'object' && val.target ? val.target.value : val }))}
+                      options={[
+                        { value: '24', label: '24 Hours', subtext: '1 Day Priority' },
+                        { value: '48', label: '48 Hours', subtext: 'Standard Executive Hold' },
+                        { value: '72', label: '72 Hours', subtext: 'Weekend Window' },
+                        { value: '168', label: '7 Days', subtext: 'Management Approval Required' }
+                      ]}
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Sales Executive / Agent</label>
@@ -2006,19 +2110,20 @@ export default function ProjectsPage() {
                   <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <UserCheck size={14} color="#2563eb" /> 1. Select Buyer / Prospect from Leads Database
                   </div>
-                  <select
-                    className="form-select"
+                  <CustomSelect
                     value={bookingForm.selectedLeadId}
-                    onChange={e => handleBookingLeadSelect(e.target.value)}
-                    style={{ background: 'white', fontWeight: 600, padding: '7px 12px', fontSize: 13 }}
-                  >
-                    <option value="">-- ➕ Enter New Customer (Manual KYC) --</option>
-                    {leadsList.map(lead => (
-                      <option key={lead._id} value={lead._id}>
-                        {lead.name} ({lead.phone}) — {lead.stage ? lead.stage.replace(/_/g, ' ').toUpperCase() : 'LEAD'} • {lead.source || 'Direct'}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={val => handleBookingLeadSelect(typeof val === 'object' && val.target ? val.target.value : val)}
+                    placeholder="-- ➕ Enter New Customer (Manual KYC) --"
+                    searchable
+                    options={[
+                      { value: '', label: '➕ Enter New Customer (Manual KYC)' },
+                      ...leadsList.map(lead => ({
+                        value: lead._id,
+                        label: `${lead.name} (${lead.phone})`,
+                        subtext: `${lead.stage ? lead.stage.replace(/_/g, ' ').toUpperCase() : 'LEAD'} • ${lead.source || 'Direct'}`
+                      }))
+                    ]}
+                  />
                   {bookingForm.selectedLeadId && (
                     <div style={{ fontSize: 11, color: '#15803d', marginTop: 4, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
                       <CheckCircle size={13} /> Sourced & auto-populated from CRM Lead Database
@@ -2125,16 +2230,12 @@ export default function ProjectsPage() {
                     </div>
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <label className="form-label" style={{ fontSize: 12, marginBottom: 4 }}>Relationship to Primary Buyer</label>
-                      <select
-                        className="form-select"
-                        style={{ padding: '7px 12px', fontSize: 13 }}
+                      <CustomSelect
                         value={bookingForm.coApplicantRelation}
-                        onChange={e => setBookingForm(p => ({ ...p, coApplicantRelation: e.target.value }))}
-                      >
-                        {CO_APPLICANT_RELATIONS.map(rel => (
-                          <option key={rel.value} value={rel.value}>{rel.label}</option>
-                        ))}
-                      </select>
+                        onChange={val => setBookingForm(p => ({ ...p, coApplicantRelation: typeof val === 'object' && val.target ? val.target.value : val }))}
+                        placeholder="Select relationship"
+                        options={CO_APPLICANT_RELATIONS}
+                      />
                     </div>
                   </div>
 
@@ -2207,18 +2308,17 @@ export default function ProjectsPage() {
                   </div>
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <label className="form-label" style={{ fontSize: 12, marginBottom: 4 }}>Payment Instrument Mode</label>
-                    <select
-                      className="form-select"
-                      style={{ padding: '7px 12px', fontSize: 13 }}
+                    <CustomSelect
                       value={bookingForm.paymentMode}
-                      onChange={e => setBookingForm(p => ({ ...p, paymentMode: e.target.value }))}
-                    >
-                      <option value="Cheque">Cheque / Demand Draft</option>
-                      <option value="NEFT/RTGS">NEFT / RTGS Bank Transfer</option>
-                      <option value="UPI">UPI / QR Payment</option>
-                      <option value="Debit/Credit Card">Debit / Credit Card</option>
-                      <option value="Bank Transfer">Direct Bank Transfer</option>
-                    </select>
+                      onChange={val => setBookingForm(p => ({ ...p, paymentMode: typeof val === 'object' && val.target ? val.target.value : val }))}
+                      options={[
+                        { value: 'Cheque', label: 'Cheque / Demand Draft', icon: '📝' },
+                        { value: 'NEFT/RTGS', label: 'NEFT / RTGS Bank Transfer', icon: '🏦' },
+                        { value: 'UPI', label: 'UPI / QR Payment', icon: '📱' },
+                        { value: 'Debit/Credit Card', label: 'Debit / Credit Card', icon: '💳' },
+                        { value: 'Bank Transfer', label: 'Direct Bank Transfer', icon: '🏛️' }
+                      ]}
+                    />
                   </div>
                 </div>
 
@@ -2346,6 +2446,146 @@ export default function ProjectsPage() {
         </div>
       )}
 
+      {/* MODAL 4: View Official Booking & Customer KYC Details */}
+      {viewingBookingDetails && (
+        <div className="modal-overlay" onClick={() => setViewingBookingDetails(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 640, maxHeight: 'min(92vh, 800px)', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header" style={{ background: 'linear-gradient(135deg, #1e3a5f, #0f172a)', color: 'white' }}>
+              <div className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'white' }}>
+                <FileCheck size={18} color="#38bdf8" /> Official Booking Application — {viewingBookingDetails.unitNumber}
+              </div>
+              <button className="modal-close btn btn-ghost btn-icon btn-sm" style={{ color: 'white' }} onClick={() => setViewingBookingDetails(null)}><X size={16} /></button>
+            </div>
+            <div className="modal-body" style={{ overflowY: 'auto', padding: 20 }}>
+              {/* Unit Summary Banner */}
+              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '12px 16px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: '#1e40af' }}>
+                    {viewingBookingDetails.unitNumber} • {viewingBookingDetails.type || 'Unit'}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                    {activeProjectView?.name} {viewingBookingDetails.block ? `• Block: ${viewingBookingDetails.block}` : ''}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Agreement Value</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--primary)' }}>
+                    {formatCurrency(viewingBookingDetails.totalPrice || viewingBookingDetails.pricing?.totalPrice || 0)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 1: Primary Applicant KYC */}
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <User size={15} color="#2563eb" /> 1. Primary Applicant KYC & Legal Information
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 16 }}>
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>FULL LEGAL NAME</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginTop: 2 }}>{viewingBookingDetails.bookingCustomer?.name || 'Primary Applicant'}</div>
+                </div>
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>MOBILE PHONE</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginTop: 2 }}>{viewingBookingDetails.bookingCustomer?.phone || 'Not provided'}</div>
+                </div>
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>EMAIL ADDRESS</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginTop: 2 }}>{viewingBookingDetails.bookingCustomer?.email || 'Not provided'}</div>
+                </div>
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>PAN NUMBER</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginTop: 2, fontFamily: 'monospace' }}>{viewingBookingDetails.bookingCustomer?.panNumber || '—'}</div>
+                </div>
+                {viewingBookingDetails.bookingCustomer?.aadharNumber && (
+                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10 }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>AADHAAR NUMBER</div>
+                    <div style={{ fontWeight: 700, fontSize: 13, marginTop: 2 }}>{viewingBookingDetails.bookingCustomer?.aadharNumber}</div>
+                  </div>
+                )}
+                {viewingBookingDetails.bookingCustomer?.address && (
+                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10, gridColumn: 'span 2' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>RESIDENTIAL ADDRESS</div>
+                    <div style={{ fontSize: 12, marginTop: 2 }}>{viewingBookingDetails.bookingCustomer?.address}</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Section 2: Co-Applicant Info (if available) */}
+              {viewingBookingDetails.bookingCustomer?.coApplicantName && (
+                <>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Users size={15} color="#2563eb" /> 2. Co-Applicant / Co-Owner Information
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 16 }}>
+                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10 }}>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>CO-APPLICANT NAME</div>
+                      <div style={{ fontWeight: 700, fontSize: 13, marginTop: 2 }}>{viewingBookingDetails.bookingCustomer.coApplicantName}</div>
+                    </div>
+                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10 }}>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>RELATION</div>
+                      <div style={{ fontWeight: 700, fontSize: 13, marginTop: 2 }}>{viewingBookingDetails.bookingCustomer.coApplicantRelation || 'Co-Owner'}</div>
+                    </div>
+                    {viewingBookingDetails.bookingCustomer.coApplicantPhone && (
+                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10 }}>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>PHONE / EMAIL</div>
+                        <div style={{ fontSize: 12, marginTop: 2 }}>{viewingBookingDetails.bookingCustomer.coApplicantPhone}</div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Section 3: Token Commercials & Payment Instrument */}
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <CreditCard size={15} color="#2563eb" /> 3. Token Advance & Payment Instrument
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 10 }}>
+                  <div style={{ fontSize: 10, color: '#166534', fontWeight: 700 }}>TOKEN ADVANCE PAID</div>
+                  <div style={{ fontWeight: 800, fontSize: 16, color: '#15803d', marginTop: 2 }}>
+                    {formatCurrency(viewingBookingDetails.bookingCustomer?.tokenAmount || 0)}
+                  </div>
+                </div>
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>PAYMENT INSTRUMENT</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginTop: 2 }}>{viewingBookingDetails.bookingCustomer?.paymentMode || 'NEFT / RTGS'}</div>
+                </div>
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>TRANSACTION REF / CHQ #</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginTop: 2 }}>{viewingBookingDetails.bookingCustomer?.transactionRef || 'Recorded'}</div>
+                </div>
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>BOOKING APPLICATION DATE</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginTop: 2 }}>
+                    {viewingBookingDetails.bookingCustomer?.bookingDate ? formatDate(viewingBookingDetails.bookingCustomer.bookingDate) : 'Recently Booked'}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ justifyContent: 'space-between', background: '#f8fafc', padding: '12px 20px', borderTop: '1px solid #e2e8f0' }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setViewingBookingDetails(null)}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                style={{ gap: 6 }}
+                onClick={() => {
+                  setViewingBookingDetails(null);
+                  navigate('/bookings');
+                }}
+              >
+                <FileCheck size={14} /> Open in Bookings Register →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal: Create / Edit Real Estate Project */}
       {showProjectModal && (
         <div className="modal-overlay" onClick={() => setShowProjectModal(false)}>
@@ -2387,24 +2627,25 @@ export default function ProjectsPage() {
                   </div>
 
                   {!form.isCustomCategory && form.type !== 'custom' ? (
-                    <select
-                      className="form-select"
+                    <CustomSelect
                       value={form.type}
-                      onChange={e => {
-                        const val = e.target.value;
-                        if (val === 'custom') {
+                      onChange={val => {
+                        const actualVal = typeof val === 'object' && val.target ? val.target.value : val;
+                        if (actualVal === 'custom') {
                           setForm(p => ({ ...p, type: 'custom', isCustomCategory: true }));
                         } else {
-                          setForm(p => ({ ...p, type: val, isCustomCategory: false }));
+                          setForm(p => ({ ...p, type: actualVal, isCustomCategory: false }));
                         }
                       }}
-                    >
-                      {Object.entries(REAL_ESTATE_CATEGORIES).map(([catKey, catConf]) => (
-                        <option key={catKey} value={catKey}>
-                          {catConf.icon} {catConf.label} — {catConf.description}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Select development category"
+                      searchable
+                      options={Object.entries(REAL_ESTATE_CATEGORIES).map(([catKey, catConf]) => ({
+                        value: catKey,
+                        label: catConf.label,
+                        icon: catConf.icon,
+                        subtext: catConf.description
+                      }))}
+                    />
                   ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 10, marginTop: 6 }}>
                       <div>
@@ -2457,16 +2698,17 @@ export default function ProjectsPage() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Project Stage</label>
-                    <select
-                      className="form-select"
+                    <CustomSelect
                       value={form.status}
-                      onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
-                    >
-                      <option value="launched">Launched</option>
-                      <option value="under_construction">Under Construction / Development</option>
-                      <option value="ready_to_move">Ready for Possession / Registration</option>
-                      <option value="pre_launch">Pre-Launch</option>
-                    </select>
+                      onChange={val => setForm(p => ({ ...p, status: typeof val === 'object' && val.target ? val.target.value : val }))}
+                      placeholder="Select project stage"
+                      options={[
+                        { value: 'launched', label: 'Launched', icon: '🚀', subtext: 'Active sales open' },
+                        { value: 'under_construction', label: 'Under Construction / Development', icon: '🏗️', subtext: 'Civil work in progress' },
+                        { value: 'ready_to_move', label: 'Ready for Possession / Registration', icon: '🔑', subtext: 'Immediate handover' },
+                        { value: 'pre_launch', label: 'Pre-Launch', icon: '✨', subtext: 'Expression of interest' }
+                      ]}
+                    />
                   </div>
                 </div>
 
@@ -2625,19 +2867,19 @@ export default function ProjectsPage() {
                           placeholder="e.g. 25"
                           style={{ flex: 1 }}
                         />
-                        <select
-                          className="form-select"
+                        <CustomSelect
                           value={form.extentUnit}
-                          onChange={e => setForm(p => ({ ...p, extentUnit: e.target.value }))}
-                          style={{ width: 105 }}
-                        >
-                          <option value="Acres">Acres</option>
-                          <option value="Gunthas">Gunthas</option>
-                          <option value="Bighas">Bighas</option>
-                          <option value="Sq.Yards">Sq.Yds</option>
-                          <option value="Cents">Cents</option>
-                          <option value="Sq.Ft">Sq.Ft</option>
-                        </select>
+                          onChange={val => setForm(p => ({ ...p, extentUnit: typeof val === 'object' && val.target ? val.target.value : val }))}
+                          style={{ width: 120 }}
+                          options={[
+                            { value: 'Acres', label: 'Acres' },
+                            { value: 'Gunthas', label: 'Gunthas' },
+                            { value: 'Bighas', label: 'Bighas' },
+                            { value: 'Sq.Yards', label: 'Sq.Yds' },
+                            { value: 'Cents', label: 'Cents' },
+                            { value: 'Sq.Ft', label: 'Sq.Ft' }
+                          ]}
+                        />
                       </div>
                     </div>
                   </div>
@@ -2683,409 +2925,56 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {/* Modal: Dynamic Add Unit / Plot / Villa / Office / Farmland Modal */}
-      {showAddUnitModal && (
-        <div className="modal-overlay" onClick={() => setShowAddUnitModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 660, maxHeight: 'min(90vh, 780px)', display: 'flex', flexDirection: 'column' }}>
-            <div className="modal-header">
-              <div className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>{activeCategoryConf?.icon}</span>
-                Add {activeCategoryConf?.unitTerm} to {activeProjectView?.name}
-              </div>
-              <button className="modal-close btn btn-ghost btn-icon btn-sm" onClick={() => setShowAddUnitModal(false)}><X size={16} /></button>
-            </div>
-            <form onSubmit={handleAddUnitToProject} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-              <div className="modal-body" style={{ overflowY: 'auto', flex: 1 }}>
-                {/* 1. Category Indicator */}
-                <div style={{ background: activeCategoryConf?.bg, padding: '10px 14px', borderRadius: 8, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 22 }}>{activeCategoryConf?.icon}</span>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: activeCategoryConf?.color }}>{activeCategoryConf?.label} Specifications</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Filling required fields tailored for {activeCategoryConf?.shortLabel}</div>
-                  </div>
-                </div>
-
-                {/* 2. Identifier Fields (Tower/Sector/Phase) */}
-                <div className="form-row">
-                  {['plots', 'layouts', 'agricultural_land', 'farmland', 'resort_plots'].includes(activeProjectView?.type) ? (
-                    <div className="form-group">
-                      <label className="form-label">Sector / Zone / Block Name</label>
-                      <input
-                        className="form-input"
-                        value={unitForm.sector}
-                        onChange={e => setUnitForm(p => ({ ...p, sector: e.target.value }))}
-                        placeholder="e.g. Sector A / Zone 1 - East / Phase 1"
-                      />
-                    </div>
-                  ) : activeProjectView?.type === 'villa' ? (
-                    <div className="form-group">
-                      <label className="form-label">Phase / Enclave</label>
-                      <input
-                        className="form-input"
-                        value={unitForm.phase}
-                        onChange={e => setUnitForm(p => ({ ...p, phase: e.target.value }))}
-                        placeholder="e.g. Phase 1 - Lakeview"
-                      />
-                    </div>
-                  ) : activeProjectView?.type === 'retail_shop' ? (
-                    <div className="form-group">
-                      <label className="form-label">Floor / Wing</label>
-                      <input
-                        className="form-input"
-                        value={unitForm.block}
-                        onChange={e => setUnitForm(p => ({ ...p, block: e.target.value }))}
-                        placeholder="e.g. Ground Floor Galleria"
-                      />
-                    </div>
-                  ) : (
-                    <div className="form-group">
-                      <label className="form-label">Tower / Wing</label>
-                      <select className="form-select" value={unitForm.tower} onChange={e => setUnitForm(p => ({ ...p, tower: e.target.value }))}>
-                        {(activeProjectView?.towers || [{ name: 'Tower A' }, { name: 'Tower B' }]).map((t, idx) => (
-                          <option key={idx} value={t.name}>{t.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  <div className="form-group">
-                    <label className="form-label">{activeCategoryConf?.unitTerm} # <span className="required">*</span></label>
-                    <input
-                      className="form-input"
-                      value={unitForm.unitNumber}
-                      onChange={e => setUnitForm(p => ({ ...p, unitNumber: e.target.value }))}
-                      placeholder={
-                        activeProjectView?.type === 'plots' ? 'e.g. Plot 108' :
-                        activeProjectView?.type === 'layouts' ? 'e.g. Site 204' :
-                        activeProjectView?.type === 'farmland' ? 'e.g. Farm Lot 12' :
-                        activeProjectView?.type === 'agricultural_land' ? 'e.g. Agri Parcel 05' :
-                        activeProjectView?.type === 'villa' ? 'e.g. Villa 24' : 'e.g. A-301 / Shop G-12'
-                      }
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* 3. Typology & Dimensions with Custom Entry */}
-                <div className="form-row">
-                  <div className="form-group">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                      <label className="form-label" style={{ marginBottom: 0 }}>Typology / Configuration</label>
-                      <button
-                        type="button"
-                        onClick={() => setUnitForm(p => ({ ...p, isCustomType: !p.isCustomType }))}
-                        style={{ fontSize: 11, color: '#2563eb', fontWeight: 600, border: 'none', background: 'none', cursor: 'pointer' }}
-                      >
-                        {unitForm.isCustomType ? 'Standard Dropdown' : '✏️ Custom Type'}
-                      </button>
-                    </div>
-
-                    {!unitForm.isCustomType ? (
-                      <select
-                        className="form-select"
-                        value={unitForm.type}
-                        onChange={e => {
-                          const val = e.target.value;
-                          if (val === 'Custom Typology' || val.includes('Custom')) {
-                            setUnitForm(p => ({ ...p, type: val, isCustomType: true }));
-                          } else {
-                            setUnitForm(p => ({ ...p, type: val, isCustomType: false }));
-                          }
-                        }}
-                      >
-                        {(CATEGORY_TYPOLOGIES[activeProjectView?.type] || CATEGORY_TYPOLOGIES.residential_apartment).map(typ => (
-                          <option key={typ} value={typ}>{typ}</option>
-                        ))}
-                        <option value="Custom Typology">✏️ Other / Custom Typology (Manual Entry)</option>
-                      </select>
-                    ) : (
-                      <input
-                        className="form-input"
-                        value={unitForm.customType}
-                        onChange={e => setUnitForm(p => ({ ...p, customType: e.target.value }))}
-                        placeholder="e.g. 1.5 Acre Mango Farm / 40x60 Luxury Plot / 5 BHK Penthouse"
-                        required
-                      />
-                    )}
-                  </div>
-
-                  {['plots', 'layouts'].includes(activeProjectView?.type) ? (
-                    <div className="form-group">
-                      <label className="form-label">Plot Dimensions (L x W ft)</label>
-                      <input
-                        className="form-input"
-                        value={unitForm.dimensions}
-                        onChange={e => setUnitForm(p => ({ ...p, dimensions: e.target.value }))}
-                        placeholder="e.g. 30 x 40 ft / 40 x 60 ft"
-                      />
-                    </div>
-                  ) : ['farmland', 'agricultural_land'].includes(activeProjectView?.type) ? (
-                    <div className="form-group">
-                      <label className="form-label">Land Extent Size</label>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          className="form-input"
-                          value={unitForm.extentAcres}
-                          onChange={e => setUnitForm(p => ({ ...p, extentAcres: e.target.value }))}
-                          placeholder="0.5"
-                          style={{ flex: 1 }}
-                        />
-                        <select
-                          className="form-select"
-                          value={unitForm.extentUnit}
-                          onChange={e => setUnitForm(p => ({ ...p, extentUnit: e.target.value }))}
-                          style={{ width: 105 }}
-                        >
-                          <option value="Acres">Acres</option>
-                          <option value="Gunthas">Gunthas</option>
-                          <option value="Bighas">Bighas</option>
-                          <option value="Cents">Cents</option>
-                          <option value="Sq.Yards">Sq.Yds</option>
-                        </select>
-                      </div>
-                    </div>
-                  ) : activeProjectView?.type === 'villa' ? (
-                    <div className="form-group">
-                      <label className="form-label">Villa Levels</label>
-                      <select
-                        className="form-select"
-                        value={unitForm.levels}
-                        onChange={e => setUnitForm(p => ({ ...p, levels: e.target.value }))}
-                      >
-                        <option value="G+1">G+1 (Ground + 1 Floor)</option>
-                        <option value="G+2">G+2 (Ground + 2 Floors)</option>
-                        <option value="G+3">G+3 (Triplex Villa)</option>
-                      </select>
-                    </div>
-                  ) : activeProjectView?.type === 'retail_shop' ? (
-                    <div className="form-group">
-                      <label className="form-label">Frontage Width (ft)</label>
-                      <input
-                        type="number"
-                        className="form-input"
-                        value={unitForm.frontage}
-                        onChange={e => setUnitForm(p => ({ ...p, frontage: e.target.value }))}
-                        placeholder="e.g. 18 ft"
-                      />
-                    </div>
-                  ) : (
-                    <div className="form-group">
-                      <label className="form-label">Floor Number</label>
-                      <input
-                        type="number"
-                        className="form-input"
-                        value={unitForm.floor}
-                        onChange={e => setUnitForm(p => ({ ...p, floor: e.target.value }))}
-                        placeholder="e.g. 3"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* 4. Area & Facing with Custom Option */}
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">
-                      {['plots', 'layouts', 'farmland', 'agricultural_land'].includes(activeProjectView?.type) ? 'Total Area (sq.ft)' : 'Super Built-Up Area (sq.ft)'} <span className="required">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      value={unitForm.area}
-                      onChange={e => setUnitForm(p => ({ ...p, area: e.target.value }))}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                      <label className="form-label" style={{ marginBottom: 0 }}>Facing Orientation</label>
-                      <button
-                        type="button"
-                        onClick={() => setUnitForm(p => ({ ...p, isCustomFacing: !p.isCustomFacing }))}
-                        style={{ fontSize: 11, color: '#2563eb', fontWeight: 600, border: 'none', background: 'none', cursor: 'pointer' }}
-                      >
-                        {unitForm.isCustomFacing ? 'Standard List' : '✏️ Custom Facing'}
-                      </button>
-                    </div>
-
-                    {!unitForm.isCustomFacing ? (
-                      <select
-                        className="form-select"
-                        value={unitForm.facing}
-                        onChange={e => {
-                          const val = e.target.value;
-                          if (val === 'Custom') {
-                            setUnitForm(p => ({ ...p, facing: val, isCustomFacing: true }));
-                          } else {
-                            setUnitForm(p => ({ ...p, facing: val, isCustomFacing: false }));
-                          }
-                        }}
-                      >
-                        {FACING_OPTIONS.map(f => (
-                          <option key={f.value} value={f.value}>{f.label}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        className="form-input"
-                        value={unitForm.customFacing}
-                        onChange={e => setUnitForm(p => ({ ...p, customFacing: e.target.value }))}
-                        placeholder="e.g. Lake & Hills View / Valley Facing / 4-Side Open"
-                        required
-                      />
-                    )}
-                  </div>
-                </div>
-
-                {/* 5. Category-Specific Additional Controls */}
-                {['plots', 'layouts'].includes(activeProjectView?.type) && (
-                  <div className="form-row" style={{ background: '#f8fafc', padding: 12, borderRadius: 8, marginBottom: 14, border: '1px solid #e2e8f0' }}>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label">Road Width in Front (ft)</label>
-                      <select
-                        className="form-select"
-                        value={unitForm.roadWidth}
-                        onChange={e => setUnitForm(p => ({ ...p, roadWidth: e.target.value }))}
-                      >
-                        <option value="30">30 ft Internal Road</option>
-                        <option value="40">40 ft Sector Road</option>
-                        <option value="60">60 ft Main Avenue</option>
-                        <option value="80">80 ft Boulevard</option>
-                      </select>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 6 }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
-                        <input
-                          type="checkbox"
-                          checked={unitForm.isCornerPlot}
-                          onChange={e => setUnitForm(p => ({ ...p, isCornerPlot: e.target.checked }))}
-                          style={{ accentColor: 'var(--primary)' }}
-                        />
-                        Corner Dual-Road Plot (+5% PLC)
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={unitForm.boundaryWall}
-                          onChange={e => setUnitForm(p => ({ ...p, boundaryWall: e.target.checked }))}
-                          style={{ accentColor: 'var(--primary)' }}
-                        />
-                        Fencing & Boundary Wall Complete
-                      </label>
-                    </div>
-                  </div>
-                )}
-
-                {['farmland', 'agricultural_land'].includes(activeProjectView?.type) && (
-                  <div style={{ background: '#f0fdf4', padding: 12, borderRadius: 8, marginBottom: 14, border: '1px solid #bbf7d0' }}>
-                    <div className="form-row" style={{ marginBottom: 8 }}>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label">Plantation / Tree Species</label>
-                        <input
-                          className="form-input"
-                          value={unitForm.plantationType}
-                          onChange={e => setUnitForm(p => ({ ...p, plantationType: e.target.value }))}
-                          placeholder="e.g. Alphonso Mango, Sandalwood, Teakwood, Avocado"
-                        />
-                      </div>
-                      <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label">Water & Irrigation System</label>
-                        <input
-                          className="form-input"
-                          value={unitForm.waterSource}
-                          onChange={e => setUnitForm(p => ({ ...p, waterSource: e.target.value }))}
-                          placeholder="e.g. Borewell + Automated Drip / Canal Water"
-                        />
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
-                        <input
-                          type="checkbox"
-                          checked={unitForm.boundaryWall}
-                          onChange={e => setUnitForm(p => ({ ...p, boundaryWall: e.target.checked }))}
-                          style={{ accentColor: '#16a34a' }}
-                        />
-                        Chain-link / Stone Fencing Included
-                      </label>
-                    </div>
-                  </div>
-                )}
-
-                {activeProjectView?.type === 'villa' && (
-                  <div className="form-row" style={{ background: '#f8fafc', padding: 12, borderRadius: 8, marginBottom: 14 }}>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label">Private Garden Area (sq.ft)</label>
-                      <input
-                        type="number"
-                        className="form-input"
-                        value={unitForm.gardenArea}
-                        onChange={e => setUnitForm(p => ({ ...p, gardenArea: e.target.value }))}
-                        placeholder="e.g. 450"
-                      />
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label">Covered Car Parks</label>
-                      <input
-                        type="number"
-                        className="form-input"
-                        value={unitForm.carParks}
-                        onChange={e => setUnitForm(p => ({ ...p, carParks: e.target.value }))}
-                        placeholder="e.g. 2"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* 6. Pricing */}
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Base Rate / BSP (₹) <span className="required">*</span></label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      value={unitForm.basePrice}
-                      onChange={e => setUnitForm(p => ({ ...p, basePrice: e.target.value }))}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">All-Inclusive Total Package (₹) <span className="required">*</span></label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      value={unitForm.totalPrice}
-                      onChange={e => setUnitForm(p => ({ ...p, totalPrice: e.target.value }))}
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* 7. Initial Status */}
-                <div className="form-group">
-                  <label className="form-label">Initial Sales Availability</label>
-                  <select
-                    className="form-select"
-                    value={unitForm.status}
-                    onChange={e => setUnitForm(p => ({ ...p, status: e.target.value }))}
-                  >
-                    <option value="available">🟢 Available (Open for Sale)</option>
-                    <option value="on_hold">🟡 On Hold (48h Reservation)</option>
-                    <option value="blocked">🔴 Blocked (Management)</option>
-                    <option value="booked">🔵 Booked (Token Paid)</option>
-                  </select>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowAddUnitModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Add {activeCategoryConf?.unitTerm} to Project</button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {/* Modal: Dynamic Add Land / Plot / Unit Inventory Modal */}
+      {showAddUnitModal && activeProjectView && (
+        <AddInventoryModal
+          project={activeProjectView}
+          onClose={() => setShowAddUnitModal(false)}
+          onUnitAdded={(newUnit) => {
+            setActiveProjectView(prev => {
+              if (!prev) return prev;
+              const currentList = prev.unitsList || [];
+              const mapped = {
+                _id: newUnit._id,
+                unitNumber: newUnit.unitNumber,
+                tower: newUnit.tower || 'Main',
+                sector: newUnit.sector || newUnit.block || 'Sector A',
+                phase: newUnit.phase || 'Phase 1',
+                block: newUnit.block || 'Main Block',
+                floor: newUnit.floor || 1,
+                type: newUnit.type || newUnit.landType || 'Plot',
+                landType: newUnit.landType || newUnit.type,
+                area: newUnit.area?.sqft || newUnit.area?.superBuiltUp || newUnit.area?.plotArea || 1200,
+                areaDetails: newUnit.area,
+                dimensions: newUnit.dimensions?.dimensionStr || '30 x 40 ft',
+                roadWidth: newUnit.physicalDetails?.roadWidth || 30,
+                isCornerPlot: newUnit.physicalDetails?.isCorner || false,
+                extentAcres: newUnit.area?.extent || 0.5,
+                extentUnit: newUnit.area?.unit || 'acre',
+                plantationType: newUnit.agriculturalDetails?.plantation || '',
+                waterSource: newUnit.physicalDetails?.waterSource || 'Borewell',
+                irrigation: newUnit.agriculturalDetails?.irrigation || 'Drip',
+                fencing: newUnit.agriculturalDetails?.fencing || 'None',
+                electricity: newUnit.physicalDetails?.electricity || 'Available',
+                pricing: newUnit.pricing,
+                basePrice: newUnit.pricing?.baseRate || newUnit.pricing?.basePrice || 5000000,
+                rateType: newUnit.pricing?.rateType || 'per_sqft',
+                totalPrice: newUnit.pricing?.totalPackagePrice || newUnit.pricing?.totalPrice || 6000000,
+                facing: newUnit.facing ? (newUnit.facing.charAt(0).toUpperCase() + newUnit.facing.slice(1)) : 'East',
+                status: newUnit.status || 'available',
+                holdCustomer: newUnit.holdCustomer || null,
+                bookingCustomer: newUnit.bookingCustomer || null
+              };
+              return {
+                ...prev,
+                unitsList: [mapped, ...currentList.filter(u => u._id !== newUnit._id)]
+              };
+            });
+            api.get('/projects').then(({ data }) => {
+              if (Array.isArray(data.data)) setProjects(data.data);
+            }).catch(() => {});
+          }}
+        />
       )}
     </div>
   );

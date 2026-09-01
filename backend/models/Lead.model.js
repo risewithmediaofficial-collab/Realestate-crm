@@ -1,5 +1,21 @@
 const mongoose = require('mongoose');
 
+// ── Call Log Entry (per-call notes with re-follow date)
+const callLogSchema = new mongoose.Schema({
+  note:           { type: String, required: true },
+  outcome: {
+    type: String,
+    enum: ['connected', 'not_connected', 'callback', 'voicemail', 'interested', 'not_interested', 'meeting_fixed', 'site_visit_fixed', 'other'],
+    default: 'connected'
+  },
+  callDate:       { type: Date, default: Date.now },
+  duration:       { type: Number },                     // seconds
+  nextFollowUp:   { type: Date },                       // re-follow date
+  nextFollowUpTime: { type: String },                   // e.g. "10:30"
+  addedBy:        { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  notified:       { type: Boolean, default: false },    // notification sent?
+}, { _id: true, timestamps: true });
+
 const activitySchema = new mongoose.Schema({
   type: {
     type: String,
@@ -77,6 +93,9 @@ const leadSchema = new mongoose.Schema({
   // Activities (embedded timeline)
   activities: [activitySchema],
 
+  // Call Logs (multi-entry notes per call with re-follow dates)
+  callLogs: [callLogSchema],
+
   // Follow-up
   nextFollowUp: { type: Date },
   nextFollowUpTime: { type: String },
@@ -106,7 +125,7 @@ const leadSchema = new mongoose.Schema({
   },
 
   // Organization & Multi-Tenancy Scoping
-  organization: { type: String, trim: true, default: 'Rise With RealtyHub' },
+  organization: { type: String, trim: true, required: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 
   // Lost reason
@@ -121,5 +140,7 @@ leadSchema.index({ assignedTo: 1 });
 leadSchema.index({ source: 1 });
 leadSchema.index({ 'sourceMetadata.metaLeadId': 1 });
 leadSchema.index({ createdAt: -1 });
+leadSchema.index({ nextFollowUp: 1 });         // for follow-up notification queries
+leadSchema.index({ 'callLogs.nextFollowUp': 1 }); // for per-log follow-up queries
 
 module.exports = mongoose.model('Lead', leadSchema);

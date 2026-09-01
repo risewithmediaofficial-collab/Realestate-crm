@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { MapPin, Plus, Calendar, Clock, CheckCircle, XCircle, X, Phone, Star, Trash2, List, Columns, Car, QrCode } from 'lucide-react';
+import { MapPin, Plus, Calendar, Clock, CheckCircle, XCircle, X, Phone, Star, Trash2, List, Columns, Car, QrCode, Search } from 'lucide-react';
 import api from '../../services/api';
 import { useUI } from '../../context/UIContext';
 import { formatDate, formatDateTime, timeAgo } from '../../utils/formatters';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 const STATUS_CONFIG = {
   scheduled: { label: 'Scheduled', badge: 'badge-primary', color: '#dbeafe' },
@@ -26,7 +27,7 @@ const OUTCOME_CONFIG = {
 const mockVisits = [];
 
 // ─── Site Visits Kanban Board ─────────────────────────
-const SiteVisitsKanbanView = ({ visits, onStatusChange, onDeleteVisit, onBookCab, onShowGatePass }) => {
+const SiteVisitsKanbanView = ({ visits, onStatusChange, onDeleteVisit, onBookCab, onShowGatePass, onScheduleVisit }) => {
   const [draggedId, setDraggedId] = useState(null);
   const [dragOverCol, setDragOverCol] = useState(null);
 
@@ -119,6 +120,21 @@ const SiteVisitsKanbanView = ({ visits, onStatusChange, onDeleteVisit, onBookCab
                   {colVisits.length}
                 </span>
               </div>
+
+              {onScheduleVisit && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-icon btn-sm"
+                  style={{ width: 22, height: 22, padding: 0, color: 'var(--primary)', borderRadius: 4, background: '#f1f5f9' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onScheduleVisit(col.id);
+                  }}
+                  title={`Schedule visit in ${col.title}`}
+                >
+                  <Plus size={13} />
+                </button>
+              )}
             </div>
 
             {/* Body */}
@@ -138,21 +154,50 @@ const SiteVisitsKanbanView = ({ visits, onStatusChange, onDeleteVisit, onBookCab
                 <div
                   style={{
                     textAlign: 'center',
-                    padding: '30px 12px',
+                    padding: '24px 12px',
                     color: 'var(--text-muted)',
                     fontSize: 12,
-                    border: '1px dashed #cbd5e1',
-                    borderRadius: 8,
-                    background: 'white'
+                    border: '1.5px dashed #cbd5e1',
+                    borderRadius: 10,
+                    background: 'white',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 8,
+                    margin: '4px 0'
                   }}
                 >
-                  Drag visits here to mark as {col.title}
+                  <span>No visits in {col.title}</span>
+                  {onScheduleVisit && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      style={{
+                        fontSize: 11.5,
+                        padding: '4px 10px',
+                        height: 28,
+                        gap: 4,
+                        background: '#f8fafc',
+                        borderColor: '#cbd5e1',
+                        color: 'var(--primary)',
+                        fontWeight: 600,
+                        borderRadius: 8
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onScheduleVisit(col.id);
+                      }}
+                    >
+                      <Plus size={13} /> Schedule Visit
+                    </button>
+                  )}
                 </div>
               ) : (
-                colVisits.map(visit => {
-                  const statusConf = STATUS_CONFIG[visit.status] || STATUS_CONFIG.scheduled;
-                  const outcomeConf = OUTCOME_CONFIG[visit.outcome];
-                  const isDragging = draggedId === visit._id;
+                <>
+                  {colVisits.map(visit => {
+                    const statusConf = STATUS_CONFIG[visit.status] || STATUS_CONFIG.scheduled;
+                    const outcomeConf = OUTCOME_CONFIG[visit.outcome];
+                    const isDragging = draggedId === visit._id;
 
                   return (
                     <div
@@ -221,12 +266,36 @@ const SiteVisitsKanbanView = ({ visits, onStatusChange, onDeleteVisit, onBookCab
                       </div>
                     </div>
                   );
-                })
-              )}
-            </div>
+                })}
+                {onScheduleVisit && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    style={{
+                      width: '100%',
+                      fontSize: 11.5,
+                      padding: '6px',
+                      gap: 4,
+                      color: 'var(--text-muted)',
+                      border: '1px dashed #cbd5e1',
+                      borderRadius: 8,
+                      marginTop: 4,
+                      background: '#fafbfc'
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onScheduleVisit(col.id);
+                    }}
+                  >
+                    <Plus size={12} /> Schedule Visit
+                  </button>
+                )}
+              </>
+            )}
           </div>
-        );
-      })}
+        </div>
+      );
+    })}
     </div>
   );
 };
@@ -390,20 +459,21 @@ const ScheduleVisitModal = ({ onClose, onCreated, initialVisit }) => {
 
               {!isManualLead ? (
                 <div>
-                  <select
-                    className="form-select"
+                  <CustomSelect
+                    searchable={true}
                     value={form.leadId}
-                    onChange={e => handleLeadSelect(e.target.value)}
-                    required={!isManualLead}
-                  >
-                    <option value="">-- Select from All Leads ({leads.length} available) --</option>
-                    {leads.map(l => (
-                      <option key={l._id} value={l._id}>
-                        {l.name} — 📞 {l.phone} {l.interestedProject?.name ? `(${l.interestedProject.name})` : ''}
-                      </option>
-                    ))}
-                    <option value="__manual__">✏️ + Enter New / Custom Lead Manually...</option>
-                  </select>
+                    onChange={val => handleLeadSelect(val)}
+                    placeholder={`-- Select from All Leads (${leads.length} available) --`}
+                    options={[
+                      ...leads.map(l => ({
+                        value: l._id,
+                        label: l.name,
+                        subtext: `📞 ${l.phone}${l.interestedProject?.name ? ` · ${l.interestedProject.name}` : ''}`,
+                        icon: l.leadType === 'hot' ? '🔥' : l.leadType === 'warm' ? '⚡' : '❄️'
+                      })),
+                      { value: '__manual__', label: '✏️ + Enter New / Custom Lead Manually...', icon: '✏️' }
+                    ]}
+                  />
                   {leads.length === 0 && (
                     <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 4 }}>
                       ⚠️ No leads found in database yet. Click the button above to type manually or add leads in Leads module.
@@ -437,19 +507,21 @@ const ScheduleVisitModal = ({ onClose, onCreated, initialVisit }) => {
             <div className="form-group">
               <label className="form-label">Target Project Site <span className="required">*</span></label>
               {projects.length > 0 ? (
-                <select
-                  className="form-select"
+                <CustomSelect
                   value={form.project}
-                  onChange={e => setForm(p => ({ ...p, project: e.target.value }))}
-                  required
-                >
-                  <option value="">-- Select Project Site --</option>
-                  {projects.map(prj => (
-                    <option key={prj._id} value={prj._id}>
-                      {prj.name} — {prj.city || 'Active Project'}
-                    </option>
-                  ))}
-                </select>
+                  onChange={val => setForm(p => ({ ...p, project: val }))}
+                  searchable={true}
+                  placeholder="-- Select Project Site --"
+                  options={[
+                    { value: '', label: '-- Select Project Site --' },
+                    ...projects.map(prj => ({
+                      value: prj._id,
+                      label: prj.name,
+                      subtext: prj.city || 'Active Project',
+                      icon: '🏢'
+                    }))
+                  ]}
+                />
               ) : (
                 <input
                   className="form-input"
@@ -471,26 +543,29 @@ const ScheduleVisitModal = ({ onClose, onCreated, initialVisit }) => {
               </div>
             </div>
             <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Visit Type</label>
-                <select className="form-select" value={form.visitType} onChange={e => setForm(p => ({ ...p, visitType: e.target.value }))}>
-                  <option value="first_visit">First Visit</option>
-                  <option value="repeat_visit">Repeat Visit</option>
-                  <option value="virtual_tour">Virtual Tour</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Assigned Sales Executive</label>
-                <select
-                  className="form-select"
-                  value={form.assignedExecutive}
-                  onChange={e => setForm(p => ({ ...p, assignedExecutive: e.target.value }))}
-                >
-                  {users.map(u => (
-                    <option key={u._id} value={u._id}>{u.name} ({u.role?.replace(/_/g, ' ')})</option>
-                  ))}
-                </select>
-              </div>
+              <CustomSelect
+                label="Visit Type"
+                value={form.visitType}
+                onChange={val => setForm(p => ({ ...p, visitType: val }))}
+                options={[
+                  { value: 'first_visit', label: 'First Visit', icon: '🌟' },
+                  { value: 'repeat_visit', label: 'Repeat Visit', icon: '🔄' },
+                  { value: 'virtual_tour', label: 'Virtual Tour', icon: '💻' }
+                ]}
+              />
+              <CustomSelect
+                label="Assigned Sales Executive"
+                value={form.assignedExecutive}
+                onChange={val => setForm(p => ({ ...p, assignedExecutive: val }))}
+                searchable={true}
+                placeholder="-- Select Executive --"
+                options={users.map(u => ({
+                  value: u._id,
+                  label: u.name,
+                  subtext: u.role?.replace(/_/g, ' '),
+                  avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=4f46e5&color=fff&size=64`
+                }))}
+              />
             </div>
             <div className="form-group">
               <label className="form-label">Notes / Instructions</label>
@@ -609,10 +684,17 @@ export default function SiteVisitsPage() {
   };
 
   const [visits, setVisits] = useState([]);
+  const [projectsList, setProjectsList] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState('list'); // 'list' | 'kanban'
+  const [view, setView] = useState('kanban'); // 'kanban' (Board 1st default) | 'list'
   const [activeTab, setActiveTab] = useState(getTabFromPath());
   const [showSchedule, setShowSchedule] = useState(false);
+  const [search, setSearch] = useState('');
+  const [projectFilter, setProjectFilter] = useState('');
+  const [dateRangeFilter, setDateRangeFilter] = useState('');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [sortBy, setSortBy] = useState('date_asc');
   const [stats, setStats] = useState({});
   const { showNotification } = useUI();
 
@@ -641,6 +723,16 @@ export default function SiteVisitsPage() {
 
   useEffect(() => { fetchVisits(); }, [fetchVisits]);
 
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const { data } = await api.get('/projects');
+        setProjectsList(data.data || []);
+      } catch {}
+    };
+    loadProjects();
+  }, []);
+
   const handleStatusChange = async (id, status) => {
     try {
       if (status === 'completed') await api.put(`/site-visits/${id}/checkout`, { outcome: 'interested' });
@@ -660,10 +752,72 @@ export default function SiteVisitsPage() {
     showNotification('Site visit record removed');
   };
 
-  const filtered = visits.filter(v => {
-    if (activeTab !== 'all') return v.status === activeTab;
-    return true;
-  });
+  const filtered = visits
+    .filter(v => {
+      if (activeTab === 'today') {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const visitDateStr = v.visitDate ? new Date(v.visitDate).toISOString().slice(0, 10) : '';
+        if (visitDateStr !== todayStr) return false;
+      } else if (activeTab === 'confirmed') {
+        if (v.status !== 'confirmed') return false;
+      } else if (activeTab === 'completed') {
+        if (v.status !== 'completed') return false;
+      }
+
+      if (search) {
+        const q = search.toLowerCase();
+        const matchesLead = v.lead?.name?.toLowerCase().includes(q) || v.leadName?.toLowerCase().includes(q);
+        const matchesPhone = v.lead?.phone?.includes(q) || v.leadPhone?.includes(q);
+        const matchesProject = v.project?.name?.toLowerCase().includes(q);
+        if (!matchesLead && !matchesPhone && !matchesProject) return false;
+      }
+
+      if (projectFilter && (v.project?._id !== projectFilter && v.project !== projectFilter)) return false;
+
+      if (dateRangeFilter) {
+        const d = new Date(v.visitDate || v.createdAt || Date.now());
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        if (dateRangeFilter === 'today') {
+          const endOfToday = new Date(startOfToday.getTime() + 86400000);
+          if (d < startOfToday || d >= endOfToday) return false;
+        }
+        if (dateRangeFilter === 'tomorrow') {
+          const startOfTomorrow = new Date(startOfToday.getTime() + 86400000);
+          const endOfTomorrow = new Date(startOfToday.getTime() + 2 * 86400000);
+          if (d < startOfTomorrow || d >= endOfTomorrow) return false;
+        }
+        if (dateRangeFilter === 'this_week') {
+          const endOfWeek = new Date(startOfToday.getTime() + 7 * 86400000);
+          if (d < startOfToday || d >= endOfWeek) return false;
+        }
+        if (dateRangeFilter === 'past') {
+          if (d >= startOfToday) return false;
+        }
+        if (dateRangeFilter === 'custom') {
+          if (customFrom) {
+            const fromTime = new Date(customFrom + 'T00:00:00').getTime();
+            if (d.getTime() < fromTime) return false;
+          }
+          if (customTo) {
+            const toTime = new Date(customTo + 'T23:59:59.999').getTime();
+            if (d.getTime() > toTime) return false;
+          }
+        }
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'date_asc') return new Date(a.visitDate || 0) - new Date(b.visitDate || 0);
+      if (sortBy === 'date_desc') return new Date(b.visitDate || 0) - new Date(a.visitDate || 0);
+      if (sortBy === 'created_desc') return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      if (sortBy === 'name_asc') {
+        const nameA = a.lead?.name || a.leadName || '';
+        const nameB = b.lead?.name || b.leadName || '';
+        return nameA.localeCompare(nameB);
+      }
+      return 0;
+    });
 
   const [selectedCabVisit, setSelectedCabVisit] = useState(null);
   const [selectedGatePassVisit, setSelectedGatePassVisit] = useState(null);
@@ -739,36 +893,116 @@ export default function SiteVisitsPage() {
           ))}
         </div>
 
-        {/* View Switcher: List vs Kanban */}
+        {/* View Switcher: Board vs List */}
         <div style={{ display: 'inline-flex', background: '#f1f5f9', padding: 3, borderRadius: 8, gap: 2 }}>
           <button
+            className={`btn btn-sm ${view === 'kanban' ? 'btn-primary' : 'btn-ghost'}`}
+            style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, gap: 4, fontWeight: 600 }}
+            onClick={() => setView('kanban')}
+            title="Kanban Board View (Default)"
+          >
+            <Columns size={14} /> Board
+          </button>
+          <button
             className={`btn btn-sm ${view === 'list' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6 }}
+            style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, gap: 4, fontWeight: 600 }}
             onClick={() => setView('list')}
             title="List View"
           >
             <List size={14} /> List
           </button>
-          <button
-            className={`btn btn-sm ${view === 'kanban' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6 }}
-            onClick={() => setView('kanban')}
-            title="Kanban Board"
-          >
-            <Columns size={14} /> Kanban
-          </button>
         </div>
+      </div>
+
+      {/* Filter & Sort Bar */}
+      <div className="filter-bar">
+        <div className="filter-search">
+          <Search size={14} color="var(--text-muted)" />
+          <input
+            placeholder="Search visitor name, phone, project…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+
+        {projectsList.length > 0 && (
+          <CustomSelect
+            variant="filter"
+            value={projectFilter}
+            onChange={val => setProjectFilter(val)}
+            options={[
+              { value: '', label: 'All Projects', icon: '🏢' },
+              ...projectsList.map(p => ({ value: p._id, label: p.name, icon: '🏢' }))
+            ]}
+          />
+        )}
+
+        <CustomSelect
+          variant="filter"
+          value={dateRangeFilter}
+          onChange={val => {
+            setDateRangeFilter(val);
+            if (val !== 'custom') { setCustomFrom(''); setCustomTo(''); }
+          }}
+          options={[
+            { value: '', label: '📅 All Visit Dates' },
+            { value: 'today', label: "Today's Visits" },
+            { value: 'tomorrow', label: 'Tomorrow' },
+            { value: 'this_week', label: 'Next 7 Days' },
+            { value: 'past', label: 'Past / Completed' },
+            { value: 'custom', label: '📆 Custom Date (From - To)...' }
+          ]}
+        />
+
+        {dateRangeFilter === 'custom' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f8fafc', padding: '4px 10px', borderRadius: 8, border: '1px solid var(--card-border)' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>From:</span>
+            <input
+              type="date"
+              className="form-input"
+              style={{ padding: '3px 8px', fontSize: 12, height: 32, width: 135 }}
+              value={customFrom}
+              onChange={e => setCustomFrom(e.target.value)}
+            />
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>To:</span>
+            <input
+              type="date"
+              className="form-input"
+              style={{ padding: '3px 8px', fontSize: 12, height: 32, width: 135 }}
+              value={customTo}
+              onChange={e => setCustomTo(e.target.value)}
+            />
+            {(customFrom || customTo) && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon btn-sm"
+                style={{ padding: 2, height: 24, width: 24, color: 'var(--danger)' }}
+                onClick={() => { setCustomFrom(''); setCustomTo(''); setDateRangeFilter(''); }}
+                title="Clear Custom Date Filter"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+        )}
+
+        <CustomSelect
+          variant="filter"
+          buttonStyle={{ fontWeight: 600, color: 'var(--primary)' }}
+          value={sortBy}
+          onChange={val => setSortBy(val)}
+          options={[
+            { value: 'date_asc', label: 'Sort: 📅 Visit Time (Upcoming First)' },
+            { value: 'date_desc', label: 'Sort: 📅 Visit Time (Latest to Oldest)' },
+            { value: 'created_desc', label: 'Sort: ⚡ Recently Scheduled' },
+            { value: 'name_asc', label: 'Sort: 🔤 Visitor Name (A → Z)' }
+          ]}
+        />
       </div>
 
       {/* Visit Content */}
       {loading ? (
         <div className="loading-overlay"><div className="spinner" /></div>
-      ) : filtered.length === 0 ? (
-        <div className="card"><div className="empty-state">
-          <div className="empty-state-icon"><MapPin size={28} /></div>
-          <div className="empty-state-title">No visits found in this view</div>
-          <button className="btn btn-primary" onClick={() => setShowSchedule(true)}><Plus size={14} /> Schedule Visit</button>
-        </div></div>
       ) : view === 'kanban' ? (
         <SiteVisitsKanbanView
           visits={filtered}
@@ -776,7 +1010,14 @@ export default function SiteVisitsPage() {
           onDeleteVisit={handleDeleteVisit}
           onBookCab={setSelectedCabVisit}
           onShowGatePass={setSelectedGatePassVisit}
+          onScheduleVisit={() => setShowSchedule(true)}
         />
+      ) : filtered.length === 0 ? (
+        <div className="card"><div className="empty-state">
+          <div className="empty-state-icon"><MapPin size={28} /></div>
+          <div className="empty-state-title">No visits found in this view</div>
+          <button className="btn btn-primary" onClick={() => setShowSchedule(true)}><Plus size={14} /> Schedule Visit</button>
+        </div></div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.map(visit => (
@@ -819,11 +1060,15 @@ export default function SiteVisitsPage() {
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Vehicle Category</label>
-                    <select className="form-select" value={cabForm.cabType} onChange={e => setCabForm(p => ({ ...p, cabType: e.target.value }))}>
-                      <option value="sedan">Executive Sedan (Dzire / Etios)</option>
-                      <option value="suv">Premium SUV (Innova Crysta)</option>
-                      <option value="ev">Eco EV Prime (Tata Nexon EV)</option>
-                    </select>
+                    <CustomSelect
+                      value={cabForm.cabType}
+                      onChange={val => setCabForm(p => ({ ...p, cabType: val }))}
+                      options={[
+                        { value: 'sedan', label: 'Executive Sedan (Dzire / Etios)', icon: '🚗' },
+                        { value: 'suv', label: 'Premium SUV (Innova Crysta)', icon: '🚙' },
+                        { value: 'ev', label: 'Eco EV Prime (Tata Nexon EV)', icon: '⚡' }
+                      ]}
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Pickup Time</label>

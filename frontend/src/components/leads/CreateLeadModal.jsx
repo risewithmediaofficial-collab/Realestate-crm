@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, UserPlus, Phone, Mail, MapPin, DollarSign, Building, FileText } from 'lucide-react';
 import api from '../../services/api';
 import { LEAD_SOURCES } from '../../utils/constants';
+import CustomSelect from '../ui/CustomSelect';
 
 export default function CreateLeadModal({ onClose, onCreated }) {
   // Prevent background scrolling while modal is open
@@ -22,8 +23,21 @@ export default function CreateLeadModal({ onClose, onCreated }) {
           api.get('/projects').catch(() => ({ data: { data: [] } })),
           api.get('/users').catch(() => ({ data: { data: [] } }))
         ]);
-        if (projRes.data?.data) setProjects(projRes.data.data);
-        if (userRes.data?.data) setUsers(userRes.data.data);
+
+        const projectList = Array.isArray(projRes.data?.data)
+          ? projRes.data.data
+          : Array.isArray(projRes.data)
+            ? projRes.data
+            : [];
+
+        const userList = Array.isArray(userRes.data?.data)
+          ? userRes.data.data
+          : Array.isArray(userRes.data)
+            ? userRes.data
+            : [];
+
+        setProjects(projectList.sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+        setUsers(userList.filter(Boolean));
       } catch {}
     };
     loadData();
@@ -210,82 +224,76 @@ export default function CreateLeadModal({ onClose, onCreated }) {
             </div>
 
             {/* Source & Project */}
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label" title="Original channel where this lead was acquired">
-                  Lead Source
-                </label>
-                <select
-                  className="form-select"
-                  value={form.source}
-                  onChange={e => setForm(p => ({ ...p, source: e.target.value }))}
-                  title="Select the advertising or referral channel"
-                >
-                  {Object.entries(LEAD_SOURCES).map(([k, v]) => (
-                    <option key={k} value={k}>{v.icon} {v.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label" title="Select a project added in the CRM">
-                  Interested Project
-                </label>
-                <select
-                  className="form-select"
-                  value={form.interestedProject}
-                  onChange={e => setForm(p => ({ ...p, interestedProject: e.target.value }))}
-                  title="Select an active real estate project"
-                >
-                  <option value="">-- Select Project (Optional) --</option>
-                  {projects.map(p => (
-                    <option key={p._id} value={p._id}>{p.name} ({p.city || p.code || 'Active'})</option>
-                  ))}
-                </select>
-              </div>
+            <div className="form-row" style={{ marginBottom: 14 }}>
+              <CustomSelect
+                label="Lead Source"
+                value={form.source}
+                onChange={val => setForm(p => ({ ...p, source: val }))}
+                options={Object.entries(LEAD_SOURCES).map(([k, v]) => ({
+                  value: k,
+                  label: v.label,
+                  icon: v.icon
+                }))}
+              />
+              <CustomSelect
+                label="Interested Project"
+                value={form.interestedProject}
+                onChange={val => setForm(p => ({ ...p, interestedProject: val }))}
+                searchable={true}
+                placeholder="-- Select Project (Optional) --"
+                options={[
+                  { value: '', label: '-- None / Undecided --' },
+                  ...projects.map(p => ({
+                    value: p._id,
+                    label: p.name,
+                    subtext: p.city || p.code || 'Active Project',
+                    icon: '🏢'
+                  }))
+                ]}
+              />
             </div>
 
             {users.length > 0 && (
-              <div className="form-group" style={{ marginBottom: 16 }}>
-                <label className="form-label" title="Assign lead directly to a specific closer or pre-sales representative">
-                  Assign To Executive
-                </label>
-                <select
-                  className="form-select"
+              <div style={{ marginBottom: 14 }}>
+                <CustomSelect
+                  label="Assign To Executive"
                   value={form.assignedTo}
-                  onChange={e => setForm(p => ({ ...p, assignedTo: e.target.value }))}
-                  title="Choose team member to allocate this inquiry"
-                >
-                  <option value="">-- Auto-Assign / Admin --</option>
-                  {users.map(u => (
-                    <option key={u._id} value={u._id}>{u.name} ({u.role?.replace(/_/g, ' ')})</option>
-                  ))}
-                </select>
+                  onChange={val => setForm(p => ({ ...p, assignedTo: val }))}
+                  searchable={true}
+                  placeholder="-- Auto-Assign / Admin --"
+                  options={[
+                    { value: '', label: '-- Auto-Assign / Admin --', icon: '⚡' },
+                    ...users.map(u => ({
+                      value: u._id,
+                      label: u.name,
+                      subtext: u.role?.replace(/_/g, ' '),
+                      avatar: u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=4f46e5&color=fff&size=64`
+                    }))
+                  ]}
+                />
               </div>
             )}
 
             {/* Unit & Intent */}
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label" title="Desired unit configuration or property category">
-                  Configuration / Unit Type
-                </label>
-                <select
-                  className="form-select"
+            <div className="form-row" style={{ marginBottom: 14 }}>
+              <div>
+                <CustomSelect
+                  label="Configuration / Unit Type"
                   value={form.interestedUnitType}
-                  onChange={e => setForm(p => ({ ...p, interestedUnitType: e.target.value }))}
-                  title="Select unit type or choose Custom to manually enter"
-                >
-                  <option value="1BHK">1 BHK Apartment</option>
-                  <option value="2BHK">2 BHK Apartment</option>
-                  <option value="3BHK">3 BHK Apartment</option>
-                  <option value="4BHK">4 BHK Luxury</option>
-                  <option value="Villa / Row House">Villa / Row House</option>
-                  <option value="Plotted Layout">Plotted Layout (30x40 / 40x60)</option>
-                  <option value="Managed Farmlands">Managed Farmlands (Acres)</option>
-                  <option value="Agricultural Acreage">Agricultural Land</option>
-                  <option value="Commercial Office / Retail">Commercial / Retail</option>
-                  <option value="custom">✏️ Enter Custom Category...</option>
-                </select>
+                  onChange={val => setForm(p => ({ ...p, interestedUnitType: val }))}
+                  options={[
+                    { value: '1BHK', label: '1 BHK Apartment', icon: '🏠' },
+                    { value: '2BHK', label: '2 BHK Apartment', icon: '🏡' },
+                    { value: '3BHK', label: '3 BHK Apartment', icon: '🏢' },
+                    { value: '4BHK', label: '4 BHK Luxury', icon: '🏰' },
+                    { value: 'Villa / Row House', label: 'Villa / Row House', icon: '🏘️' },
+                    { value: 'Plotted Layout', label: 'Plotted Layout (30x40 / 40x60)', icon: '📐' },
+                    { value: 'Managed Farmlands', label: 'Managed Farmlands (Acres)', icon: '🌳' },
+                    { value: 'Agricultural Acreage', label: 'Agricultural Land', icon: '🌾' },
+                    { value: 'Commercial Office / Retail', label: 'Commercial / Retail', icon: '🏬' },
+                    { value: 'custom', label: '✏️ Enter Custom Category...', icon: '✏️' }
+                  ]}
+                />
                 {form.interestedUnitType === 'custom' && (
                   <input
                     className="form-input"
@@ -297,21 +305,17 @@ export default function CreateLeadModal({ onClose, onCreated }) {
                   />
                 )}
               </div>
-              <div className="form-group">
-                <label className="form-label" title="Buying intent urgency score">
-                  Buyer Temperature
-                </label>
-                <select
-                  className="form-select"
-                  value={form.leadType}
-                  onChange={e => setForm(p => ({ ...p, leadType: e.target.value }))}
-                  title="Lead purchase readiness"
-                >
-                  <option value="hot">🔥 Hot (Immediate Buyer — Ready to Book)</option>
-                  <option value="warm">⚡ Warm (1-3 Months Purchase Timeline)</option>
-                  <option value="cold">❄️ Cold (Exploring / Future Pipeline)</option>
-                </select>
-              </div>
+
+              <CustomSelect
+                label="Buyer Temperature"
+                value={form.leadType}
+                onChange={val => setForm(p => ({ ...p, leadType: val }))}
+                options={[
+                  { value: 'hot', label: 'Hot (Immediate Buyer — Ready to Book)', icon: '🔥', badge: 'HOT', badgeClass: 'badge-danger' },
+                  { value: 'warm', label: 'Warm (1-3 Months Timeline)', icon: '⚡', badge: 'WARM', badgeClass: 'badge-warning' },
+                  { value: 'cold', label: 'Cold (Exploring Pipeline)', icon: '❄️', badge: 'COLD', badgeClass: 'badge-gray' }
+                ]}
+              />
             </div>
 
             {/* Budget Range */}

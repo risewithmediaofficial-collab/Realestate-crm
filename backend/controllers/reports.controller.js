@@ -9,10 +9,10 @@ const User = require('../models/User.model');
 const getOrgMatch = (req) => {
   const isSuperAdmin = req.user?.role === 'super_admin';
   const userOrg = req.user?.organization;
-  if (!isSuperAdmin || req.query.organization) {
-    return { organization: req.query.organization || userOrg || 'Rise With RealtyHub' };
+  if (isSuperAdmin) {
+    return req.query.organization ? { organization: req.query.organization } : {};
   }
-  return {};
+  return { organization: userOrg || '__NO_ORG__' };
 };
 
 const getLeadReport = async (req, res, next) => {
@@ -114,45 +114,100 @@ const getTeamPerformance = async (req, res, next) => {
     if (to) dateFilter.$lte = new Date(to);
     const match = { ...orgMatch, ...(Object.keys(dateFilter).length ? { createdAt: dateFilter } : {}) };
 
-    const [leadsByExec, bookingsByExec, visitsByExec] = await Promise.all([
-      Lead.aggregate([
-        { $match: { ...match, assignedTo: { $exists: true, $ne: null } } },
-        { $group: { _id: '$assignedTo', leads: { $sum: 1 } } },
-        { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
-        { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
-        { $project: { name: { $ifNull: ['$user.name', 'Staff'] }, role: { $ifNull: ['$user.role', 'sales_executive'] }, leads: 1 } },
-      ]),
-      Booking.aggregate([
-        { $match: { ...match, handledBy: { $exists: true, $ne: null } } },
-        { $group: { _id: '$handledBy', bookings: { $sum: 1 }, value: { $sum: '$totalAmount' } } },
-        { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
-        { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
-        { $project: { name: { $ifNull: ['$user.name', 'Staff'] }, bookings: 1, value: 1 } },
-      ]),
-      SiteVisit.aggregate([
-        { $match: { ...match, assignedExecutive: { $exists: true, $ne: null } } },
-        { $group: { _id: '$assignedExecutive', visits: { $sum: 1 } } },
-        { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
-        { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
-        { $project: { name: { $ifNull: ['$user.name', 'Staff'] }, visits: 1 } },
-      ]),
+    const [allUsers, allLeads, allBookings, allVisits, allUnits] = await Promise.all([
+      User.find({ ...orgMatch, role: { $ne: 'super_admin' } }).select('name email role organization').lean(),
+      Lead.find(match).select('name phone assignedTo stage budget interestedProject').lean(),
+      Booking.find({ ...match, status: { $in: ['approved', 'agreement_signed', 'registered', 'booked', 'pending_approval'] } }).lean(),
+      SiteVisit.find(match).select('assignedTo assignedExecutive status').lean(),
+      Unit.find({ ...orgMatch, status: { $in: ['booked', 'registered', 'sold'] } }).lean()
     ]);
 
-    // Merge by ID
-    const perf = {};
-    leadsByExec.forEach(u => { if (u._id) perf[u._id] = { ...u }; });
-    bookingsByExec.forEach(u => {
-      if (!u._id) return;
-      if (perf[u._id]) { perf[u._id].bookings = u.bookings; perf[u._id].value = u.value; }
-      else perf[u._id] = { ...u };
-    });
-    visitsByExec.forEach(u => {
-      if (!u._id) return;
-      if (perf[u._id]) perf[u._id].visits = u.visits;
-      else perf[u._id] = { ...u };
+    const perf = allUsers.map(u => {
+      const uId = u._id.toString();
+      const uName = (u.name || '').trim().toLowerCase();
+
+      // 1. Leads assigned to this user
+      const userLeads = allLeads.filter(l => {
+        const aId = l.assignedTo?._id?.toString() || l.assignedTo?.toString();
+        if (aId && aId === uId) return true;
+        const lName = (l.assignedTo?.name || '').trim().toLowerCase();
+        return lName && uName && (lName === uName || lName.includes(uName) || uName.includes(lName));
+      });
+
+      // 2. Visits conducted by this user
+      const userVisits = allVisits.filter(v => {
+        const aId = v.assignedTo?._id?.toString() || v.assignedTo?.toString() || v.assignedExecutive?._id?.toString() || v.assignedExecutive?.toString();
+        return aId === uId;
+      });
+
+      // 3. Deals closed by this user
+      // A: Direct booking records
+      const directBookings = allBookings.filter(b => {
+        const hId = b.handledBy?._id?.toString() || b.handledBy?.toString() || b.assignedAgent?.toString() || b.bookedBy?.toString();
+        if (hId && hId === uId) return true;
+        const bName = (b.handledBy?.name || b.agentName || '').trim().toLowerCase();
+        if (bName && uName && (bName === uName || bName.includes(uName) || uName.includes(bName))) return true;
+        // Or if booking customer matches assigned lead
+        if (b.customerPhone && userLeads.some(ul => ul.phone === b.customerPhone)) return true;
+        if (b.customerName && userLeads.some(ul => ul.name?.toLowerCase() === b.customerName?.toLowerCase())) return true;
+        return false;
+      });
+
+      // B: Registered/Booked Units matching lead
+      let unitDealsValue = 0;
+      let unitDealsCount = 0;
+      allUnits.forEach(un => {
+        if (un.bookingCustomer) {
+          const cPhone = un.bookingCustomer.phone;
+          const cName = (un.bookingCustomer.name || '').toLowerCase();
+          const agName = (un.bookingCustomer.agentName || '').toLowerCase();
+          const matchesLead = userLeads.some(ul => (cPhone && ul.phone === cPhone) || (cName && ul.name?.toLowerCase() === cName));
+          const matchesAgent = agName && (agName === uName || agName.includes(uName) || uName.includes(agName));
+
+          if (matchesLead || matchesAgent) {
+            // Only count if not already in directBookings
+            const alreadyCounted = directBookings.some(b => b.unit?._id?.toString() === un._id.toString() || b.unit?.toString() === un._id.toString());
+            if (!alreadyCounted) {
+              unitDealsCount += 1;
+              unitDealsValue += (un.pricing?.totalPrice || un.totalPrice || 0);
+            }
+          }
+        }
+      });
+
+      // C: Leads in 'booked' stage
+      let bookedLeadsValue = 0;
+      let bookedLeadsCount = 0;
+      userLeads.forEach(ul => {
+        if (ul.stage === 'booked') {
+          const alreadyInDirect = directBookings.some(b => b.customerPhone === ul.phone || b.customerName?.toLowerCase() === ul.name?.toLowerCase());
+          if (!alreadyInDirect && unitDealsCount === 0) {
+            bookedLeadsCount += 1;
+            const bgVal = (typeof ul.budget === 'object' ? (ul.budget?.max || ul.budget?.min) : Number(ul.budget)) || 2220000;
+            bookedLeadsValue += bgVal;
+          }
+        }
+      });
+
+      const totalDeals = directBookings.length + unitDealsCount + bookedLeadsCount;
+      const totalSalesValue = directBookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0) + unitDealsValue + bookedLeadsValue;
+      const conversion = userLeads.length > 0
+        ? `${((totalDeals / userLeads.length) * 100).toFixed(0)}%`
+        : (totalDeals > 0 ? '100%' : '0%');
+
+      return {
+        _id: u._id,
+        name: u.name,
+        role: u.role || 'telecaller',
+        leads: userLeads.length,
+        visits: userVisits.length,
+        bookings: totalDeals,
+        value: totalSalesValue,
+        achievement: conversion
+      };
     });
 
-    res.json({ success: true, data: Object.values(perf) });
+    res.json({ success: true, data: perf });
   } catch (err) { next(err); }
 };
 

@@ -3,6 +3,7 @@ import { X, UserCheck, Sparkles, CheckCircle2, ShieldCheck, AlertCircle } from '
 import api from '../../services/api';
 import { useUI } from '../../context/UIContext';
 import { LEAD_STAGES, LEAD_SOURCES, LEAD_TYPES } from '../../utils/constants';
+import CustomSelect from '../ui/CustomSelect';
 
 export default function EditLeadModal({ lead, onClose, onUpdated }) {
   const { showNotification } = useUI();
@@ -16,11 +17,11 @@ export default function EditLeadModal({ lead, onClose, onUpdated }) {
     stage: lead?.stage || 'new',
     leadScore: lead?.leadScore || 50,
     leadType: lead?.leadType || 'warm',
-    interestedProject: lead?.interestedProject?.name || 'Green Valley Residences',
+    interestedProject: lead?.interestedProject?._id || lead?.interestedProject || '',
     interestedUnitType: lead?.interestedUnitType || '3BHK',
-    budgetMin: lead?.budget?.min || 7500000,
-    budgetMax: lead?.budget?.max || 12500000,
-    assignedTo: lead?.assignedTo?.name || 'Amit Singh',
+    budgetMin: lead?.budget?.min || 0,
+    budgetMax: lead?.budget?.max || 0,
+    assignedTo: lead?.assignedTo?._id || lead?.assignedTo || '',
     qualificationNotes: lead?.qualificationNotes || '',
     qualificationCriteria: {
       budgetConfirmed: true,
@@ -30,7 +31,18 @@ export default function EditLeadModal({ lead, onClose, onUpdated }) {
     }
   });
 
+  const [projectsList, setProjectsList] = useState([]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const { data } = await api.get('/projects');
+        setProjectsList(data.data || []);
+      } catch {}
+    };
+    loadProjects();
+  }, []);
 
   // Prevent background scrolling while modal is open
   useEffect(() => {
@@ -138,32 +150,30 @@ export default function EditLeadModal({ lead, onClose, onUpdated }) {
             </div>
 
             {/* Pipeline Stage & Assigned To */}
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Lead Pipeline Stage <span className="required">*</span></label>
-                <select
-                  className="form-select"
-                  value={form.stage}
-                  onChange={e => setForm(p => ({ ...p, stage: e.target.value }))}
-                >
-                  {Object.entries(LEAD_STAGES).map(([k, v]) => (
-                    <option key={k} value={k}>{v.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Assigned Sales Executive</label>
-                <select
-                  className="form-select"
-                  value={form.assignedTo}
-                  onChange={e => setForm(p => ({ ...p, assignedTo: e.target.value }))}
-                >
-                  <option>Amit Singh</option>
-                  <option>Neha Patel</option>
-                  <option>Ravi Verma</option>
-                  <option>Priya Sharma</option>
-                </select>
-              </div>
+            <div className="form-row" style={{ marginBottom: 14 }}>
+              <CustomSelect
+                label="Lead Pipeline Stage"
+                required={true}
+                value={form.stage}
+                onChange={val => setForm(p => ({ ...p, stage: val }))}
+                options={Object.entries(LEAD_STAGES).map(([k, v]) => ({
+                  value: k,
+                  label: v.label,
+                  icon: '📊'
+                }))}
+              />
+              <CustomSelect
+                label="Assigned Sales Executive"
+                value={form.assignedTo}
+                onChange={val => setForm(p => ({ ...p, assignedTo: val }))}
+                options={[
+                  { value: '', label: '-- Auto-Assign / None --', icon: '⚡' },
+                  { value: 'Amit Singh', label: 'Amit Singh', avatar: 'https://ui-avatars.com/api/?name=Amit+Singh&background=4f46e5&color=fff&size=64' },
+                  { value: 'Neha Patel', label: 'Neha Patel', avatar: 'https://ui-avatars.com/api/?name=Neha+Patel&background=ec4899&color=fff&size=64' },
+                  { value: 'Ravi Verma', label: 'Ravi Verma', avatar: 'https://ui-avatars.com/api/?name=Ravi+Verma&background=0284c7&color=fff&size=64' },
+                  { value: 'Priya Sharma', label: 'Priya Sharma', avatar: 'https://ui-avatars.com/api/?name=Priya+Sharma&background=10b981&color=fff&size=64' }
+                ]}
+              />
             </div>
 
             {/* If Stage is Qualified or being qualified */}
@@ -201,18 +211,18 @@ export default function EditLeadModal({ lead, onClose, onUpdated }) {
                     <span>Decision Maker Engaged</span>
                   </label>
                   <div>
-                    <span style={{ color: 'var(--text-muted)' }}>Purchase Timeline:</span>
-                    <select
-                      className="form-select"
-                      style={{ marginTop: 2, padding: '3px 8px', fontSize: 12 }}
+                    <span style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600, display: 'block', marginBottom: 4 }}>Purchase Timeline:</span>
+                    <CustomSelect
+                      size="sm"
                       value={form.qualificationCriteria.timelineMonths}
-                      onChange={e => setForm(p => ({ ...p, qualificationCriteria: { ...p.qualificationCriteria, timelineMonths: e.target.value } }))}
-                    >
-                      <option>Immediate / Within 15 Days</option>
-                      <option>Within 30 Days</option>
-                      <option>1 - 3 Months</option>
-                      <option>Planning / 6+ Months</option>
-                    </select>
+                      onChange={val => setForm(p => ({ ...p, qualificationCriteria: { ...p.qualificationCriteria, timelineMonths: val } }))}
+                      options={[
+                        { value: 'Immediate / Within 15 Days', label: 'Immediate / Within 15 Days', icon: '🔥' },
+                        { value: 'Within 30 Days', label: 'Within 30 Days', icon: '⚡' },
+                        { value: '1 - 3 Months', label: '1 - 3 Months', icon: '📅' },
+                        { value: 'Planning / 6+ Months', label: 'Planning / 6+ Months', icon: '⏳' }
+                      ]}
+                    />
                   </div>
                 </div>
 
@@ -253,33 +263,36 @@ export default function EditLeadModal({ lead, onClose, onUpdated }) {
             </div>
 
             {/* Project & Unit Type */}
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Interested Project</label>
-                <select
-                  className="form-select"
-                  value={form.interestedProject}
-                  onChange={e => setForm(p => ({ ...p, interestedProject: e.target.value }))}
-                >
-                  <option value="Green Valley Residences">Green Valley Residences (Pune)</option>
-                  <option value="Skyline Tower Commercial">Skyline Tower Commercial (Mumbai)</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Unit Configuration</label>
-                <select
-                  className="form-select"
-                  value={form.interestedUnitType}
-                  onChange={e => setForm(p => ({ ...p, interestedUnitType: e.target.value }))}
-                >
-                  <option value="1BHK">1 BHK</option>
-                  <option value="2BHK">2 BHK</option>
-                  <option value="3BHK">3 BHK</option>
-                  <option value="4BHK">4 BHK</option>
-                  <option value="Penthouse">Sky Penthouse</option>
-                  <option value="Office Suite">Office Suite</option>
-                </select>
-              </div>
+            <div className="form-row" style={{ marginBottom: 14 }}>
+              <CustomSelect
+                label="Interested Project"
+                value={form.interestedProject}
+                onChange={val => setForm(p => ({ ...p, interestedProject: val }))}
+                searchable={true}
+                placeholder="-- Select Project (Optional) --"
+                options={[
+                  { value: '', label: '-- Select Project (Optional) --' },
+                  ...projectsList.map(p => ({
+                    value: p._id,
+                    label: p.name,
+                    subtext: p.city || p.code || 'Active Project',
+                    icon: '🏢'
+                  }))
+                ]}
+              />
+              <CustomSelect
+                label="Unit Configuration"
+                value={form.interestedUnitType}
+                onChange={val => setForm(p => ({ ...p, interestedUnitType: val }))}
+                options={[
+                  { value: '1BHK', label: '1 BHK Apartment', icon: '🏠' },
+                  { value: '2BHK', label: '2 BHK Apartment', icon: '🏡' },
+                  { value: '3BHK', label: '3 BHK Apartment', icon: '🏢' },
+                  { value: '4BHK', label: '4 BHK Luxury', icon: '🏰' },
+                  { value: 'Penthouse', label: 'Sky Penthouse', icon: '✨' },
+                  { value: 'Office Suite', label: 'Commercial Office Suite', icon: '🏬' }
+                ]}
+              />
             </div>
 
             {/* Budget Range */}

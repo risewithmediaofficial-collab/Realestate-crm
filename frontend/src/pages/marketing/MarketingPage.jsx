@@ -10,6 +10,7 @@ import api from '../../services/api';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import CampaignDrawer from './components/CampaignDrawer';
+import CustomSelect from '../../components/ui/CustomSelect';
 import CampaignModal from './components/CampaignModal';
 import CampaignKanbanView from './components/CampaignKanbanView';
 
@@ -41,7 +42,7 @@ export default function MarketingPage() {
   };
 
   const [tab, setTab] = useState(getTabFromPath());
-  const [view, setView] = useState('table'); // 'table' | 'kanban'
+  const [view, setView] = useState('kanban'); // 'kanban' (Board 1st default) | 'table'
   const [campaigns, setCampaigns] = useState([]);
   const [projects, setProjects] = useState([]);
   const [leads, setLeads] = useState([]);
@@ -52,6 +53,11 @@ export default function MarketingPage() {
   const [configuringSource, setConfiguringSource] = useState(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [channelFilter, setChannelFilter] = useState('');
+  const [dateRangeFilter, setDateRangeFilter] = useState('');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [sortBy, setSortBy] = useState('date_desc');
   const { showNotification } = useUI();
 
   const handleStatusChange = async (id, newStatus) => {
@@ -189,11 +195,48 @@ export default function MarketingPage() {
   const overallCPL = totalLeads ? Math.round(totalSpent / totalLeads) : 0;
   const roas = totalSpent ? (totalRevenue / totalSpent).toFixed(1) : 0;
 
-  const filtered = campaigns.filter(c => {
-    if (search && !c.name.toLowerCase().includes(search.toLowerCase())) return false;
-    if (statusFilter && c.status !== statusFilter) return false;
-    return true;
-  });
+  const filtered = campaigns
+    .filter(c => {
+      if (search && !c.name?.toLowerCase().includes(search.toLowerCase())) return false;
+      if (statusFilter && c.status !== statusFilter) return false;
+      if (channelFilter && c.type !== channelFilter) return false;
+
+      if (dateRangeFilter) {
+        const d = new Date(c.startDate || c.createdAt || Date.now());
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        if (dateRangeFilter === 'this_month') {
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          if (d < startOfMonth) return false;
+        } else if (dateRangeFilter === 'last_30_days') {
+          const startOf30 = new Date(startOfToday.getTime() - 30 * 86400000);
+          if (d < startOf30) return false;
+        } else if (dateRangeFilter === 'custom') {
+          if (customFrom) {
+            const fromTime = new Date(customFrom + 'T00:00:00').getTime();
+            if (d.getTime() < fromTime) return false;
+          }
+          if (customTo) {
+            const toTime = new Date(customTo + 'T23:59:59.999').getTime();
+            if (d.getTime() > toTime) return false;
+          }
+        }
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'date_desc') return new Date(b.startDate || b.createdAt || 0) - new Date(a.startDate || a.createdAt || 0);
+      if (sortBy === 'date_asc') return new Date(a.startDate || a.createdAt || 0) - new Date(b.startDate || b.createdAt || 0);
+      if (sortBy === 'spent_desc') return (b.spent || 0) - (a.spent || 0);
+      if (sortBy === 'leads_desc') return (b.leads || 0) - (a.leads || 0);
+      if (sortBy === 'cpl_asc') {
+        const cplA = (a.leads ? a.spent / a.leads : 999999);
+        const cplB = (b.leads ? b.spent / b.leads : 999999);
+        return cplA - cplB;
+      }
+      if (sortBy === 'name_asc') return (a.name || '').localeCompare(b.name || '');
+      return 0;
+    });
 
   return (
     <div>
@@ -300,31 +343,108 @@ export default function MarketingPage() {
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
-            <select className="filter-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option value="">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="paused">Paused</option>
-              <option value="completed">Completed</option>
-              <option value="draft">Draft</option>
-            </select>
+            <CustomSelect
+              variant="filter"
+              value={channelFilter}
+              onChange={val => setChannelFilter(val)}
+              options={[
+                { value: '', label: 'All Channels / Sources' },
+                ...Object.entries(CAMPAIGN_TYPES).map(([k, v]) => ({ value: k, label: v.label, icon: v.icon }))
+              ]}
+            />
 
-            {/* View Switcher: Table vs Kanban */}
+            <CustomSelect
+              variant="filter"
+              value={statusFilter}
+              onChange={val => setStatusFilter(val)}
+              options={[
+                { value: '', label: 'All Statuses' },
+                { value: 'active', label: 'Active', icon: '🟢' },
+                { value: 'paused', label: 'Paused', icon: '⏸️' },
+                { value: 'completed', label: 'Completed', icon: '✅' },
+                { value: 'draft', label: 'Draft', icon: '📝' }
+              ]}
+            />
+
+            <CustomSelect
+              variant="filter"
+              value={dateRangeFilter}
+              onChange={val => {
+                setDateRangeFilter(val);
+                if (val !== 'custom') { setCustomFrom(''); setCustomTo(''); }
+              }}
+              options={[
+                { value: '', label: '📅 All Launch Dates' },
+                { value: 'this_month', label: 'This Month' },
+                { value: 'last_30_days', label: 'Last 30 Days' },
+                { value: 'custom', label: '📆 Custom Date (From - To)...' }
+              ]}
+            />
+
+            {dateRangeFilter === 'custom' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f8fafc', padding: '4px 10px', borderRadius: 8, border: '1px solid var(--card-border)' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>From:</span>
+                <input
+                  type="date"
+                  className="form-input"
+                  style={{ padding: '3px 8px', fontSize: 12, height: 32, width: 135 }}
+                  value={customFrom}
+                  onChange={e => setCustomFrom(e.target.value)}
+                />
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>To:</span>
+                <input
+                  type="date"
+                  className="form-input"
+                  style={{ padding: '3px 8px', fontSize: 12, height: 32, width: 135 }}
+                  value={customTo}
+                  onChange={e => setCustomTo(e.target.value)}
+                />
+                {(customFrom || customTo) && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon btn-sm"
+                    style={{ padding: 2, height: 24, width: 24, color: 'var(--danger)' }}
+                    onClick={() => { setCustomFrom(''); setCustomTo(''); setDateRangeFilter(''); }}
+                    title="Clear Custom Date Filter"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            )}
+
+            <CustomSelect
+              variant="filter"
+              buttonStyle={{ fontWeight: 600, color: 'var(--primary)' }}
+              value={sortBy}
+              onChange={val => setSortBy(val)}
+              options={[
+                { value: 'date_desc', label: 'Sort: 📅 Launch Date (Newest)' },
+                { value: 'date_asc', label: 'Sort: 📅 Launch Date (Oldest)' },
+                { value: 'spent_desc', label: 'Sort: 💰 Ad Spend (High to Low)' },
+                { value: 'leads_desc', label: 'Sort: 👥 Most Leads Generated' },
+                { value: 'cpl_asc', label: 'Sort: 🎯 Lowest Cost Per Lead (CPL)' },
+                { value: 'name_asc', label: 'Sort: 🔤 Campaign Name (A → Z)' }
+              ]}
+            />
+
+            {/* View Switcher: Board vs Table */}
             <div style={{ display: 'inline-flex', background: '#f1f5f9', padding: 3, borderRadius: 8, gap: 2, marginLeft: 'auto' }}>
               <button
-                className={`btn btn-sm ${view === 'table' ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6 }}
-                onClick={() => setView('table')}
-                title="Table View"
+                className={`btn btn-sm ${view === 'kanban' ? 'btn-primary' : 'btn-ghost'}`}
+                style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, gap: 4, fontWeight: 600 }}
+                onClick={() => setView('kanban')}
+                title="Kanban Board View (Default)"
               >
-                <List size={14} /> Table
+                <Columns size={14} /> Board
               </button>
               <button
-                className={`btn btn-sm ${view === 'kanban' ? 'btn-primary' : 'btn-ghost'}`}
-                style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6 }}
-                onClick={() => setView('kanban')}
-                title="Kanban Board"
+                className={`btn btn-sm ${view === 'table' ? 'btn-primary' : 'btn-ghost'}`}
+                style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, gap: 4, fontWeight: 600 }}
+                onClick={() => setView('table')}
+                title="Table List View"
               >
-                <Columns size={14} /> Kanban
+                <List size={14} /> Table
               </button>
             </div>
           </div>
@@ -353,6 +473,7 @@ export default function MarketingPage() {
               onToggleStatus={toggleStatus}
               onDeleteCampaign={handleDeleteCampaign}
               onStatusChange={handleStatusChange}
+              onAddCampaign={handleOpenCreate}
             />
           ) : (
             <div className="table-wrapper">
@@ -651,11 +772,14 @@ export default function MarketingPage() {
               </div>
               <div className="form-group">
                 <label className="form-label">Auto-Assign Ingested Leads To</label>
-                <select className="form-select" defaultValue="round_robin">
-                  <option value="round_robin">Round-Robin Sales Team</option>
-                  <option value="amit">Amit Singh (Project Lead)</option>
-                  <option value="neha">Neha Patel</option>
-                </select>
+                <CustomSelect
+                  defaultValue="round_robin"
+                  options={[
+                    { value: 'round_robin', label: 'Round-Robin Sales Team', icon: '🔄' },
+                    { value: 'amit', label: 'Amit Singh (Project Lead)', icon: '👤' },
+                    { value: 'neha', label: 'Neha Patel', icon: '👤' }
+                  ]}
+                />
               </div>
             </div>
             <div className="modal-footer">

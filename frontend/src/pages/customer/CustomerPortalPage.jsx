@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 import { formatCurrency, formatDate } from '../../utils/formatters';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 export default function CustomerPortalPage() {
   const navigate = useNavigate();
@@ -197,13 +198,16 @@ export default function CustomerPortalPage() {
           <form onSubmit={handleTicket}>
             <div className="form-group">
               <label className="form-label">Category</label>
-              <select className="form-select">
-                <option>Payment & Receipt Clarification</option>
-                <option>Home Loan Disbursement Assistance</option>
-                <option>Possession & Site Inspection Request</option>
-                <option>Modification / Snag List Report</option>
-                <option>Other Services</option>
-              </select>
+              <CustomSelect
+                defaultValue="Payment & Receipt Clarification"
+                options={[
+                  { value: 'Payment & Receipt Clarification', label: 'Payment & Receipt Clarification', icon: '💳' },
+                  { value: 'Home Loan Disbursement Assistance', label: 'Home Loan Disbursement Assistance', icon: '🏦' },
+                  { value: 'Possession & Site Inspection Request', label: 'Possession & Site Inspection Request', icon: '🔑' },
+                  { value: 'Modification / Snag List Report', label: 'Modification / Snag List Report', icon: '📋' },
+                  { value: 'Other Services', label: 'Other Services', icon: '💬' }
+                ]}
+              />
             </div>
 
             <div className="form-group">

@@ -7,11 +7,12 @@ import {
 import api from '../../services/api';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency, formatDate } from '../../utils/formatters';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 const mockPartners = [];
 
 // ─── Channel Partners Kanban Board ─────────────────
-const PartnersKanbanView = ({ partners, onApprove, onEdit, onDelete, onTierChange }) => {
+const PartnersKanbanView = ({ partners, onApprove, onEdit, onDelete, onTierChange, onAddPartner }) => {
   const [draggedId, setDraggedId] = useState(null);
   const [dragOverCol, setDragOverCol] = useState(null);
 
@@ -104,11 +105,27 @@ const PartnersKanbanView = ({ partners, onApprove, onEdit, onDelete, onTierChang
                   {colPartners.length}
                 </span>
               </div>
-              {colPartners.length > 0 && (
-                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--primary)' }}>
-                  {formatCurrency(colValue)}
-                </span>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {colPartners.length > 0 && (
+                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--primary)' }}>
+                    {formatCurrency(colValue)}
+                  </span>
+                )}
+                {onAddPartner && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon btn-sm"
+                    style={{ width: 22, height: 22, padding: 0, color: 'var(--primary)', borderRadius: 4, background: '#f1f5f9' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddPartner(col.id);
+                    }}
+                    title={`Add Channel Partner in ${col.title}`}
+                  >
+                    <Plus size={13} />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Body */}
@@ -128,18 +145,47 @@ const PartnersKanbanView = ({ partners, onApprove, onEdit, onDelete, onTierChang
                 <div
                   style={{
                     textAlign: 'center',
-                    padding: '30px 12px',
+                    padding: '24px 12px',
                     color: 'var(--text-muted)',
                     fontSize: 12,
-                    border: '1px dashed #cbd5e1',
-                    borderRadius: 8,
-                    background: 'white'
+                    border: '1.5px dashed #cbd5e1',
+                    borderRadius: 10,
+                    background: 'white',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 8,
+                    margin: '4px 0'
                   }}
                 >
-                  Drag partners here to update tier
+                  <span>No partners in {col.title}</span>
+                  {onAddPartner && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      style={{
+                        fontSize: 11.5,
+                        padding: '4px 10px',
+                        height: 28,
+                        gap: 4,
+                        background: '#f8fafc',
+                        borderColor: '#cbd5e1',
+                        color: 'var(--primary)',
+                        fontWeight: 600,
+                        borderRadius: 8
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddPartner(col.id);
+                      }}
+                    >
+                      <Plus size={13} /> Add Partner
+                    </button>
+                  )}
                 </div>
               ) : (
-                colPartners.map(p => {
+                <>
+                  {colPartners.map(p => {
                   const isDragging = draggedId === p._id;
 
                   return (
@@ -229,12 +275,36 @@ const PartnersKanbanView = ({ partners, onApprove, onEdit, onDelete, onTierChang
                       </div>
                     </div>
                   );
-                })
-              )}
-            </div>
+                })}
+                {onAddPartner && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    style={{
+                      width: '100%',
+                      fontSize: 11.5,
+                      padding: '6px',
+                      gap: 4,
+                      color: 'var(--text-muted)',
+                      border: '1px dashed #cbd5e1',
+                      borderRadius: 8,
+                      marginTop: 4,
+                      background: '#fafbfc'
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddPartner(col.id);
+                    }}
+                  >
+                    <Plus size={12} /> Add Partner
+                  </button>
+                )}
+              </>
+            )}
           </div>
-        );
-      })}
+        </div>
+      );
+    })}
     </div>
   );
 };
@@ -252,7 +322,7 @@ export default function ChannelPartnersPage() {
 
   const [partners, setPartners] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState('table'); // 'table' | 'kanban'
+  const [view, setView] = useState('kanban'); // 'kanban' (Board 1st default) | 'table'
   const [tab, setTab] = useState(getTabFromPath());
   const [showModal, setShowModal] = useState(false);
   const [editingPartner, setEditingPartner] = useState(null);
@@ -260,7 +330,7 @@ export default function ChannelPartnersPage() {
   const { showNotification } = useUI();
 
   const [form, setForm] = useState({
-    firmName: '', contactPerson: '', phone: '', email: '', reraNumber: '', city: 'Pune', tier: 'silver', status: 'approved', commissionRate: 2.0
+    firmName: '', contactPerson: '', phone: '', email: '', reraNumber: '', city: '', tier: '', status: '', commissionRate: ''
   });
 
   useEffect(() => {
@@ -325,9 +395,9 @@ export default function ChannelPartnersPage() {
       phone: p.phone,
       email: p.email,
       reraNumber: p.reraNumber || '',
-      city: p.city || 'Pune',
-      tier: p.tier || 'silver',
-      status: p.status || 'approved',
+      city: p.city || '',
+      tier: p.tier || '',
+      status: p.status || '',
       commissionRate: p.commissionRate || 2.0
     });
     setShowModal(true);
@@ -484,20 +554,20 @@ export default function ChannelPartnersPage() {
         {tab !== 'slabs' && (
           <div style={{ display: 'inline-flex', background: '#f1f5f9', padding: 3, borderRadius: 8, gap: 2 }}>
             <button
+              className={`btn btn-sm ${view === 'kanban' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, gap: 4, fontWeight: 600 }}
+              onClick={() => setView('kanban')}
+              title="Kanban Board View (Default)"
+            >
+              <Columns size={14} /> Board
+            </button>
+            <button
               className={`btn btn-sm ${view === 'table' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6 }}
+              style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, gap: 4, fontWeight: 600 }}
               onClick={() => setView('table')}
               title="Table View"
             >
               <List size={14} /> Table
-            </button>
-            <button
-              className={`btn btn-sm ${view === 'kanban' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6 }}
-              onClick={() => setView('kanban')}
-              title="Kanban Board"
-            >
-              <Columns size={14} /> Kanban
             </button>
           </div>
         )}
@@ -511,6 +581,7 @@ export default function ChannelPartnersPage() {
             onEdit={startEdit}
             onDelete={handleDeletePartner}
             onTierChange={handleTierChange}
+            onAddPartner={() => { setEditingPartner(null); setForm({ firmName: '', contactPerson: '', phone: '', email: '', reraNumber: '', city: '', tier: '', status: '', commissionRate: '' }); setShowModal(true); }}
           />
         ) : (
           <div className="table-wrapper">
@@ -521,7 +592,7 @@ export default function ChannelPartnersPage() {
                 <div style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4, marginBottom: 16 }}>
                   {search || tab !== 'all' ? 'Try adjusting your search or tab filters.' : 'Onboard your first channel partner or real estate broker.'}
                 </div>
-                <button className="btn btn-primary btn-sm" onClick={() => { setEditingPartner(null); setForm({ firmName: '', contactPerson: '', phone: '', email: '', reraNumber: '', city: 'Pune', tier: 'silver', status: 'approved', commissionRate: 2.0 }); setShowModal(true); }}>
+                <button className="btn btn-primary btn-sm" onClick={() => { setEditingPartner(null); setForm({ firmName: '', contactPerson: '', phone: '', email: '', reraNumber: '', city: '', tier: '', status: '', commissionRate: '' }); setShowModal(true); }}>
                   <Plus size={14} /> Add Channel Partner
                 </button>
               </div>
@@ -683,12 +754,18 @@ export default function ChannelPartnersPage() {
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Partnership Tier</label>
-                    <select className="form-select" value={form.tier} onChange={e => setForm(p => ({ ...p, tier: e.target.value }))}>
-                      <option value="silver">Silver (1.5%)</option>
-                      <option value="gold">Gold (2.0%)</option>
-                      <option value="platinum">Platinum (2.5%)</option>
-                    </select>
+                    <CustomSelect
+                      label="Partnership Tier"
+                      value={form.tier}
+                      onChange={val => setForm(p => ({ ...p, tier: val }))}
+                      placeholder="Select partnership tier"
+                      options={[
+                        { value: '', label: 'Select partnership tier' },
+                        { value: 'silver', label: 'Silver (1.5%)', icon: '🥈' },
+                        { value: 'gold', label: 'Gold (2.0%)', icon: '🥇' },
+                        { value: 'platinum', label: 'Platinum (2.5%)', icon: '🥅' }
+                      ]}
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Commission Rate (%)</label>
@@ -701,11 +778,17 @@ export default function ChannelPartnersPage() {
                     <input className="form-input" value={form.city} onChange={e => setForm(p => ({ ...p, city: e.target.value }))} placeholder="e.g. Pune / Mumbai" />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Verification Status</label>
-                    <select className="form-select" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
-                      <option value="approved">Approved & Verified</option>
-                      <option value="pending">Pending KYC Review</option>
-                    </select>
+                    <CustomSelect
+                      label="Verification Status"
+                      value={form.status}
+                      onChange={val => setForm(p => ({ ...p, status: val }))}
+                      placeholder="Select verification status"
+                      options={[
+                        { value: '', label: 'Select verification status' },
+                        { value: 'approved', label: 'Approved & Verified', icon: '✅' },
+                        { value: 'pending', label: 'Pending KYC Review', icon: '⏳' }
+                      ]}
+                    />
                   </div>
                 </div>
               </div>

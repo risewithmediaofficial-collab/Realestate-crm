@@ -72,7 +72,7 @@ const paymentSchema = new mongoose.Schema({
 
   collectedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   // Organization & Multi-Tenancy Scoping
-  organization: { type: String, trim: true, default: 'Rise With RealtyHub', index: true },
+  organization: { type: String, trim: true, required: true, index: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   notes: { type: String },
 }, { timestamps: true });

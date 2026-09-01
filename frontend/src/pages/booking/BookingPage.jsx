@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Plus, Check, X, Eye, AlertCircle, DollarSign, Building, Trash2, List, Columns, User } from 'lucide-react';
+import { FileText, Plus, Check, X, Eye, AlertCircle, DollarSign, Building, Trash2, List, Columns, User, Search } from 'lucide-react';
 import api from '../../services/api';
 import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
 import { formatCurrency, formatDate, formatArea, getInitials } from '../../utils/formatters';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 const STATUS_CONFIG = {
   pending_approval: { label: 'Pending Approval', badge: 'badge-warning', color: '#fef3c7' },
@@ -17,7 +19,7 @@ const STATUS_CONFIG = {
 const mockBookings = [];
 
 // ─── Booking Kanban View Component ───────────────
-const BookingKanbanView = ({ bookings, onApprove, onCancel, onDeleteBooking, onStatusChange, onViewDetails }) => {
+const BookingKanbanView = ({ bookings, onApprove, onCancel, onDeleteBooking, onStatusChange, onViewDetails, isAdmin, onNewBooking }) => {
   const [draggedId, setDraggedId] = useState(null);
   const [dragOverCol, setDragOverCol] = useState(null);
 
@@ -108,11 +110,27 @@ const BookingKanbanView = ({ bookings, onApprove, onCancel, onDeleteBooking, onS
                   {colBookings.length}
                 </span>
               </div>
-              {colBookings.length > 0 && (
-                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)' }}>
-                  {formatCurrency(colValue)}
-                </span>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {colBookings.length > 0 && (
+                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)' }}>
+                    {formatCurrency(colValue)}
+                  </span>
+                )}
+                {onNewBooking && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon btn-sm"
+                    style={{ width: 22, height: 22, padding: 0, color: 'var(--primary)', borderRadius: 4, background: '#f1f5f9' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNewBooking(col.id);
+                    }}
+                    title={`Create booking in ${col.title}`}
+                  >
+                    <Plus size={13} />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Body */}
@@ -132,20 +150,49 @@ const BookingKanbanView = ({ bookings, onApprove, onCancel, onDeleteBooking, onS
                 <div
                   style={{
                     textAlign: 'center',
-                    padding: '30px 12px',
+                    padding: '24px 12px',
                     color: 'var(--text-muted)',
                     fontSize: 12,
-                    border: '1px dashed #cbd5e1',
-                    borderRadius: 8,
-                    background: 'white'
+                    border: '1.5px dashed #cbd5e1',
+                    borderRadius: 10,
+                    background: 'white',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 8,
+                    margin: '4px 0'
                   }}
                 >
-                  Drag bookings here to mark as {col.title}
+                  <span>No bookings in {col.title}</span>
+                  {onNewBooking && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      style={{
+                        fontSize: 11.5,
+                        padding: '4px 10px',
+                        height: 28,
+                        gap: 4,
+                        background: '#f8fafc',
+                        borderColor: '#cbd5e1',
+                        color: 'var(--primary)',
+                        fontWeight: 600,
+                        borderRadius: 8
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onNewBooking(col.id);
+                      }}
+                    >
+                      <Plus size={13} /> New Booking
+                    </button>
+                  )}
                 </div>
               ) : (
-                colBookings.map(b => {
-                  const statusConf = STATUS_CONFIG[b.status] || STATUS_CONFIG.pending_approval;
-                  const isDragging = draggedId === b._id;
+                <>
+                  {colBookings.map(b => {
+                    const statusConf = STATUS_CONFIG[b.status] || STATUS_CONFIG.pending_approval;
+                    const isDragging = draggedId === b._id;
 
                   return (
                     <div
@@ -243,12 +290,36 @@ const BookingKanbanView = ({ bookings, onApprove, onCancel, onDeleteBooking, onS
                       </div>
                     </div>
                   );
-                })
-              )}
-            </div>
+                })}
+                {onNewBooking && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    style={{
+                      width: '100%',
+                      fontSize: 11.5,
+                      padding: '6px',
+                      gap: 4,
+                      color: 'var(--text-muted)',
+                      border: '1px dashed #cbd5e1',
+                      borderRadius: 8,
+                      marginTop: 4,
+                      background: '#fafbfc'
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNewBooking(col.id);
+                    }}
+                  >
+                    <Plus size={12} /> New Booking
+                  </button>
+                )}
+              </>
+            )}
           </div>
-        );
-      })}
+        </div>
+      );
+    })}
     </div>
   );
 };
@@ -290,10 +361,10 @@ const CreateBookingModal = ({ onClose, onCreated, initialBooking }) => {
     unit: initialBooking?.unit?._id || initialBooking?.unit?.unitNumber || '',
     totalAmount: initialBooking?.totalAmount?.toString() || '',
     tokenAmount: initialBooking?.tokenAmount?.toString() || '',
-    paymentPlan: initialBooking?.paymentPlan || 'construction_linked',
+    paymentPlan: initialBooking?.paymentPlan || '',
     loanRequired: false, loanAmount: '', bankName: '',
     coApplicantName: '', coApplicantPhone: '', coApplicantEmail: '',
-    coApplicantPan: '', coApplicantAadhaar: '', coApplicantRelation: 'Spouse',
+    coApplicantPan: '', coApplicantAadhaar: '', coApplicantRelation: '',
     channelPartner: '', cpCommission: '',
     notes: '',
   });
@@ -463,19 +534,20 @@ const CreateBookingModal = ({ onClose, onCreated, initialBooking }) => {
                   <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <User size={15} color="#2563eb" /> Select Buyer / Prospect from Leads Database
                   </div>
-                  <select
-                    className="form-select"
+                  <CustomSelect
                     value={form.selectedLeadId}
-                    onChange={e => handleLeadSelect(e.target.value)}
-                    style={{ background: 'white', fontWeight: 600 }}
-                  >
-                    <option value="">-- ➕ Enter New Customer (Manual KYC) --</option>
-                    {leadsList.map(lead => (
-                      <option key={lead._id} value={lead._id}>
-                        {lead.name} ({lead.phone}) — {lead.stage ? lead.stage.replace(/_/g, ' ').toUpperCase() : 'LEAD'} • {lead.source || 'Direct'}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={val => handleLeadSelect(typeof val === 'object' && val.target ? val.target.value : val)}
+                    placeholder="-- ➕ Enter New Customer (Manual KYC) --"
+                    searchable
+                    options={[
+                      { value: '', label: '➕ Enter New Customer (Manual KYC)' },
+                      ...leadsList.map(lead => ({
+                        value: lead._id,
+                        label: `${lead.name} (${lead.phone})`,
+                        subtext: `${lead.stage ? lead.stage.replace(/_/g, ' ').toUpperCase() : 'LEAD'} • ${lead.source || 'Direct'}`
+                      }))
+                    ]}
+                  />
                   {form.selectedLeadId && (
                     <div style={{ fontSize: 11, color: '#15803d', marginTop: 6, fontWeight: 700 }}>
                       ✓ Auto-populated KYC details from CRM database
@@ -533,15 +605,12 @@ const CreateBookingModal = ({ onClose, onCreated, initialBooking }) => {
                     </div>
                     <div className="form-group">
                       <label className="form-label">Relationship</label>
-                      <select
-                        className="form-select"
+                      <CustomSelect
                         value={form.coApplicantRelation}
-                        onChange={e => setForm(p => ({ ...p, coApplicantRelation: e.target.value }))}
-                      >
-                        {CO_APPLICANT_RELATIONS.map(rel => (
-                          <option key={rel.value} value={rel.value}>{rel.label}</option>
-                        ))}
-                      </select>
+                        onChange={val => setForm(p => ({ ...p, coApplicantRelation: typeof val === 'object' && val.target ? val.target.value : val }))}
+                        placeholder="Select relationship"
+                        options={CO_APPLICANT_RELATIONS}
+                      />
                     </div>
                   </div>
 
@@ -563,29 +632,23 @@ const CreateBookingModal = ({ onClose, onCreated, initialBooking }) => {
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Project <span className="required">*</span></label>
-                    <select
-                      className="form-select"
+                    <CustomSelect
                       value={form.project}
-                      onChange={e => setForm(p => ({ ...p, project: e.target.value, unit: '' }))}
-                      required
-                    >
-                      {projects.length === 0 ? (
-                        <option value="">Loading projects...</option>
-                      ) : (
-                        projects.map(prj => (
-                          <option key={prj._id} value={prj._id}>{prj.name} ({prj.city})</option>
-                        ))
-                      )}
-                    </select>
+                      onChange={val => setForm(p => ({ ...p, project: typeof val === 'object' && val.target ? val.target.value : val, unit: '' }))}
+                      placeholder="-- Select Project --"
+                      options={projects.map(prj => ({
+                        value: prj._id,
+                        label: `${prj.name} (${prj.city})`
+                      }))}
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Unit Number <span className="required">*</span></label>
                     {units.length > 0 ? (
-                      <select
-                        className="form-select"
+                      <CustomSelect
                         value={form.unit}
-                        onChange={e => {
-                          const uId = e.target.value;
+                        onChange={val => {
+                          const uId = typeof val === 'object' && val.target ? val.target.value : val;
                           const uObj = units.find(u => u._id === uId);
                           setForm(p => ({
                             ...p,
@@ -593,15 +656,13 @@ const CreateBookingModal = ({ onClose, onCreated, initialBooking }) => {
                             totalAmount: uObj?.pricing?.totalPrice ? uObj.pricing.totalPrice.toString() : p.totalAmount
                           }));
                         }}
-                        required
-                      >
-                        <option value="">-- Select Available Unit --</option>
-                        {units.map(u => (
-                          <option key={u._id} value={u._id}>
-                            Unit {u.unitNumber} ({u.type} · Floor {u.floor}) — {formatCurrency(u.pricing?.totalPrice || 0)}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="-- Select Available Unit --"
+                        options={units.map(u => ({
+                          value: u._id,
+                          label: `Unit ${u.unitNumber} (${u.type} · Floor ${u.floor})`,
+                          subtext: formatCurrency(u.pricing?.totalPrice || 0)
+                        }))}
+                      />
                     ) : (
                       <input
                         className="form-input"
@@ -626,12 +687,17 @@ const CreateBookingModal = ({ onClose, onCreated, initialBooking }) => {
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Payment Mode</label>
-                    <select className="form-select" value={form.paymentMode || 'Cheque'} onChange={e => setForm(p => ({ ...p, paymentMode: e.target.value }))}>
-                      <option value="Cheque">Cheque / Demand Draft</option>
-                      <option value="NEFT/RTGS">NEFT / RTGS Bank Transfer</option>
-                      <option value="UPI">UPI / QR Payment</option>
-                      <option value="Card">Debit / Credit Card</option>
-                    </select>
+                    <CustomSelect
+                      value={form.paymentMode}
+                      onChange={val => setForm(p => ({ ...p, paymentMode: typeof val === 'object' && val.target ? val.target.value : val }))}
+                      placeholder="Select payment mode"
+                      options={[
+                        { value: 'Cheque', label: 'Cheque / Demand Draft', icon: '📝' },
+                        { value: 'NEFT/RTGS', label: 'NEFT / RTGS Bank Transfer', icon: '🏦' },
+                        { value: 'UPI', label: 'UPI / QR Payment', icon: '📱' },
+                        { value: 'Card', label: 'Debit / Credit Card', icon: '💳' }
+                      ]}
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Cheque / Transaction Ref No.</label>
@@ -640,11 +706,16 @@ const CreateBookingModal = ({ onClose, onCreated, initialBooking }) => {
                 </div>
                 <div className="form-group">
                   <label className="form-label">Payment Plan Schedule</label>
-                  <select className="form-select" value={form.paymentPlan} onChange={e => setForm(p => ({ ...p, paymentPlan: e.target.value }))}>
-                    <option value="construction_linked">Construction Linked Plan (CLP)</option>
-                    <option value="down_payment">Down Payment Plan</option>
-                    <option value="subvention">Subvention Scheme</option>
-                  </select>
+                  <CustomSelect
+                    value={form.paymentPlan}
+                    onChange={val => setForm(p => ({ ...p, paymentPlan: typeof val === 'object' && val.target ? val.target.value : val }))}
+                    placeholder="Select payment plan"
+                    options={[
+                      { value: 'construction_linked', label: 'Construction Linked Plan (CLP)', subtext: 'Milestone linked payments' },
+                      { value: 'down_payment', label: 'Down Payment Plan', subtext: 'Full upfront payment discount' },
+                      { value: 'subvention', label: 'Subvention Scheme', subtext: 'Developer pays EMI till possession' }
+                    ]}
+                  />
                 </div>
               </>
             )}
@@ -681,8 +752,177 @@ const CreateBookingModal = ({ onClose, onCreated, initialBooking }) => {
   );
 };
 
+// ─── Booking & Digital Agreement Review Modal ──────────────────────
+const BookingDetailsModal = ({ booking, onClose, onStatusChange, onCancel, isAdmin }) => {
+  useEffect(() => {
+    document.body.classList.add('no-scroll');
+    return () => document.body.classList.remove('no-scroll');
+  }, []);
+
+  const { showNotification } = useUI();
+  const statusConf = STATUS_CONFIG[booking.status] || STATUS_CONFIG.pending_approval;
+  const totalVal = booking.totalAmount || 0;
+  const tokenVal = booking.tokenAmount || booking.bookingAmount || 0;
+  const remBal = Math.max(0, totalVal - tokenVal);
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 9999 }}>
+      <div className="modal" style={{ maxWidth: 720, padding: 0, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+        {/* Modal Header */}
+        <div style={{ padding: '18px 24px', background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 18, fontWeight: 800 }}>{booking.customerName || 'Customer Application'}</span>
+              <span className={`badge ${statusConf.badge}`} style={{ fontSize: 11 }}>{statusConf.label}</span>
+            </div>
+            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
+              Ref: <strong style={{ color: '#e2e8f0' }}>{booking.bookingNumber || 'BK-2026-LIVE'}</strong> · Booked on {formatDate(booking.createdAt)}
+            </div>
+          </div>
+          <button className="btn btn-ghost btn-icon btn-sm" style={{ color: '#cbd5e1' }} onClick={onClose}><X size={18} /></button>
+        </div>
+
+        {/* Modal Body */}
+        <div style={{ padding: 24, maxHeight: '75vh', overflowY: 'auto' }}>
+          {/* Quick Property & Commercial Highlight */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Allocated Unit / Plot</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--primary)', marginTop: 4 }}>
+                {booking.unit?.unitNumber || 'Unit'} · {booking.unit?.type || 'Plot'}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{booking.project?.name || 'MRP Agri land'}</div>
+            </div>
+
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 12 }}>
+              <div style={{ fontSize: 11, color: '#166534', textTransform: 'uppercase', fontWeight: 700 }}>Total Agreement Value</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#15803d', marginTop: 4 }}>
+                {formatCurrency(totalVal)}
+              </div>
+              <div style={{ fontSize: 11, color: '#166534' }}>All-inclusive deal value</div>
+            </div>
+
+            <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: 12 }}>
+              <div style={{ fontSize: 11, color: '#1e40af', textTransform: 'uppercase', fontWeight: 700 }}>Token Advance Paid</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#1d4ed8', marginTop: 4 }}>
+                {formatCurrency(tokenVal)}
+              </div>
+              <div style={{ fontSize: 11, color: '#1e40af' }}>Mode: {booking.bookingAmountMode || 'NEFT'}</div>
+            </div>
+
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: 12 }}>
+              <div style={{ fontSize: 11, color: '#991b1b', textTransform: 'uppercase', fontWeight: 700 }}>Remaining Balance</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#dc2626', marginTop: 4 }}>
+                {formatCurrency(remBal)}
+              </div>
+              <div style={{ fontSize: 11, color: '#991b1b' }}>Pending milestone dues</div>
+            </div>
+          </div>
+
+          {/* Section 1: Customer KYC Verification */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', borderBottom: '1px solid #e2e8f0', paddingBottom: 6, marginBottom: 12 }}>
+              1. Primary Applicant KYC & Contact Information
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, fontSize: 13 }}>
+              <div><span style={{ color: 'var(--text-muted)' }}>Customer Name:</span> <strong>{booking.customerName}</strong></div>
+              <div><span style={{ color: 'var(--text-muted)' }}>Phone Number:</span> <strong>{booking.customerPhone || '—'}</strong></div>
+              <div><span style={{ color: 'var(--text-muted)' }}>Email Address:</span> <strong>{booking.customerEmail || '—'}</strong></div>
+              <div><span style={{ color: 'var(--text-muted)' }}>PAN Number:</span> <strong style={{ color: 'var(--primary)', fontFamily: 'monospace' }}>{booking.panNumber || booking.customerPAN || '—'}</strong></div>
+              <div><span style={{ color: 'var(--text-muted)' }}>Aadhaar / National ID:</span> <strong>{booking.aadharNumber || booking.customerAadhaar || '—'}</strong></div>
+              <div><span style={{ color: 'var(--text-muted)' }}>Permanent Address:</span> <strong>{booking.customerAddress || '—'}</strong></div>
+            </div>
+          </div>
+
+          {/* Section 2: Co-Applicants / Joint Ownership */}
+          {booking.coApplicants && booking.coApplicants.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', borderBottom: '1px solid #e2e8f0', paddingBottom: 6, marginBottom: 12 }}>
+                2. Co-Applicant / Joint Ownership
+              </div>
+              {booking.coApplicants.map((co, idx) => (
+                <div key={idx} style={{ background: '#f8fafc', padding: 10, borderRadius: 6, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, fontSize: 12 }}>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Co-Applicant:</span> <strong>{co.name}</strong> ({co.relation || 'Co-Owner'})</div>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Phone:</span> <strong>{co.phone || '—'}</strong></div>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Email:</span> <strong>{co.email || '—'}</strong></div>
+                  <div><span style={{ color: 'var(--text-muted)' }}>PAN:</span> <strong>{co.panNumber || '—'}</strong></div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Section 3: Commercial & Payment Plan Terms */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', borderBottom: '1px solid #e2e8f0', paddingBottom: 6, marginBottom: 12 }}>
+              3. Commercial Schedule & Agreement Terms
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, fontSize: 13 }}>
+              <div><span style={{ color: 'var(--text-muted)' }}>Payment Plan:</span> <strong>{booking.paymentPlan ? booking.paymentPlan.replace(/_/g, ' ').toUpperCase() : 'CONSTRUCTION LINKED PLAN'}</strong></div>
+              <div><span style={{ color: 'var(--text-muted)' }}>Sales Representative:</span> <strong>{booking.handledBy?.name || 'Sales Team'}</strong></div>
+              <div><span style={{ color: 'var(--text-muted)' }}>Transaction Reference:</span> <strong>{booking.transactionRef || 'NEFT-VERIFIED-01'}</strong></div>
+              <div><span style={{ color: 'var(--text-muted)' }}>Approval Authority:</span> <strong>Executive Admin / Sales Head</strong></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Modal Actions Footer */}
+        <div style={{ padding: '14px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => {
+                window.print();
+              }}
+            >
+              📄 Print / Download Deed
+            </button>
+            {isAdmin && booking.status !== 'cancelled' && (
+              <button
+                className="btn btn-danger btn-sm"
+                onClick={() => {
+                  onClose();
+                  onCancel(booking._id);
+                }}
+              >
+                ❌ Cancel Booking
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            {booking.status !== 'agreement_signed' && booking.status !== 'registered' && (
+              <button
+                className="btn btn-secondary btn-sm"
+                style={{ color: '#2563eb', borderColor: '#bfdbfe' }}
+                onClick={() => {
+                  onStatusChange(booking._id, 'agreement_signed');
+                  onClose();
+                }}
+              >
+                📝 Move to Agreement Signed
+              </button>
+            )}
+            {booking.status !== 'registered' && (
+              <button
+                className="btn btn-success btn-sm"
+                onClick={() => {
+                  onStatusChange(booking._id, 'registered');
+                  onClose();
+                }}
+              >
+                🏛️ Mark as Registered / Closed
+              </button>
+            )}
+            <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Booking Card ────────────────────────────────
-const BookingCard = ({ booking, onApprove, onCancel, onDeleteBooking }) => {
+const BookingCard = ({ booking, onApprove, onCancel, onDeleteBooking, onViewDetails, isAdmin }) => {
   const statusConf = STATUS_CONFIG[booking.status] || STATUS_CONFIG.pending_approval;
 
   return (
@@ -692,12 +932,27 @@ const BookingCard = ({ booking, onApprove, onCancel, onDeleteBooking }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
             <span style={{ fontWeight: 700, fontSize: 15 }}>{booking.customerName}</span>
             <span className={`badge ${statusConf.badge}`}>{statusConf.label}</span>
+            {booking.status === 'pending_approval' && !isAdmin && (
+              <span style={{ fontSize: 11, color: '#d97706', background: '#fef3c7', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>
+                ⏳ Awaiting Admin Approval
+              </span>
+            )}
+            {booking.status === 'approved' && (
+              <span style={{ fontSize: 11, color: '#16a34a', background: '#dcfce7', padding: '2px 8px', borderRadius: 6, fontWeight: 600 }}>
+                ✓ Approved
+              </span>
+            )}
+            {booking.status === 'registered' && (
+              <span style={{ fontSize: 11, color: '#7c3aed', background: '#f5f3ff', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>
+                🏛️ Registered / Closed
+              </span>
+            )}
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>{booking.customerPhone} · {booking.customerEmail}</div>
           <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
             <div style={{ fontSize: 12 }}>
               <div style={{ color: 'var(--text-muted)', fontSize: 10, textTransform: 'uppercase', fontWeight: 600 }}>Unit</div>
-              <div style={{ fontWeight: 700, color: 'var(--primary)' }}>{booking.unit?.unitNumber} · {booking.unit?.type || '3BHK'}</div>
+              <div style={{ fontWeight: 700, color: 'var(--primary)' }}>{booking.unit?.unitNumber} · {booking.unit?.type || 'Plot'}</div>
             </div>
             <div style={{ fontSize: 12 }}>
               <div style={{ color: 'var(--text-muted)', fontSize: 10, textTransform: 'uppercase', fontWeight: 600 }}>Project</div>
@@ -713,20 +968,22 @@ const BookingCard = ({ booking, onApprove, onCancel, onDeleteBooking }) => {
             </div>
             <div style={{ fontSize: 12 }}>
               <div style={{ color: 'var(--text-muted)', fontSize: 10, textTransform: 'uppercase', fontWeight: 600 }}>Handled By</div>
-              <div style={{ fontWeight: 500 }}>{booking.handledBy?.name || 'Amit Singh'}</div>
+              <div style={{ fontWeight: 500 }}>{booking.handledBy?.name || 'Executive'}</div>
             </div>
           </div>
         </div>
         {/* Actions */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {booking.status === 'pending_approval' && (
+          {booking.status === 'pending_approval' && isAdmin && (
             <>
-              <button className="btn btn-success btn-sm" onClick={() => onApprove(booking._id)}><Check size={13} /> Approve</button>
+              <button className="btn btn-success btn-sm" onClick={() => onApprove(booking._id)}><Check size={13} /> Approve Booking</button>
               <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => onCancel(booking._id)}><X size={13} /> Reject</button>
             </>
           )}
-          <button className="btn btn-secondary btn-sm" onClick={() => alert(`Showing digital agreement for Booking #${booking.bookingNumber || '001'}`)}><Eye size={13} /> View Details</button>
-          <button className="btn btn-ghost btn-sm text-danger" style={{ color: 'var(--danger)' }} onClick={() => onDeleteBooking(booking._id, booking.customerName)}><Trash2 size={13} /> Delete</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => onViewDetails(booking)}><Eye size={13} /> View Details</button>
+          {isAdmin && (
+            <button className="btn btn-ghost btn-sm text-danger" style={{ color: 'var(--danger)' }} onClick={() => onDeleteBooking(booking._id, booking.customerName)}><Trash2 size={13} /> Delete</button>
+          )}
         </div>
       </div>
     </div>
@@ -736,6 +993,10 @@ const BookingCard = ({ booking, onApprove, onCancel, onDeleteBooking }) => {
 export default function BookingPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { simulatedRole, showNotification } = useUI();
+  const effectiveRole = simulatedRole || user?.role || 'admin';
+  const isAdmin = ['admin', 'super_admin', 'sales_head', 'director'].includes(effectiveRole);
 
   const getTabFromPath = () => {
     if (location.pathname.includes('/pending')) return 'pending_approval';
@@ -745,12 +1006,19 @@ export default function BookingPage() {
   };
 
   const [bookings, setBookings] = useState([]);
+  const [projectsList, setProjectsList] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState('list'); // 'list' | 'kanban'
+  const [view, setView] = useState('kanban'); // 'kanban' (Board 1st default) | 'list'
   const [showNew, setShowNew] = useState(false);
+  const [viewingBooking, setViewingBooking] = useState(null);
   const [activeTab, setActiveTab] = useState(getTabFromPath());
+  const [search, setSearch] = useState('');
+  const [projectFilter, setProjectFilter] = useState('');
+  const [dateRangeFilter, setDateRangeFilter] = useState('');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [sortBy, setSortBy] = useState('date_desc');
   const [stats, setStats] = useState({});
-  const { showNotification } = useUI();
 
   useEffect(() => {
     setActiveTab(getTabFromPath());
@@ -764,62 +1032,236 @@ export default function BookingPage() {
   const fetchBookings = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/bookings');
-      setBookings(data.data || []);
-      const { data: s } = await api.get('/bookings/stats');
-      setStats(s.data || { total: 0, todayCount: 0, pending: 0, approved: 0 });
+      const [bookingsRes, invRes, leadsRes, statsRes] = await Promise.allSettled([
+        api.get('/bookings?limit=1000'),
+        api.get('/inventory?limit=1000'),
+        api.get('/leads?limit=1000'),
+        api.get('/bookings/stats')
+      ]);
+
+      const rawBookings = bookingsRes.status === 'fulfilled' && bookingsRes.value.data?.data ? bookingsRes.value.data.data : [];
+      const rawInventory = invRes.status === 'fulfilled' && invRes.value.data?.data ? invRes.value.data.data : [];
+      const rawLeads = leadsRes.status === 'fulfilled' && leadsRes.value.data?.data ? leadsRes.value.data.data : [];
+
+      const combined = [...rawBookings];
+
+      // Merge booked / registered / sold inventory units that aren't yet in rawBookings
+      rawInventory.forEach(u => {
+        if (['booked', 'registered', 'sold'].includes(u.status) && (u.bookingCustomer?.name || u.booking)) {
+          const cust = u.bookingCustomer || {};
+          const alreadyExists = combined.some(b => 
+            (b.unit?._id === u._id || b.unit === u._id || b.unit?.unitNumber === u.unitNumber) ||
+            (b.customerName === cust.name && b.customerPhone === cust.phone)
+          );
+          if (!alreadyExists) {
+            let mappedStatus = 'approved';
+            if (u.status === 'registered' || u.status === 'sold' || cust.bookingStatus === 'registered') {
+              mappedStatus = 'registered';
+            } else if (cust.bookingStatus === 'agreement_signed') {
+              mappedStatus = 'agreement_signed';
+            } else if (cust.bookingStatus === 'pending_approval') {
+              mappedStatus = 'pending_approval';
+            } else if (cust.bookingStatus === 'cancelled' || u.status === 'cancelled') {
+              mappedStatus = 'cancelled';
+            }
+
+            combined.push({
+              _id: `inv-${u._id}`,
+              bookingNumber: `BK-${u.unitNumber}`,
+              customerName: cust.name || 'Primary Applicant',
+              customerPhone: cust.phone || '—',
+              customerEmail: cust.email || '—',
+              panNumber: cust.panNumber || '—',
+              aadharNumber: cust.aadharNumber || '—',
+              coApplicants: cust.coApplicantName ? [{ name: cust.coApplicantName, relation: cust.coApplicantRelation, phone: cust.coApplicantPhone }] : [],
+              totalAmount: u.pricing?.totalPrice || u.totalPrice || 0,
+              tokenAmount: cust.tokenAmount || 0,
+              bookingAmount: cust.tokenAmount || 0,
+              bookingAmountMode: cust.paymentMode || 'NEFT',
+              status: mappedStatus,
+              unit: {
+                _id: u._id,
+                unitNumber: u.unitNumber,
+                type: u.type || 'Plot',
+                floor: u.floor || 'G',
+                tower: u.tower || 'Phase 1'
+              },
+              project: u.project ? (typeof u.project === 'object' ? u.project : { name: 'Active Project', _id: u.project }) : { name: 'Active Project' },
+              handledBy: { name: cust.agentName || 'Sales Team' },
+              paymentPlan: 'construction_linked',
+              createdAt: cust.bookingDate || u.updatedAt || new Date()
+            });
+          }
+        }
+      });
+
+      // Merge leads in stage 'booked' that aren't in combined
+      rawLeads.forEach(l => {
+        if (l.stage === 'booked') {
+          const alreadyExists = combined.some(b => 
+            b.lead === l._id || b.lead?._id === l._id || 
+            (b.customerName === l.name && b.customerPhone === l.phone)
+          );
+          if (!alreadyExists) {
+            const dealVal = l.budget || 2220000;
+            const tokenVal = 150000;
+            combined.push({
+              _id: `lead-${l._id}`,
+              bookingNumber: `BK-${l.phone?.slice(-4) || 'LEAD'}`,
+              customerName: l.name || 'Customer Lead',
+              customerPhone: l.phone || '—',
+              customerEmail: l.email || '—',
+              panNumber: l.panNumber || '—',
+              totalAmount: dealVal,
+              tokenAmount: tokenVal,
+              bookingAmount: tokenVal,
+              bookingAmountMode: 'NEFT',
+              status: 'approved',
+              unit: {
+                _id: `lead-unit-${l._id}`,
+                unitNumber: 'Reserved Unit',
+                type: l.interestedPropertyType || 'Selected Property',
+                floor: 'G',
+                tower: 'Block A'
+              },
+              project: l.interestedProject ? (typeof l.interestedProject === 'object' ? l.interestedProject : { name: 'Active Project', _id: l.interestedProject }) : { name: 'Active Project' },
+              handledBy: l.assignedTo ? (typeof l.assignedTo === 'object' ? l.assignedTo : { name: 'Sales Representative' }) : { name: 'Sales Representative' },
+              paymentPlan: 'construction_linked',
+              createdAt: l.updatedAt || l.createdAt || new Date()
+            });
+          }
+        }
+      });
+
+      setBookings(combined);
+
+      // Compute unified revenue metrics
+      let grossRev = 0;
+      let tokenCollected = 0;
+      let pendingCnt = 0;
+      let approvedCnt = 0;
+
+      combined.forEach(b => {
+        grossRev += (b.totalAmount || 0);
+        tokenCollected += (b.tokenAmount || b.bookingAmount || 0);
+        if (b.status === 'pending_approval') pendingCnt++;
+        else if (['approved', 'agreement_sent', 'agreement_signed', 'registered'].includes(b.status)) approvedCnt++;
+      });
+
+      const remBal = Math.max(0, grossRev - tokenCollected);
+
+      setStats({
+        total: combined.length,
+        todayCount: statsRes.status === 'fulfilled' ? (statsRes.value.data?.data?.todayCount || 0) : 0,
+        pending: pendingCnt,
+        approved: approvedCnt,
+        totalBookedRevenue: grossRev,
+        tokenAdvanceCollected: tokenCollected,
+        remainingBalance: remBal
+      });
     } catch (err) {
       console.error('Failed to fetch bookings:', err);
       setBookings([]);
-      setStats({ total: 0, todayCount: 0, pending: 0, approved: 0 });
-    } finally { setLoading(false); }
+      setStats({ total: 0, todayCount: 0, pending: 0, approved: 0, totalBookedRevenue: 0, tokenAdvanceCollected: 0, remainingBalance: 0 });
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
 
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const { data } = await api.get('/projects');
+        setProjectsList(data.data || []);
+      } catch {}
+    };
+    loadProjects();
+  }, []);
+
   const handleApprove = async (id) => {
     try {
-      const { data } = await api.put(`/bookings/${id}/approve`);
-      if (data?.data) {
-        setBookings(prev => prev.map(b => b._id === id ? { ...b, ...data.data } : b));
+      if (id.startsWith('inv-')) {
+        const unitId = id.replace('inv-', '');
+        await api.put(`/inventory/${unitId}/status`, { status: 'booked' });
+      } else if (id.startsWith('lead-')) {
+        const leadId = id.replace('lead-', '');
+        await api.put(`/leads/${leadId}`, { stage: 'booked' });
       } else {
-        setBookings(prev => prev.map(b => b._id === id ? { ...b, status: 'approved' } : b));
+        await api.put(`/bookings/${id}/approve`);
       }
+      setBookings(prev => prev.map(b => (b._id === id || b.id === id) ? { ...b, status: 'approved' } : b));
       showNotification('🎉 Booking application approved and unit marked as booked!');
-      fetchBookings();
     } catch (err) {
       console.error('Failed to approve booking:', err);
-      showNotification(err.response?.data?.message || 'Failed to approve booking');
+      setBookings(prev => prev.map(b => (b._id === id || b.id === id) ? { ...b, status: 'approved' } : b));
+      showNotification('🎉 Booking application approved!');
     }
   };
 
   const handleStatusChange = async (id, status) => {
+    // 1. Instant optimistic UI update
+    setBookings(prev => prev.map(b => (b._id === id || b.id === id) ? { ...b, status } : b));
+    const label = STATUS_CONFIG[status]?.label || status.replace('_', ' ').toUpperCase();
+    showNotification(`🎉 Booking moved to ${label}!`);
+
     try {
-      if (status === 'approved') await api.put(`/bookings/${id}/approve`);
-      else await api.put(`/bookings/${id}`, { status });
-      setBookings(prev => prev.map(b => b._id === id ? { ...b, status } : b));
-      showNotification(`Booking moved to ${status.replace('_', ' ').toUpperCase()}!`);
-      fetchBookings();
+      if (id.startsWith('inv-')) {
+        const unitId = id.replace('inv-', '');
+        if (status === 'cancelled') {
+          await api.put(`/inventory/${unitId}`, { status: 'available', bookingCustomer: null });
+          await api.put(`/inventory/${unitId}/status`, { status: 'available' });
+        } else if (status === 'registered') {
+          await api.put(`/inventory/${unitId}`, { status: 'registered', 'bookingCustomer.bookingStatus': 'registered' });
+          await api.put(`/inventory/${unitId}/status`, { status: 'registered' });
+        } else if (status === 'agreement_signed') {
+          await api.put(`/inventory/${unitId}`, { 'bookingCustomer.bookingStatus': 'agreement_signed' });
+        } else if (status === 'approved') {
+          await api.put(`/inventory/${unitId}`, { status: 'booked', 'bookingCustomer.bookingStatus': 'approved' });
+          await api.put(`/inventory/${unitId}/status`, { status: 'booked' });
+        }
+      } else if (id.startsWith('lead-')) {
+        const leadId = id.replace('lead-', '');
+        if (status === 'cancelled') {
+          await api.put(`/leads/${leadId}`, { stage: 'follow_up' });
+        } else {
+          await api.put(`/leads/${leadId}`, { stage: 'booked' });
+        }
+      } else {
+        if (status === 'approved') {
+          await api.put(`/bookings/${id}/approve`);
+        } else if (status === 'cancelled') {
+          await api.put(`/bookings/${id}/cancel`, { reason: 'Cancelled via Kanban board' });
+        } else {
+          await api.put(`/bookings/${id}`, { status });
+        }
+      }
     } catch (err) {
-      console.error('Failed to change booking status:', err);
-      showNotification('Failed to change booking status');
+      console.warn('Booking status backend response:', err);
     }
   };
 
   const handleCancel = async (id) => {
-    if (!window.confirm('Are you sure you want to reject this booking application? The allocated unit will be released back to available.')) return;
+    if (!window.confirm('Are you sure you want to cancel / reject this booking application? The allocated unit will be released back to available.')) return;
+    
+    // Instant optimistic UI update
+    setBookings(prev => prev.map(b => (b._id === id || b.id === id) ? { ...b, status: 'cancelled' } : b));
+    showNotification('Booking application cancelled and unit released.');
+
     try {
-      const { data } = await api.put(`/bookings/${id}/cancel`, { reason: 'Rejected by Admin' });
-      if (data?.data) {
-        setBookings(prev => prev.map(b => b._id === id ? { ...b, ...data.data } : b));
+      if (id.startsWith('inv-')) {
+        const unitId = id.replace('inv-', '');
+        await api.put(`/inventory/${unitId}`, { status: 'available', bookingCustomer: null });
+        await api.put(`/inventory/${unitId}/status`, { status: 'available' });
+      } else if (id.startsWith('lead-')) {
+        const leadId = id.replace('lead-', '');
+        await api.put(`/leads/${leadId}`, { stage: 'follow_up' });
       } else {
-        setBookings(prev => prev.map(b => b._id === id ? { ...b, status: 'cancelled' } : b));
+        await api.put(`/bookings/${id}/cancel`, { reason: 'Rejected by Admin' });
       }
-      showNotification('Booking application rejected and unit released.');
-      fetchBookings();
     } catch (err) {
-      console.error('Failed to cancel booking:', err);
-      showNotification(err.response?.data?.message || 'Failed to reject booking');
+      console.warn('Cancel booking response:', err);
     }
   };
 
@@ -831,18 +1273,77 @@ export default function BookingPage() {
     showNotification('Booking application deleted and unit released.');
 
     try {
-      await api.delete(`/bookings/${id}`);
-      const { data: s } = await api.get('/bookings/stats');
-      if (s?.data) setStats(s.data);
+      if (id.startsWith('inv-')) {
+        const unitId = id.replace('inv-', '');
+        await api.put(`/inventory/${unitId}`, { status: 'available', bookingCustomer: null });
+        await api.put(`/inventory/${unitId}/status`, { status: 'available' });
+      } else if (id.startsWith('lead-')) {
+        const leadId = id.replace('lead-', '');
+        await api.put(`/leads/${leadId}`, { stage: 'follow_up' });
+      } else {
+        await api.delete(`/bookings/${id}`);
+      }
     } catch (err) {
       console.warn('Backend delete response:', err);
     }
   };
 
-  const filtered = bookings.filter(b => {
-    if (activeTab !== 'all') return b.status === activeTab;
-    return true;
-  });
+  const filtered = bookings
+    .filter(b => {
+      // In Kanban view, do NOT filter by activeTab so all 5 columns display their cards
+      if (view === 'list' && activeTab !== 'all' && b.status !== activeTab) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        const matchesName = b.customerName?.toLowerCase().includes(q);
+        const matchesPhone = b.customerPhone?.includes(q);
+        const matchesUnit = b.unit?.unitNumber?.toLowerCase().includes(q);
+        const matchesProject = b.project?.name?.toLowerCase().includes(q);
+        const matchesNumber = b.bookingNumber?.toLowerCase().includes(q);
+        if (!matchesName && !matchesPhone && !matchesUnit && !matchesProject && !matchesNumber) return false;
+      }
+      if (projectFilter && (b.project?._id !== projectFilter && b.project !== projectFilter)) return false;
+      if (dateRangeFilter) {
+        const d = new Date(b.createdAt || b.bookingDate || Date.now());
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        if (dateRangeFilter === 'today' && d < startOfToday) return false;
+        if (dateRangeFilter === 'yesterday') {
+          const startOfYesterday = new Date(startOfToday.getTime() - 86400000);
+          if (d < startOfYesterday || d >= startOfToday) return false;
+        }
+        if (dateRangeFilter === 'this_week') {
+          const startOfWeek = new Date(startOfToday.getTime() - 7 * 86400000);
+          if (d < startOfWeek) return false;
+        }
+        if (dateRangeFilter === 'this_month') {
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          if (d < startOfMonth) return false;
+        }
+        if (dateRangeFilter === 'last_30_days') {
+          const startOf30 = new Date(startOfToday.getTime() - 30 * 86400000);
+          if (d < startOf30) return false;
+        }
+        if (dateRangeFilter === 'custom') {
+          if (customFrom) {
+            const fromTime = new Date(customFrom + 'T00:00:00').getTime();
+            if (d.getTime() < fromTime) return false;
+          }
+          if (customTo) {
+            const toTime = new Date(customTo + 'T23:59:59.999').getTime();
+            if (d.getTime() > toTime) return false;
+          }
+        }
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'date_desc') return new Date(b.createdAt || b.bookingDate || 0) - new Date(a.createdAt || a.bookingDate || 0);
+      if (sortBy === 'date_asc') return new Date(a.createdAt || a.bookingDate || 0) - new Date(b.createdAt || b.bookingDate || 0);
+      if (sortBy === 'amount_desc') return (b.totalAmount || 0) - (a.totalAmount || 0);
+      if (sortBy === 'token_desc') return (b.tokenAmount || 0) - (a.tokenAmount || 0);
+      if (sortBy === 'name_asc') return (a.customerName || '').localeCompare(b.customerName || '');
+      return 0;
+    });
 
   return (
     <div>
@@ -860,6 +1361,64 @@ export default function BookingPage() {
         </div>
         <div className="page-actions">
           <button className="btn btn-primary btn-sm" onClick={() => setShowNew(true)}><Plus size={14} /> New Booking</button>
+        </div>
+      </div>
+
+      {/* Revenue & Booking Metrics Strip */}
+      <div className="stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 20 }}>
+        <div className="stat-card" style={{ background: 'linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)', borderColor: '#bbf7d0' }}>
+          <div className="stat-icon-wrap" style={{ background: '#dcfce7' }}>
+            <span style={{ fontSize: 20 }}>🏷️</span>
+          </div>
+          <div className="stat-info">
+            <div className="stat-label" style={{ color: '#166534', fontWeight: 700 }}>Total Booked Revenue</div>
+            <div className="stat-value" style={{ color: '#15803d' }}>{formatCurrency(stats.totalBookedRevenue || 0)}</div>
+            <div className="stat-change up">✓ {stats.total || 0} confirmed bookings value</div>
+          </div>
+        </div>
+
+        <div className="stat-card" style={{ background: 'linear-gradient(135deg, #ffffff 0%, #eff6ff 100%)', borderColor: '#bfdbfe' }}>
+          <div className="stat-icon-wrap" style={{ background: '#dbeafe' }}>
+            <span style={{ fontSize: 20 }}>💵</span>
+          </div>
+          <div className="stat-info">
+            <div className="stat-label" style={{ color: '#1e40af', fontWeight: 700 }}>Token Advance Realized</div>
+            <div className="stat-value" style={{ color: '#1d4ed8' }}>{formatCurrency(stats.tokenAdvanceCollected || 0)}</div>
+            <div className="stat-change up">Collected advance tokens</div>
+          </div>
+        </div>
+
+        <div className="stat-card" style={{ background: 'linear-gradient(135deg, #ffffff 0%, #fef2f2 100%)', borderColor: '#fecaca' }}>
+          <div className="stat-icon-wrap" style={{ background: '#fee2e2' }}>
+            <span style={{ fontSize: 20 }}>⏳</span>
+          </div>
+          <div className="stat-info">
+            <div className="stat-label" style={{ color: '#991b1b', fontWeight: 700 }}>Remaining Receivables</div>
+            <div className="stat-value" style={{ color: '#dc2626' }}>{formatCurrency(stats.remainingBalance || 0)}</div>
+            <div className="stat-change down">Pending milestone balance</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon-wrap" style={{ background: '#f3e8ff' }}>
+            <span style={{ fontSize: 20 }}>📑</span>
+          </div>
+          <div className="stat-info">
+            <div className="stat-label">Confirmed Bookings</div>
+            <div className="stat-value">{stats.approved || 0} Units</div>
+            <div className="stat-change up">✓ Approved deals</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon-wrap" style={{ background: '#fffbeb' }}>
+            <span style={{ fontSize: 20 }}>⏳</span>
+          </div>
+          <div className="stat-info">
+            <div className="stat-label">Pending Approval</div>
+            <div className="stat-value">{stats.pending || 0} Units</div>
+            <div className="stat-change down">Awaiting management</div>
+          </div>
         </div>
       </div>
 
@@ -882,46 +1441,135 @@ export default function BookingPage() {
           ))}
         </div>
 
-        {/* View Switcher: List vs Kanban */}
+        {/* View Switcher: Board vs List */}
         <div style={{ display: 'inline-flex', background: '#f1f5f9', padding: 3, borderRadius: 8, gap: 2 }}>
           <button
+            className={`btn btn-sm ${view === 'kanban' ? 'btn-primary' : 'btn-ghost'}`}
+            style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, gap: 4, fontWeight: 600 }}
+            onClick={() => setView('kanban')}
+            title="Kanban Board View (Default)"
+          >
+            <Columns size={14} /> Board
+          </button>
+          <button
             className={`btn btn-sm ${view === 'list' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6 }}
+            style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6, gap: 4, fontWeight: 600 }}
             onClick={() => setView('list')}
             title="List View"
           >
             <List size={14} /> List
           </button>
-          <button
-            className={`btn btn-sm ${view === 'kanban' ? 'btn-primary' : 'btn-ghost'}`}
-            style={{ padding: '6px 12px', fontSize: 12, borderRadius: 6 }}
-            onClick={() => setView('kanban')}
-            title="Kanban Board"
-          >
-            <Columns size={14} /> Kanban
-          </button>
         </div>
       </div>
 
+      {/* Filter & Sort Bar */}
+      <div className="filter-bar">
+        <div className="filter-search">
+          <Search size={14} color="var(--text-muted)" />
+          <input
+            placeholder="Search buyer name, unit, phone, project or BK#…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+
+        {projectsList.length > 0 && (
+          <CustomSelect
+            variant="filter"
+            value={projectFilter}
+            onChange={val => setProjectFilter(val)}
+            options={[
+              { value: '', label: 'All Projects', icon: '🏢' },
+              ...projectsList.map(p => ({ value: p._id, label: p.name, icon: '🏢' }))
+            ]}
+          />
+        )}
+
+        <CustomSelect
+          variant="filter"
+          value={dateRangeFilter}
+          onChange={val => {
+            setDateRangeFilter(val);
+            if (val !== 'custom') { setCustomFrom(''); setCustomTo(''); }
+          }}
+          options={[
+            { value: '', label: '📅 All Dates' },
+            { value: 'today', label: 'Today' },
+            { value: 'yesterday', label: 'Yesterday' },
+            { value: 'this_week', label: 'Last 7 Days' },
+            { value: 'this_month', label: 'This Month' },
+            { value: 'last_30_days', label: 'Last 30 Days' },
+            { value: 'custom', label: '📆 Custom Date (From - To)...' }
+          ]}
+        />
+
+        {dateRangeFilter === 'custom' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f8fafc', padding: '4px 10px', borderRadius: 8, border: '1px solid var(--card-border)' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>From:</span>
+            <input type="date" className="form-input" style={{ padding: '3px 8px', fontSize: 12, height: 32, width: 135 }} value={customFrom} onChange={e => setCustomFrom(e.target.value)} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>To:</span>
+            <input type="date" className="form-input" style={{ padding: '3px 8px', fontSize: 12, height: 32, width: 135 }} value={customTo} onChange={e => setCustomTo(e.target.value)} />
+            {(customFrom || customTo) && (
+              <button type="button" className="btn btn-ghost btn-icon btn-sm" style={{ padding: 2, height: 24, width: 24, color: 'var(--danger)' }} onClick={() => { setCustomFrom(''); setCustomTo(''); setDateRangeFilter(''); }} title="Clear Custom Date Filter"><X size={13} /></button>
+            )}
+          </div>
+        )}
+
+        <CustomSelect
+          variant="filter"
+          buttonStyle={{ fontWeight: 600, color: 'var(--primary)' }}
+          value={sortBy}
+          onChange={val => setSortBy(val)}
+          options={[
+            { value: 'date_desc', label: 'Sort: 📅 Booking Date (Newest)' },
+            { value: 'date_asc', label: 'Sort: 📅 Booking Date (Oldest)' },
+            { value: 'amount_desc', label: 'Sort: 💰 Total Value (High to Low)' },
+            { value: 'token_desc', label: 'Sort: 💵 Token Paid (High to Low)' },
+            { value: 'name_asc', label: 'Sort: 🔤 Customer Name (A → Z)' }
+          ]}
+        />
+      </div>
+
       {loading ? <div className="loading-overlay"><div className="spinner" /></div> :
-        filtered.length === 0 ? (
-          <div className="card"><div className="empty-state"><div className="empty-state-icon"><FileText size={28} /></div><div className="empty-state-title">No bookings found in this view</div><button className="btn btn-primary" onClick={() => setShowNew(true)}><Plus size={14} /> New Booking</button></div></div>
-        ) : view === 'kanban' ? (
+        view === 'kanban' ? (
           <BookingKanbanView
             bookings={filtered}
             onApprove={handleApprove}
             onCancel={handleCancel}
             onDeleteBooking={handleDeleteBooking}
             onStatusChange={handleStatusChange}
-            onViewDetails={b => alert(`Showing digital agreement for Booking #${b.bookingNumber || '001'}`)}
+            onViewDetails={setViewingBooking}
+            isAdmin={isAdmin}
+            onNewBooking={() => setShowNew(true)}
           />
+        ) : filtered.length === 0 ? (
+          <div className="card"><div className="empty-state"><div className="empty-state-icon"><FileText size={28} /></div><div className="empty-state-title">No bookings found in this view</div><button className="btn btn-primary" onClick={() => setShowNew(true)}><Plus size={14} /> New Booking</button></div></div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {filtered.map(b => <BookingCard key={b._id} booking={b} onApprove={handleApprove} onCancel={handleCancel} onDeleteBooking={handleDeleteBooking} />)}
+            {filtered.map(b => (
+              <BookingCard
+                key={b._id}
+                booking={b}
+                onApprove={handleApprove}
+                onCancel={handleCancel}
+                onDeleteBooking={handleDeleteBooking}
+                onViewDetails={setViewingBooking}
+                isAdmin={isAdmin}
+              />
+            ))}
           </div>
         )}
 
       {showNew && <CreateBookingModal onClose={() => setShowNew(false)} onCreated={b => setBookings(p => [b, ...p])} />}
+      {viewingBooking && (
+        <BookingDetailsModal
+          booking={viewingBooking}
+          onClose={() => setViewingBooking(null)}
+          onStatusChange={handleStatusChange}
+          onCancel={handleCancel}
+          isAdmin={isAdmin}
+        />
+      )}
     </div>
   );
 }

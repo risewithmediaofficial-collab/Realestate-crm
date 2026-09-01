@@ -96,9 +96,8 @@ const projectSchema = new mongoose.Schema({
   amenities: [amenitySchema],
   documents: [documentSchema],
 
-  // Team
   // Organization & Multi-Tenancy Scoping
-  organization: { type: String, trim: true, default: 'Rise With RealtyHub' },
+  organization: { type: String, trim: true, required: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 
   isActive: { type: Boolean, default: true },

@@ -9,6 +9,7 @@ export const UIProvider = ({ children }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [notification, setNotification] = useState(null);
   const [activeCall, setActiveCall] = useState(null);
+  const [simulatedRole, setSimulatedRole] = useState(null);
 
   const openCreateLead = () => setIsCreateLeadOpen(true);
   const closeCreateLead = () => setIsCreateLeadOpen(false);
@@ -39,7 +40,8 @@ export const UIProvider = ({ children }) => {
     <UIContext.Provider value={{
       isCreateLeadOpen, openCreateLead, closeCreateLead,
       isMobileMenuOpen, setIsMobileMenuOpen, toggleMobileMenu, closeMobileMenu,
-      showNotification, activeCall, startCall, endCall
+      showNotification, activeCall, startCall, endCall,
+      simulatedRole, setSimulatedRole
     }}>
       {children}
       {isCreateLeadOpen && (
@@ -67,6 +69,22 @@ export const UIProvider = ({ children }) => {
 
 export const useUI = () => {
   const ctx = useContext(UIContext);
-  if (!ctx) throw new Error('useUI must be used within UIProvider');
+  if (!ctx) {
+    return {
+      isCreateLeadOpen: false,
+      openCreateLead: () => {},
+      closeCreateLead: () => {},
+      isMobileMenuOpen: false,
+      setIsMobileMenuOpen: () => {},
+      toggleMobileMenu: () => {},
+      closeMobileMenu: () => {},
+      showNotification: () => {},
+      activeCall: null,
+      startCall: () => {},
+      endCall: () => {},
+      simulatedRole: null,
+      setSimulatedRole: () => {}
+    };
+  }
   return ctx;
 };

@@ -14,15 +14,15 @@ const getDashboardStats = async (req, res, next) => {
 
     const isSuperAdmin = req.user?.role === 'super_admin';
     const userOrg = req.user?.organization;
-    const orgQuery = (isSuperAdmin && !req.query.organization)
-      ? {}
-      : { organization: req.query.organization || userOrg || 'Rise With RealtyHub' };
+    const orgQuery = isSuperAdmin
+      ? (req.query.organization ? { organization: new RegExp(`^${req.query.organization}$`, 'i') } : {})
+      : { organization: userOrg ? new RegExp(`^${userOrg}$`, 'i') : '__NO_ORG__' };
 
     const [
       totalLeads, todayLeads, newLeads,
       pendingTasks, todaySiteVisits, todayBookings,
       inventoryStats, stageStats, sourceStats, leadTypeStats,
-      bookingValueAgg, paymentAgg, paymentModeStats, overdueDemandsCount
+      bookingValueAgg, unitBookedAgg, paymentAgg, paymentModeStats, overdueDemandsCount
     ] = await Promise.all([
       Lead.countDocuments({ ...orgQuery }),
       Lead.countDocuments({ ...orgQuery, createdAt: { $gte: today } }),
@@ -54,6 +54,17 @@ const getDashboardStats = async (req, res, next) => {
             totalBookingsCount: { $sum: 1 },
             totalBookingValue: { $sum: '$totalAmount' },
             totalTokenCollected: { $sum: '$tokenAmount' }
+          }
+        }
+      ]),
+      Unit.aggregate([
+        ...(Object.keys(orgQuery).length > 0 ? [{ $match: { ...orgQuery, status: { $in: ['booked', 'registered', 'sold'] } } }] : [{ $match: { status: { $in: ['booked', 'registered', 'sold'] } } }]),
+        {
+          $group: {
+            _id: null,
+            count: { $sum: 1 },
+            totalValue: { $sum: '$pricing.totalPrice' },
+            tokenCollected: { $sum: '$bookingCustomer.tokenAmount' }
           }
         }
       ]),
@@ -89,18 +100,32 @@ const getDashboardStats = async (req, res, next) => {
     stageStats.forEach(s => { stageMap[s._id] = s.count; });
     const funnel = funnelStages.map(stage => ({ stage, count: stageMap[stage] || 0 }));
 
+    const bookingVal = bookingValueAgg[0]?.totalBookingValue || 0;
+    const unitVal = unitBookedAgg[0]?.totalValue || 0;
+    const grossBookingsVal = Math.max(bookingVal, unitVal) || (bookingVal + unitVal);
+
+    const bookingToken = bookingValueAgg[0]?.totalTokenCollected || 0;
+    const unitToken = unitBookedAgg[0]?.tokenCollected || 0;
+    const totalTokensCollected = Math.max(bookingToken, unitToken) || (bookingToken + unitToken);
+
+    const totalBookingsCount = Math.max(bookingValueAgg[0]?.totalBookingsCount || 0, unitBookedAgg[0]?.count || 0);
+
     const totalDemand = paymentAgg[0]?.totalDemandRaised || 0;
-    const totalCollected = paymentAgg[0]?.totalPaidCollected || 0;
-    const totalOutstanding = paymentAgg[0]?.totalOutstanding || 0;
+    const totalCollected = (paymentAgg[0]?.totalPaidCollected || 0) + totalTokensCollected;
+    // Use actual DB balance (respects 0 as a valid value via nullish coalescing)
+    // Never fall back to grossRevenue - collected, as that inflates outstanding with undemanded amounts
+    const totalOutstanding = paymentAgg[0] != null
+      ? (paymentAgg[0].totalOutstanding ?? 0)
+      : 0;
     const realizationRate = totalDemand > 0 ? Number(((totalCollected / totalDemand) * 100).toFixed(1)) : 0;
 
     const finance = {
-      grossBookingValue: bookingValueAgg[0]?.totalBookingValue || 0,
-      totalBookingsCount: bookingValueAgg[0]?.totalBookingsCount || 0,
-      totalTokenCollected: bookingValueAgg[0]?.totalTokenCollected || 0,
-      totalDemandRaised: totalDemand,
+      grossBookingValue: grossBookingsVal,
+      totalBookingsCount: totalBookingsCount,
+      totalTokenCollected: totalTokensCollected,
+      totalDemandRaised: totalDemand,          // actual demands only, no grossRevenue fallback
       totalPaidCollected: totalCollected,
-      totalOutstanding: totalOutstanding,
+      totalOutstanding: totalOutstanding,       // actual balance from payment records only
       overdueDemandsCount,
       realizationRate,
       paymentModeStats

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Zap, Play, Pause, Plus, CheckCircle, Clock, ArrowRight, ShieldCheck, RefreshCw, X } from 'lucide-react';
 import { useUI } from '../../context/UIContext';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 const mockRules = [
   { id: '1', name: 'Auto-Assign High Intent Meta Leads to Senior Sales Reps', trigger: 'Lead Created (Source: Meta Ads & Score >= 70)', condition: 'City = Pune AND Budget >= 1.0 Cr', action: 'Assign to Amit Singh + Send WhatsApp Brochure + Schedule Call Task in 15m', active: true, executedCount: 142, lastRun: '12m ago' },
@@ -198,17 +199,17 @@ export default function AutomationPage() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">Trigger Event <span className="required">*</span></label>
-                  <select
-                    className="form-select"
+                  <CustomSelect
                     value={form.trigger}
-                    onChange={e => setForm(p => ({ ...p, trigger: e.target.value }))}
-                  >
-                    <option>Lead Created (Source: Meta / Google / Webhook)</option>
-                    <option>Site Visit Completed</option>
-                    <option>Booking Application Submitted</option>
-                    <option>Milestone Payment Demand Due</option>
-                    <option>SLA Breached (No call for 30m)</option>
-                  </select>
+                    onChange={val => setForm(p => ({ ...p, trigger: typeof val === 'object' && val.target ? val.target.value : val }))}
+                    options={[
+                      { value: 'Lead Created (Source: Meta / Google / Webhook)', label: 'Lead Created (Source: Meta / Google / Webhook)', icon: '⚡' },
+                      { value: 'Site Visit Completed', label: 'Site Visit Completed', icon: '🚗' },
+                      { value: 'Booking Application Submitted', label: 'Booking Application Submitted', icon: '📝' },
+                      { value: 'Milestone Payment Demand Due', label: 'Milestone Payment Demand Due', icon: '💳' },
+                      { value: 'SLA Breached (No call for 30m)', label: 'SLA Breached (No call for 30m)', icon: '⏱️' }
+                    ]}
+                  />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Filter Condition (IF)</label>

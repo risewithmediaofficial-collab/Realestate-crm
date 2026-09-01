@@ -15,6 +15,7 @@ import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency, formatDate, timeAgo } from '../../utils/formatters';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 const FUNNEL_COLORS = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe', '#eff6ff', '#f0f9ff', '#10b981'];
 
@@ -80,14 +81,18 @@ const LeadStageBadge = ({ stage, outcome }) => {
 };
 
 export default function DashboardPage() {
-  const { user, isSuperAdmin } = useAuth();
+  const { user } = useAuth();
+  const { openCreateLead, showNotification, simulatedRole, setSimulatedRole } = useUI();
   const [stats, setStats] = useState(null);
   const [payments, setPayments] = useState([]);
   const [leadsList, setLeadsList] = useState([]);
   const [activities, setActivities] = useState([]);
   const [teamUsers, setTeamUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeRoleView, setActiveRoleView] = useState(user?.role || 'admin');
+  const activeRoleView = simulatedRole || user?.role || 'admin';
+  const setActiveRoleView = (role) => {
+    setSimulatedRole(role === user?.role ? null : role);
+  };
   
   // Telecaller Follow-Up Command Center State
   const [telecallerTab, setTelecallerTab] = useState('today'); // 'today' | 'overdue' | 'upcoming' | 'hot' | 'all'
@@ -102,14 +107,7 @@ export default function DashboardPage() {
     notes: ''
   });
 
-  const { openCreateLead, showNotification } = useUI();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (user?.role) {
-      setActiveRoleView(user.role);
-    }
-  }, [user]);
 
   useEffect(() => {
     const fetch = async () => {
@@ -340,35 +338,6 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* Super Admin Top Gold Strip */}
-      {isSuperAdmin && (
-        <div style={{
-          background: 'linear-gradient(90deg, #fef3c7, #fffbeb)',
-          border: '1px solid #fde68a',
-          padding: '8px 16px',
-          borderRadius: 10,
-          marginBottom: 16,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: 13,
-          color: '#92400e',
-          fontWeight: 600
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Shield size={16} color="#d97706" />
-            <span>Logged in as <strong>Super Admin Master</strong> with Universal Access Control & Module Switchboard.</span>
-          </div>
-          <button
-            className="btn btn-sm"
-            style={{ background: '#d97706', color: 'white', fontWeight: 700, fontSize: 12, padding: '4px 12px' }}
-            onClick={() => navigate('/superadmin')}
-          >
-            ⚡ Open Super Admin Console →
-          </button>
-        </div>
-      )}
-
       {/* Page Header */}
       <div className="page-header" style={{ alignItems: 'flex-start' }}>
         <div className="page-header-left">
@@ -419,24 +388,28 @@ export default function DashboardPage() {
         </div>
 
         <div className="page-actions" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* Quick Role Simulation Switcher (For Admins & Testing) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f8fafc', padding: '4px 10px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-            <Eye size={13} color="var(--primary)" />
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>View Dashboard as:</span>
-            <select
-              value={activeRoleView}
-              onChange={e => setActiveRoleView(e.target.value)}
-              style={{ background: 'white', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 12, padding: '3px 8px', fontWeight: 600, color: '#1e293b', cursor: 'pointer' }}
-            >
-              <option value="admin">👑 Admin / Executive</option>
-              <option value="sales_head">🏢 Sales Head</option>
-              <option value="sales_manager">👔 Sales Manager</option>
-              <option value="sales_executive">🎯 Sales Closer / Exec</option>
-              <option value="telecaller">📞 Telecaller / Pre-Sales</option>
-              <option value="marketing_head">📣 Marketing Head</option>
-              <option value="finance_manager">💳 Finance Manager</option>
-            </select>
-          </div>
+          {(user?.role === 'admin' || user?.role === 'super_admin') && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f8fafc', padding: '4px 10px', borderRadius: 8, border: '1px solid #e2e8f0', minWidth: 260 }}>
+              <Eye size={13} color="var(--primary)" />
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>View as:</span>
+              <div style={{ flex: 1 }}>
+                <CustomSelect
+                  value={activeRoleView}
+                  onChange={val => setActiveRoleView(typeof val === 'object' && val.target ? val.target.value : val)}
+                  size="sm"
+                  options={[
+                    { value: 'admin', label: 'Admin / Executive', icon: '👑', subtext: 'Full Access' },
+                    { value: 'sales_head', label: 'Sales Head', icon: '🏢' },
+                    { value: 'sales_manager', label: 'Sales Manager', icon: '👔' },
+                    { value: 'sales_executive', label: 'Sales Closer / Exec', icon: '🎯' },
+                    { value: 'telecaller', label: 'Telecaller / Pre-Sales', icon: '📞' },
+                    { value: 'marketing_head', label: 'Marketing Head', icon: '📣' },
+                    { value: 'finance_manager', label: 'Finance Manager', icon: '💳' }
+                  ]}
+                />
+              </div>
+            </div>
+          )}
 
           <button className="btn btn-secondary btn-sm" onClick={handleExportDashboard}>
             <Download size={14} /> Export Summary
@@ -600,52 +573,54 @@ export default function DashboardPage() {
       <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginBottom: 20 }}>
         {isTelecallerRole ? (
           <>
+            <div className="stat-card" onClick={() => navigate('/booking')} style={{ cursor: 'pointer', background: 'linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)', borderColor: '#bbf7d0' }} title="Deals won and converted to formal bookings">
+              <div className="stat-icon-wrap" style={{ background: '#dcfce7' }}><span style={{ fontSize: 20 }}>🏆</span></div>
+              <div className="stat-info">
+                <div className="stat-label" style={{ color: '#166534', fontWeight: 700 }}>Deals Won & Closed</div>
+                <div className="stat-value" style={{ color: '#15803d' }}>{stats?.finance?.totalBookingsCount ?? (stats?.funnel?.find(f => f.stage === 'booked')?.count || 0)} Deals</div>
+                <div className="stat-change up"><ArrowUp size={11} /> Converted Bookings</div>
+              </div>
+            </div>
+            <div className="stat-card" onClick={() => navigate('/booking')} style={{ cursor: 'pointer', background: 'linear-gradient(135deg, #ffffff 0%, #eff6ff 100%)', borderColor: '#bfdbfe' }} title="Gross revenue realized from won deals">
+              <div className="stat-icon-wrap" style={{ background: '#dbeafe' }}><span style={{ fontSize: 20 }}>💰</span></div>
+              <div className="stat-info">
+                <div className="stat-label" style={{ color: '#1e40af', fontWeight: 700 }}>Closed Sales Revenue</div>
+                <div className="stat-value" style={{ color: '#1d4ed8' }}>{formatCurrency(stats?.finance?.grossBookingValue || 0)}</div>
+                <div className="stat-change up"><ArrowUp size={11} /> Realized revenue</div>
+              </div>
+            </div>
             <div className="stat-card" onClick={() => navigate('/leads')} style={{ cursor: 'pointer' }} title="Total unassigned/new inbound leads ready to be contacted">
               <div className="stat-icon-wrap" style={{ background: '#eff6ff' }}><Users size={22} color="#2563eb" /></div>
               <div className="stat-info">
                 <div className="stat-label">Assigned Calling Queue</div>
-                <div className="stat-value">{stats?.kpis?.newLeads ?? 0}</div>
+                <div className="stat-value">{stats?.kpis?.totalLeads ?? 0} Leads</div>
                 <div className="stat-change up"><ArrowUp size={11} /> {stats?.kpis?.todayLeads ?? 0} new today</div>
               </div>
             </div>
-            <div className="stat-card" onClick={() => navigate('/communication')} style={{ cursor: 'pointer' }} title="Calls connected with prospective buyers today">
-              <div className="stat-icon-wrap" style={{ background: '#dcfce7' }}><PhoneCall size={22} color="#10b981" /></div>
+            <div className="stat-card" onClick={() => navigate('/leads')} style={{ cursor: 'pointer' }} title="Calls connected with prospective buyers today">
+              <div className="stat-icon-wrap" style={{ background: '#f3e8ff' }}><PhoneCall size={22} color="#7e22ce" /></div>
               <div className="stat-info">
-                <div className="stat-label">Connected Calls Today</div>
-                <div className="stat-value">0</div>
-                <div className="stat-change up"><ArrowUp size={11} /> Real-time dialer logs</div>
+                <div className="stat-label">Telecalling Notes Spoken</div>
+                <div className="stat-value">
+                  {leadsList.reduce((acc, l) => acc + (l.callLogs?.length || 0) + (l.activities?.filter(a => a.type === 'call')?.length || 0), 0) || 0} Spoken
+                </div>
+                <div className="stat-change up"><ArrowUp size={11} /> Multi-note logs</div>
               </div>
             </div>
             <div className="stat-card" onClick={() => navigate('/leads')} style={{ cursor: 'pointer' }} title="Leads qualified and handed over to field sales closers">
-              <div className="stat-icon-wrap" style={{ background: '#f3e8ff' }}><Sparkles size={22} color="#8b5cf6" /></div>
+              <div className="stat-icon-wrap" style={{ background: '#fef3c7' }}><Sparkles size={22} color="#d97706" /></div>
               <div className="stat-info">
                 <div className="stat-label">Qualified Leads (To Sales)</div>
                 <div className="stat-value">{stats?.funnel?.find(f => f.stage === 'qualified')?.count ?? 0}</div>
                 <div className="stat-change up"><ArrowUp size={11} /> Live Pipeline</div>
               </div>
             </div>
-            <div className="stat-card" onClick={() => navigate('/site-visits')} style={{ cursor: 'pointer' }} title="Site visits confirmed for today">
-              <div className="stat-icon-wrap" style={{ background: '#fef3c7' }}><MapPin size={22} color="#f59e0b" /></div>
-              <div className="stat-info">
-                <div className="stat-label">Site Visits Scheduled</div>
-                <div className="stat-value">{stats?.kpis?.todaySiteVisits ?? 0}</div>
-                <div className="stat-change up"><ArrowUp size={11} /> Scheduled today</div>
-              </div>
-            </div>
-            <div className="stat-card" onClick={() => navigate('/communication')} style={{ cursor: 'pointer' }} title="Active buyer WhatsApp message conversations">
-              <div className="stat-icon-wrap" style={{ background: '#dbeafe' }}><MessageSquare size={22} color="#2563eb" /></div>
-              <div className="stat-info">
-                <div className="stat-label">Active WhatsApp Chats</div>
-                <div className="stat-value">0</div>
-                <div className="stat-change up"><ArrowUp size={11} /> WhatsApp connect</div>
-              </div>
-            </div>
             <div className="stat-card" onClick={() => navigate('/activities')} style={{ cursor: 'pointer' }} title="Pending tasks requiring immediate follow-up">
               <div className="stat-icon-wrap" style={{ background: '#fef2f2' }}><Clock size={22} color="#ef4444" /></div>
               <div className="stat-info">
                 <div className="stat-label">Pending Follow-up Tasks</div>
-                <div className="stat-value">{stats?.kpis?.pendingTasks ?? 0}</div>
-                <div className="stat-change down"><AlertCircle size={11} /> Open tasks</div>
+                <div className="stat-value">{dueTodayLeads.length + overdueLeads.length || stats?.kpis?.pendingTasks || 0}</div>
+                <div className="stat-change down"><AlertCircle size={11} /> Due/Overdue</div>
               </div>
             </div>
           </>
@@ -1240,61 +1215,82 @@ export default function DashboardPage() {
             <div className="card-title">Sales Team Leaderboard & Quota Performance</div>
             <div className="card-subtitle">Current monthly closing targets and revenue contribution</div>
           </div>
-          <button className="btn btn-secondary btn-sm" onClick={() => navigate('/reports')}>View Executive BI Report</button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/reports')}>View All Details</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => navigate('/reports')}>View Executive BI Report</button>
+          </div>
         </div>
-        <div className="table-wrapper" style={{ borderRadius: '0 0 var(--card-radius) var(--card-radius)', border: 'none' }}>
-          {teamData.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
-              <div style={{ fontSize: 28, marginBottom: 6 }}>🏆</div>
-              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)' }}>No sales team quota records yet</div>
-              <div style={{ fontSize: 12, marginTop: 2 }}>Closers and assigned revenue targets will be tracked here once team members are added.</div>
-            </div>
-          ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Team Member</th>
-                  <th>Designation</th>
-                  <th>Assigned Leads</th>
-                  <th>Site Visits</th>
-                  <th>Bookings Won</th>
-                  <th>Revenue Value</th>
-                  <th>Target Quota</th>
-                  <th>Achievement</th>
-                </tr>
-              </thead>
-              <tbody>
-                {teamData.map((member, i) => {
-                  const pct = Math.round((member.bookings / member.target) * 100);
-                  return (
-                    <tr key={i}>
-                      <td>
-                        <div className="table-avatar">
-                          <div className="avatar avatar-sm">{member.name.split(' ').map(n => n[0]).join('')}</div>
-                          <span style={{ fontWeight: 600 }}>{member.name}</span>
-                        </div>
-                      </td>
-                      <td><span className="badge badge-gray" style={{ fontSize: 11 }}>{member.role}</span></td>
-                      <td><strong>{member.leads}</strong></td>
-                      <td>{member.visits}</td>
-                      <td><strong style={{ color: 'var(--primary)' }}>{member.bookings}</strong></td>
-                      <td style={{ fontWeight: 700, color: '#16a34a' }}>{formatCurrency(member.revenue)}</td>
-                      <td>{member.target}</td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ flex: 1, height: 6, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden', minWidth: 80 }}>
-                            <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: pct >= 80 ? 'var(--success)' : pct >= 50 ? 'var(--warning)' : 'var(--danger)', borderRadius: 3 }} />
-                          </div>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: pct >= 80 ? 'var(--success)' : 'var(--text-secondary)', minWidth: 36 }}>{pct}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
+
+        {teamData.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--text-muted)' }}>
+            <div style={{ fontSize: 28, marginBottom: 6 }}>🏆</div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)' }}>No sales team quota records yet</div>
+            <div style={{ fontSize: 12, marginTop: 2 }}>Closers and assigned revenue targets will be tracked here once team members are added.</div>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 16, padding: '16px 20px' }}>
+            {teamData.map((member, i) => {
+              const pct = Math.max(0, Math.min(100, Math.round((member.bookings / Math.max(member.target || 1, 1)) * 100)));
+              return (
+                <div key={i} style={{
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 16,
+                  background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+                  padding: 18,
+                  boxShadow: '0 6px 20px rgba(15, 23, 42, 0.04)',
+                  minWidth: 0
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 8, flexWrap: 'wrap' }}>
+                    <div className="table-avatar" style={{ minWidth: 0 }}>
+                      <div className="avatar avatar-sm" style={{ width: 34, height: 34, fontSize: 12, flexShrink: 0 }}>{member.name.split(' ').map(n => n[0]).join('').slice(0, 2)}</div>
+                      <span style={{ fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.name}</span>
+                    </div>
+                    <span className="badge badge-gray" style={{ fontSize: 11, flexShrink: 0 }}>{member.role}</span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginBottom: 14 }}>
+                    <div style={{ padding: '8px 10px', background: '#f8fafc', borderRadius: 10, minWidth: 0 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Assigned Leads</div>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>{member.leads}</div>
+                    </div>
+                    <div style={{ padding: '8px 10px', background: '#f8fafc', borderRadius: 10, minWidth: 0 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Site Visits</div>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>{member.visits}</div>
+                    </div>
+                    <div style={{ padding: '8px 10px', background: '#f8fafc', borderRadius: 10, minWidth: 0 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Bookings</div>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--primary)' }}>{member.bookings}</div>
+                    </div>
+                    <div style={{ padding: '8px 10px', background: '#f8fafc', borderRadius: 10, minWidth: 0 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Revenue</div>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: '#16a34a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatCurrency(member.revenue)}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>
+                    Target: <strong style={{ color: 'var(--text-primary)' }}>{member.target}</strong>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <div style={{ flex: 1, height: 6, background: '#e2e8f0', borderRadius: 999, overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${Math.min(pct, 100)}%`,
+                        background: pct >= 80 ? '#16a34a' : pct >= 50 ? '#f59e0b' : '#ef4444',
+                        borderRadius: 999
+                      }} />
+                    </div>
+                    <span style={{ fontWeight: 800, fontSize: 12, minWidth: 36, textAlign: 'right', color: pct >= 80 ? '#16a34a' : '#334155' }}>{pct}%</span>
+                  </div>
+
+                  <button className="btn btn-secondary btn-sm" style={{ width: '100%' }} onClick={() => navigate('/reports')}>
+                    View Details
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ─── TELECALLER LOG CALL & RE-FOLLOW MODAL ─── */}

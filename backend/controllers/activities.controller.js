@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Task = require('../models/Task.model');
 
 const getTasks = async (req, res, next) => {
@@ -7,8 +8,11 @@ const getTasks = async (req, res, next) => {
 
     const isSuperAdmin = req.user?.role === 'super_admin';
     const userOrg = req.user?.organization;
-    if (!isSuperAdmin || req.query.organization) {
-      query.organization = req.query.organization || userOrg || 'Rise With RealtyHub';
+    if (isSuperAdmin) {
+      if (req.query.organization) query.organization = req.query.organization;
+    } else {
+      if (!userOrg) return res.json({ success: true, data: [], total: 0 });
+      query.organization = userOrg;
     }
 
     if (status) query.status = status;
@@ -33,7 +37,13 @@ const getTasks = async (req, res, next) => {
 
 const getTask = async (req, res, next) => {
   try {
-    const task = await Task.findById(req.params.id)
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const query = { _id: req.params.id };
+    if (!isSuperAdmin) {
+      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    }
+
+    const task = await Task.findOne(query)
       .populate('lead', 'name phone stage')
       .populate('assignedTo', 'name avatar role')
       .populate('createdBy', 'name');
@@ -42,13 +52,16 @@ const getTask = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-const mongoose = require('mongoose');
 const createTask = async (req, res, next) => {
   try {
+    const isSuperAdmin = req.user?.role === 'super_admin';
     const payload = { ...req.body };
-    const userOrg = req.user?.organization || 'Rise With RealtyHub';
-    if (!payload.organization) {
+    const userOrg = req.user?.organization;
+    if (!isSuperAdmin || !payload.organization) {
       payload.organization = userOrg;
+    }
+    if (!payload.organization) {
+      return res.status(400).json({ success: false, message: 'User organization is required to create a task' });
     }
 
     if (req.user?._id && mongoose.Types.ObjectId.isValid(req.user._id)) {
@@ -68,7 +81,13 @@ const createTask = async (req, res, next) => {
 
 const updateTask = async (req, res, next) => {
   try {
-    const task = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const query = { _id: req.params.id };
+    if (!isSuperAdmin) {
+      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    }
+
+    const task = await Task.findOneAndUpdate(query, req.body, { new: true, runValidators: true })
       .populate('lead', 'name phone').populate('assignedTo', 'name avatar');
     if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
     res.json({ success: true, data: task });
@@ -77,8 +96,14 @@ const updateTask = async (req, res, next) => {
 
 const completeTask = async (req, res, next) => {
   try {
-    const task = await Task.findByIdAndUpdate(
-      req.params.id,
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const query = { _id: req.params.id };
+    if (!isSuperAdmin) {
+      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    }
+
+    const task = await Task.findOneAndUpdate(
+      query,
       { status: 'completed', completedAt: new Date(), completedBy: req.user._id, outcome: req.body.outcome },
       { new: true }
     ).populate('lead', 'name phone').populate('assignedTo', 'name');
@@ -89,7 +114,14 @@ const completeTask = async (req, res, next) => {
 
 const deleteTask = async (req, res, next) => {
   try {
-    await Task.findByIdAndDelete(req.params.id);
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const query = { _id: req.params.id };
+    if (!isSuperAdmin) {
+      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    }
+
+    const task = await Task.findOneAndDelete(query);
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
     res.json({ success: true, message: 'Task deleted' });
   } catch (err) { next(err); }
 };
@@ -98,11 +130,17 @@ const getTaskStats = async (req, res, next) => {
   try {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const userOrg = req.user?.organization;
+    const match = isSuperAdmin
+      ? (req.query.organization ? { organization: req.query.organization } : {})
+      : { organization: userOrg || '__NO_ORG__' };
+
     const [pending, overdue, todayTasks, completed] = await Promise.all([
-      Task.countDocuments({ status: 'pending', assignedTo: req.user._id }),
-      Task.countDocuments({ status: 'pending', dueDate: { $lt: today }, assignedTo: req.user._id }),
-      Task.countDocuments({ dueDate: { $gte: today, $lt: tomorrow }, assignedTo: req.user._id }),
-      Task.countDocuments({ status: 'completed', assignedTo: req.user._id }),
+      Task.countDocuments({ ...match, status: 'pending', assignedTo: req.user._id }),
+      Task.countDocuments({ ...match, status: 'pending', dueDate: { $lt: today }, assignedTo: req.user._id }),
+      Task.countDocuments({ ...match, dueDate: { $gte: today, $lt: tomorrow }, assignedTo: req.user._id }),
+      Task.countDocuments({ ...match, status: 'completed', assignedTo: req.user._id }),
     ]);
     res.json({ success: true, data: { pending, overdue, todayTasks, completed } });
   } catch (err) { next(err); }

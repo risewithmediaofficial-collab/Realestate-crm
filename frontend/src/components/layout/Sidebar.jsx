@@ -190,10 +190,16 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
-  const { isMobileMenuOpen, closeMobileMenu } = useUI();
-  
+  const { isMobileMenuOpen, closeMobileMenu, simulatedRole } = useUI();
+
+  const effectiveRole = simulatedRole || user?.role || 'admin';
+  const effectiveUser = user ? { ...user, role: effectiveRole } : null;
+  const accessibleSections = effectiveUser ? getAccessibleNavConfig(effectiveUser, navConfig) : [];
+
   // ALL categories closed by default as requested
   const [openMenus, setOpenMenus] = useState({});
+
+  if (!user) return null;
 
   const isActive = (path) => {
     if (path === '/') return location.pathname === '/';
@@ -273,35 +279,9 @@ export default function Sidebar() {
           </button>
         </div>
 
-        {/* Super Admin Quick Switcher Banner (if super_admin) */}
-        {user?.role === 'super_admin' && (
-          <div style={{ padding: '8px 12px', background: 'rgba(245, 158, 11, 0.12)', borderBottom: '1px solid rgba(245, 158, 11, 0.25)' }}>
-            <button
-              onClick={() => { navigate('/superadmin'); closeMobileMenu(); }}
-              style={{
-                width: '100%',
-                padding: '6px 10px',
-                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                border: 'none',
-                borderRadius: '6px',
-                color: '#090d16',
-                fontSize: '11px',
-                fontWeight: 800,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px'
-              }}
-            >
-              ⚡ Super Admin Console
-            </button>
-          </div>
-        )}
-
         {/* Nav */}
         <nav className="sidebar-nav">
-          {getAccessibleNavConfig(user || 'admin', navConfig).map((section) => (
+          {accessibleSections.map((section) => (
             <div key={section.section} className="nav-section">
               <div className="nav-section-label">{section.section}</div>
               {section.items.map((item) => {
@@ -363,7 +343,10 @@ export default function Sidebar() {
             <div className="user-avatar-sm">{getInitials(user?.name || 'U')}</div>
             <div className="user-info">
               <div className="user-info-name">{user?.name || 'Administrator'}</div>
-              <div className="user-info-role">{user?.role?.replace(/_/g, ' ') || 'Admin'}</div>
+              <div className="user-info-role">
+                {effectiveRole.replace(/_/g, ' ')}
+                {simulatedRole && <span style={{ fontSize: '10px', color: '#2563eb', marginLeft: 4, fontWeight: 700 }}>(Preview)</span>}
+              </div>
             </div>
             <LogOut size={15} style={{ color: '#94a3b8', flexShrink: 0, transition: 'color 0.2s' }} />
           </div>

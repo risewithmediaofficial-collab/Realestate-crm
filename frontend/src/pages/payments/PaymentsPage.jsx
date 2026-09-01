@@ -7,7 +7,10 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
 import { formatCurrency, formatDate } from '../../utils/formatters';
+import { exportFinanceReportCSV } from '../../utils/exportTemplates';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 const PAYMENT_METHODS = [
   { id: 'bank_transfer', label: '🏦 Bank Transfer (NEFT / RTGS / IMPS)', short: 'Bank Transfer' },
@@ -66,12 +69,18 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState(getTabFromPath());
   const [search, setSearch] = useState('');
+  const [methodFilter, setMethodFilter] = useState('');
+  const [dateRangeFilter, setDateRangeFilter] = useState('');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [sortBy, setSortBy] = useState('date_desc');
 
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedDemand, setSelectedDemand] = useState(null);
   const [editingDemand, setEditingDemand] = useState(null);
   const { showNotification } = useUI();
+  const { user } = useAuth();
 
   // Record Payment Form State
   const [recordForm, setRecordForm] = useState({
@@ -423,11 +432,16 @@ export default function PaymentsPage() {
     if (!selectedDemand) return;
 
     const paying = Number(recordForm.payingAmount) || 0;
+    if (paying <= 0) {
+      showNotification('Please enter a valid payment amount.', 'error');
+      return;
+    }
+
     const newPaid = (selectedDemand.paidAmount || 0) + paying;
     const newBal = Math.max(0, selectedDemand.demandAmount - newPaid);
     const newStatus = newBal === 0 ? 'paid' : 'partial';
 
-    const payload = {
+    const recordPayload = {
       paidAmount: paying,
       paymentMode: recordForm.paymentMode,
       transactionReference: recordForm.transactionReference,
@@ -437,33 +451,60 @@ export default function PaymentsPage() {
       receiptNumber: recordForm.receiptNumber
     };
 
-    setPayments(prev => prev.map(p => p._id === selectedDemand._id ? {
-      ...p,
-      paidAmount: newPaid,
-      balanceAmount: newBal,
-      status: newStatus,
-      paymentMode: recordForm.paymentMode,
-      refNumber: recordForm.transactionReference || p.refNumber,
-      bankName: recordForm.bankName
-    } : p));
-
     try {
-      await api.put(`/payments/${selectedDemand._id}`, {
+      let targetId = selectedDemand._id;
+
+      // If this is a virtual/synthesized record (inv-pay-*), create a real Payment doc first
+      if (typeof targetId === 'string' && targetId.startsWith('inv-pay-')) {
+        const unitId = targetId.replace('inv-pay-', '');
+        const createRes = await api.post('/payments', {
+          milestoneName: selectedDemand.milestoneName,
+          demandNumber: selectedDemand.demandNumber,
+          customerName: selectedDemand.customerName,
+          customerPhone: selectedDemand.customerPhone,
+          demandAmount: selectedDemand.demandAmount,
+          paidAmount: 0,
+          balanceAmount: selectedDemand.demandAmount,
+          status: 'pending',
+          dueDate: selectedDemand.dueDate,
+          paymentMode: recordForm.paymentMode,
+          unit: unitId,
+          project: selectedDemand.project?._id || selectedDemand.project
+        });
+        targetId = createRes.data.data._id;
+      }
+
+      // Use the dedicated /record endpoint for proper transaction logging
+      await api.put(`/payments/${targetId}/record`, recordPayload);
+
+      // Optimistically update local state
+      setPayments(prev => prev.map(p => p._id === selectedDemand._id ? {
+        ...p,
+        _id: targetId,   // update if we just created it
         paidAmount: newPaid,
         balanceAmount: newBal,
         status: newStatus,
         paymentMode: recordForm.paymentMode,
         transactionReference: recordForm.transactionReference,
-        bankName: recordForm.bankName,
-        paymentDate: payload.paymentDate,
-        notes: recordForm.notes
-      });
-    } catch {}
+        bankName: recordForm.bankName
+      } : p));
 
-    showNotification(`Payment of ${formatCurrency(paying)} recorded! Receipt ${recordForm.receiptNumber} generated.`);
+      showNotification(`✅ Payment of ${formatCurrency(paying)} recorded! Receipt ${recordForm.receiptNumber} generated.`);
+
+      // Reload from server to get fresh state
+      const { data: fresh } = await api.get('/payments');
+      if (fresh?.data) setPayments(fresh.data);
+
+    } catch (err) {
+      const msg = err?.response?.data?.message || err.message || 'Failed to record payment';
+      showNotification(`❌ ${msg}`, 'error');
+      console.error('Record payment error:', err);
+    }
+
     setShowRecordModal(false);
     setSelectedDemand(null);
   };
+
 
   const handleDeleteDemand = async (id, demandNumber) => {
     if (!window.confirm(`Are you sure you want to delete Demand Notice ${demandNumber}?`)) return;
@@ -477,9 +518,9 @@ export default function PaymentsPage() {
   const totalCollected = useMemo(() => payments.reduce((acc, p) => acc + (p.paidAmount || 0), 0), [payments]);
   const totalOutstanding = useMemo(() => payments.reduce((acc, p) => acc + (p.balanceAmount || 0), 0), [payments]);
 
-  // Filtered Payments
+  // Filtered & Sorted Payments
   const filtered = useMemo(() => {
-    return payments.filter(p => {
+    let list = payments.filter(p => {
       if (tab === 'pending') {
         if (p.status !== 'pending' && p.status !== 'partial') return false;
       } else if (tab === 'overdue') {
@@ -487,6 +528,30 @@ export default function PaymentsPage() {
       } else if (tab === 'paid') {
         if (p.status !== 'paid') return false;
       }
+
+      if (methodFilter && p.paymentMode !== methodFilter) return false;
+
+      if (dateRangeFilter) {
+        const d = new Date(p.dueDate || p.createdAt || Date.now());
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        if (dateRangeFilter === 'this_month') {
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          if (d < startOfMonth) return false;
+        } else if (dateRangeFilter === 'overdue') {
+          if (p.status === 'paid' || d >= startOfToday) return false;
+        } else if (dateRangeFilter === 'custom') {
+          if (customFrom) {
+            const fromTime = new Date(customFrom + 'T00:00:00').getTime();
+            if (d.getTime() < fromTime) return false;
+          }
+          if (customTo) {
+            const toTime = new Date(customTo + 'T23:59:59.999').getTime();
+            if (d.getTime() > toTime) return false;
+          }
+        }
+      }
+
       if (search.trim()) {
         const q = search.toLowerCase();
         return (
@@ -502,7 +567,19 @@ export default function PaymentsPage() {
       }
       return true;
     });
-  }, [payments, tab, search]);
+
+    list.sort((a, b) => {
+      if (sortBy === 'date_desc') return new Date(b.dueDate || b.createdAt || 0) - new Date(a.dueDate || a.createdAt || 0);
+      if (sortBy === 'date_asc') return new Date(a.dueDate || a.createdAt || 0) - new Date(b.dueDate || b.createdAt || 0);
+      if (sortBy === 'amount_desc') return (b.demandAmount || 0) - (a.demandAmount || 0);
+      if (sortBy === 'amount_asc') return (a.demandAmount || 0) - (b.demandAmount || 0);
+      if (sortBy === 'balance_desc') return (b.balanceAmount || 0) - (a.balanceAmount || 0);
+      if (sortBy === 'customer_asc') return (a.customerName || '').localeCompare(b.customerName || '');
+      return 0;
+    });
+
+    return list;
+  }, [payments, tab, search, methodFilter, dateRangeFilter, sortBy]);
 
   return (
     <div>
@@ -519,7 +596,17 @@ export default function PaymentsPage() {
           <h1 className="page-title">Payments & Milestone Collections</h1>
           <p className="page-subtitle">Milestone-linked demand notes, partial payment tracking, bank transfers, cash/UPI receipts, and GST invoices</p>
         </div>
-        <div className="page-actions">
+        <div className="page-actions" style={{ display: 'flex', gap: 8 }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              exportFinanceReportCSV(filtered, user?.organization || 'MRP REAL ESTATE');
+              showNotification('Exported professional Finance & Milestone Collections Ledger!');
+            }}
+            title="Download full milestone payments ledger"
+          >
+            <Download size={14} /> Export Ledger CSV
+          </button>
           <button className="btn btn-primary btn-sm" onClick={openCreateModal}>
             <Plus size={14} /> Raise Milestone Demand
           </button>
@@ -566,7 +653,7 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      {/* Search & Tabs Row */}
+      {/* Search, Filter & Tabs Row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
         <div className="tabs" style={{ marginBottom: 0 }}>
           {[
@@ -585,20 +672,76 @@ export default function PaymentsPage() {
           ))}
         </div>
 
-        <div className="search-box" style={{ maxWidth: 300, width: '100%' }}>
-          <Search size={14} className="search-icon" />
-          <input
-            type="text"
-            className="form-input search-input"
-            placeholder="Search customer, DEM #, unit, UTR..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+          <div className="search-box" style={{ maxWidth: 240, width: '100%' }}>
+            <Search size={14} className="search-icon" />
+            <input
+              type="text"
+              className="form-input search-input"
+              placeholder="Search customer, DEM #, unit, UTR..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && (
+              <button className="search-clear" onClick={() => setSearch('')}>
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          <CustomSelect
+            variant="filter"
+            value={methodFilter}
+            onChange={val => setMethodFilter(val)}
+            options={[
+              { value: '', label: 'All Payment Modes' },
+              ...PAYMENT_METHODS.map(m => ({ value: m.id, label: m.short, icon: '💳' }))
+            ]}
           />
-          {search && (
-            <button className="search-clear" onClick={() => setSearch('')}>
-              <X size={12} />
-            </button>
+
+          <CustomSelect
+            variant="filter"
+            value={dateRangeFilter}
+            onChange={val => {
+              setDateRangeFilter(val);
+              if (val !== 'custom') { setCustomFrom(''); setCustomTo(''); }
+            }}
+            options={[
+              { value: '', label: '📅 All Due Dates' },
+              { value: 'this_month', label: 'This Month' },
+              { value: 'overdue', label: 'Overdue Notices' },
+              { value: 'custom', label: '📆 Custom Date (From - To)...' }
+            ]}
+          />
+
+          {dateRangeFilter === 'custom' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f8fafc', padding: '4px 10px', borderRadius: 8, border: '1px solid var(--card-border)' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>From:</span>
+              <input type="date" className="form-input" style={{ padding: '3px 8px', fontSize: 12, height: 32, width: 135 }} value={customFrom} onChange={e => setCustomFrom(e.target.value)} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>To:</span>
+              <input type="date" className="form-input" style={{ padding: '3px 8px', fontSize: 12, height: 32, width: 135 }} value={customTo} onChange={e => setCustomTo(e.target.value)} />
+              {(customFrom || customTo) && (
+                <button type="button" className="btn btn-ghost btn-icon btn-sm" style={{ padding: 2, height: 24, width: 24, color: 'var(--danger)' }} onClick={() => { setCustomFrom(''); setCustomTo(''); setDateRangeFilter(''); }} title="Clear">
+                  <X size={13} />
+                </button>
+              )}
+            </div>
           )}
+
+          <CustomSelect
+            variant="filter"
+            buttonStyle={{ fontWeight: 600, color: 'var(--primary)' }}
+            value={sortBy}
+            onChange={val => setSortBy(val)}
+            options={[
+              { value: 'date_desc', label: 'Sort: 📅 Due Date (Latest First)' },
+              { value: 'date_asc', label: 'Sort: 📅 Due Date (Earliest First)' },
+              { value: 'amount_desc', label: 'Sort: 💰 Demanded (High to Low)' },
+              { value: 'amount_asc', label: 'Sort: 💰 Demanded (Low to High)' },
+              { value: 'balance_desc', label: 'Sort: ⚠️ Outstanding Balance' },
+              { value: 'customer_asc', label: 'Sort: 🔤 Customer Name (A → Z)' }
+            ]}
+          />
         </div>
       </div>
 
@@ -781,16 +924,14 @@ export default function PaymentsPage() {
                 {/* Payment Method / Type Dropdown */}
                 <div className="form-group">
                   <label className="form-label">Payment Method / Type <span className="required">*</span></label>
-                  <select
-                    className="form-select"
+                  <CustomSelect
                     value={recordForm.paymentMode}
-                    onChange={e => setRecordForm(p => ({ ...p, paymentMode: e.target.value }))}
-                    required
-                  >
-                    {PAYMENT_METHODS.map(m => (
-                      <option key={m.id} value={m.id}>{m.label}</option>
-                    ))}
-                  </select>
+                    onChange={val => setRecordForm(p => ({ ...p, paymentMode: typeof val === 'object' && val.target ? val.target.value : val }))}
+                    options={PAYMENT_METHODS.map(m => ({
+                      value: m.id,
+                      label: m.label
+                    }))}
+                  />
                 </div>
 
                 {/* Bank Details & Reference */}
@@ -905,25 +1046,25 @@ export default function PaymentsPage() {
 
                   {!demandForm.isManualCustomer ? (
                     <div>
-                      <select
-                        className="form-select"
+                      <CustomSelect
                         value={demandForm.bookingId}
-                        onChange={e => handleBookingSelect(e.target.value)}
-                        required={!demandForm.isManualCustomer}
-                      >
-                        <option value="">-- Choose Registered Booking ({bookings.length} available) --</option>
-                        {bookings.map(b => (
-                          <option key={b._id} value={b._id}>
-                            {b.customerName} ({b.bookingNumber}) — {b.unit?.unitNumber || 'Unit'} • {b.project?.name || 'Project'} (📞 {b.customerPhone})
-                          </option>
-                        ))}
-                        {leads.map(l => (
-                          <option key={`lead_${l._id}`} value={`lead_${l._id}`}>
-                            {l.name} — 📞 {l.phone} • {l.interestedProject?.name || 'Lead'}
-                          </option>
-                        ))}
-                        <option value="__manual__">✏️ + Enter Custom / Offline Customer Details...</option>
-                      </select>
+                        onChange={val => handleBookingSelect(typeof val === 'object' && val.target ? val.target.value : val)}
+                        placeholder={`-- Choose Registered Booking (${bookings.length} available) --`}
+                        searchable
+                        options={[
+                          ...bookings.map(b => ({
+                            value: b._id,
+                            label: `${b.customerName} (${b.bookingNumber})`,
+                            subtext: `${b.unit?.unitNumber || 'Unit'} • ${b.project?.name || 'Project'} (📞 ${b.customerPhone})`
+                          })),
+                          ...leads.map(l => ({
+                            value: `lead_${l._id}`,
+                            label: `${l.name} (Lead)`,
+                            subtext: `📞 ${l.phone} • ${l.interestedProject?.name || 'Prospect'}`
+                          })),
+                          { value: '__manual__', label: '✏️ + Enter Custom / Offline Customer Details...' }
+                        ]}
+                      />
                       {bookings.length === 0 && (
                         <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 4 }}>
                           ⚠️ No bookings created yet. Switch to manual mode above or create bookings in the Bookings module.
@@ -980,22 +1121,21 @@ export default function PaymentsPage() {
                 {/* Milestone Selection */}
                 <div className="form-group">
                   <label className="form-label">Construction Milestone / Payment Stage <span className="required">*</span></label>
-                  <select
-                    className="form-select"
+                  <CustomSelect
                     value={demandForm.milestoneName}
-                    onChange={e => {
-                      const val = e.target.value;
+                    onChange={val => {
+                      const actualVal = typeof val === 'object' && val.target ? val.target.value : val;
                       setDemandForm(p => ({
                         ...p,
-                        milestoneName: val,
-                        isCustomMilestone: val.includes('Custom')
+                        milestoneName: actualVal,
+                        isCustomMilestone: actualVal.includes('Custom')
                       }));
                     }}
-                  >
-                    {MILESTONE_STAGES.map(stg => (
-                      <option key={stg} value={stg}>{stg}</option>
-                    ))}
-                  </select>
+                    options={MILESTONE_STAGES.map(stg => ({
+                      value: stg,
+                      label: stg
+                    }))}
+                  />
 
                   {(demandForm.isCustomMilestone || demandForm.milestoneName.includes('Custom')) && (
                     <input
@@ -1075,17 +1215,17 @@ export default function PaymentsPage() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Collection Status</label>
-                    <select
-                      className="form-select"
+                    <CustomSelect
                       value={demandForm.status}
-                      onChange={e => setDemandForm(p => ({ ...p, status: e.target.value }))}
-                    >
-                      <option value="pending">Pending Collection</option>
-                      <option value="partial">Partial Payment Received</option>
-                      <option value="paid">Fully Paid & Cleared</option>
-                      <option value="overdue">Overdue Notice</option>
-                      <option value="waived">Waived</option>
-                    </select>
+                      onChange={val => setDemandForm(p => ({ ...p, status: typeof val === 'object' && val.target ? val.target.value : val }))}
+                      options={[
+                        { value: 'pending', label: 'Pending Collection', icon: '⏳', subtext: 'Awaiting payment' },
+                        { value: 'partial', label: 'Partial Payment Received', icon: '🟡', subtext: 'Partially cleared' },
+                        { value: 'paid', label: 'Fully Paid & Cleared', icon: '✅', subtext: 'Payment received' },
+                        { value: 'overdue', label: 'Overdue Notice', icon: '⚠️', subtext: 'Past due date' },
+                        { value: 'waived', label: 'Waived', icon: '⚪', subtext: 'Exempted / Void' }
+                      ]}
+                    />
                   </div>
                 </div>
 
@@ -1103,15 +1243,14 @@ export default function PaymentsPage() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Preferred Payment Mode</label>
-                    <select
-                      className="form-select"
+                    <CustomSelect
                       value={demandForm.paymentMode}
-                      onChange={e => setDemandForm(p => ({ ...p, paymentMode: e.target.value }))}
-                    >
-                      {PAYMENT_METHODS.map(m => (
-                        <option key={m.id} value={m.id}>{m.label}</option>
-                      ))}
-                    </select>
+                      onChange={val => setDemandForm(p => ({ ...p, paymentMode: typeof val === 'object' && val.target ? val.target.value : val }))}
+                      options={PAYMENT_METHODS.map(m => ({
+                        value: m.id,
+                        label: m.label
+                      }))}
+                    />
                   </div>
                 </div>
 

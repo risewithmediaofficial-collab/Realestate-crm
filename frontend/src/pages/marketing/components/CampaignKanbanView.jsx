@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Eye, Edit, Play, Pause, Trash2, Building, DollarSign,
-  Users, Target, TrendingUp, Calendar, ArrowRight
+  Users, Target, TrendingUp, Calendar, ArrowRight, Plus
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../../../utils/formatters';
 
@@ -35,6 +35,7 @@ export default function CampaignKanbanView({
   onToggleStatus,
   onDeleteCampaign,
   onStatusChange,
+  onAddCampaign,
 }) {
   const [draggedId, setDraggedId] = useState(null);
   const [dragOverCol, setDragOverCol] = useState(null);
@@ -124,11 +125,27 @@ export default function CampaignKanbanView({
                 </span>
               </div>
 
-              {colCampaigns.length > 0 && (
-                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)' }}>
-                  {formatCurrency(colSpent)}
-                </div>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {colCampaigns.length > 0 && (
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)' }}>
+                    {formatCurrency(colSpent)}
+                  </div>
+                )}
+                {onAddCampaign && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon btn-sm"
+                    style={{ width: 22, height: 22, padding: 0, color: 'var(--primary)', borderRadius: 4, background: '#f1f5f9' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddCampaign(col.id);
+                    }}
+                    title={`Create campaign in ${col.title}`}
+                  >
+                    <Plus size={13} />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Column Body */}
@@ -148,21 +165,50 @@ export default function CampaignKanbanView({
                 <div
                   style={{
                     textAlign: 'center',
-                    padding: '30px 12px',
+                    padding: '24px 12px',
                     color: 'var(--text-muted)',
                     fontSize: 12,
-                    border: '1px dashed #cbd5e1',
-                    borderRadius: 8,
-                    background: 'white'
+                    border: '1.5px dashed #cbd5e1',
+                    borderRadius: 10,
+                    background: 'white',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 8,
+                    margin: '4px 0'
                   }}
                 >
-                  Drag campaigns here to mark as {col.title}
+                  <span>No campaigns in {col.title}</span>
+                  {onAddCampaign && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      style={{
+                        fontSize: 11.5,
+                        padding: '4px 10px',
+                        height: 28,
+                        gap: 4,
+                        background: '#f8fafc',
+                        borderColor: '#cbd5e1',
+                        color: 'var(--primary)',
+                        fontWeight: 600,
+                        borderRadius: 8
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddCampaign(col.id);
+                      }}
+                    >
+                      <Plus size={13} /> Add Campaign
+                    </button>
+                  )}
                 </div>
               ) : (
-                colCampaigns.map(c => {
-                  const typeConf = CAMPAIGN_TYPES[c.type] || { label: c.type || 'Campaign', icon: '📢' };
-                  const spentPct = c.budget ? Math.min(100, Math.round((c.spent / c.budget) * 100)) : 0;
-                  const isDragging = draggedId === c._id;
+                <>
+                  {colCampaigns.map(c => {
+                    const typeConf = CAMPAIGN_TYPES[c.type] || { label: c.type || 'Campaign', icon: '📢' };
+                    const spentPct = c.budget ? Math.min(100, Math.round((c.spent / c.budget) * 100)) : 0;
+                    const isDragging = draggedId === c._id;
 
                   return (
                     <div
@@ -283,12 +329,36 @@ export default function CampaignKanbanView({
                       </div>
                     </div>
                   );
-                })
-              )}
-            </div>
+                })}
+                {onAddCampaign && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    style={{
+                      width: '100%',
+                      fontSize: 11.5,
+                      padding: '6px',
+                      gap: 4,
+                      color: 'var(--text-muted)',
+                      border: '1px dashed #cbd5e1',
+                      borderRadius: 8,
+                      marginTop: 4,
+                      background: '#fafbfc'
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddCampaign(col.id);
+                    }}
+                  >
+                    <Plus size={12} /> Add Campaign
+                  </button>
+                )}
+              </>
+            )}
           </div>
-        );
-      })}
+        </div>
+      );
+    })}
     </div>
   );
 }

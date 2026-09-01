@@ -114,11 +114,21 @@ if (require.main === module) {
       cluster.fork();
     });
   } else {
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`🚀 Real Estate CRM Server running on http://localhost:${PORT} [PID: ${process.pid}]`);
       console.log(`🛡️ Rate Limiting & Compression: ACTIVE`);
       console.log(`⚡ Connection Pooling: ACTIVE`);
       console.log(`📊 Node Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
+
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${PORT} is already in use by another running instance.`);
+        console.error(`💡 Freeing port or specify a different PORT in .env`);
+        process.exit(1);
+      } else {
+        throw err;
+      }
     });
   }
 }

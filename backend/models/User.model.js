@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema({
   username: { type: String, lowercase: true, trim: true },
   password: { type: String, required: true, select: false },
   phone: { type: String, trim: true },
-  organization: { type: String, trim: true, default: 'RealtyHub Demo Organization' },
+  organization: { type: String, trim: true },
   city: { type: String, trim: true },
   avatar: { type: String },
   role: {

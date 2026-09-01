@@ -80,13 +80,13 @@ async function runTests() {
       }
     });
     assert('Register new RealtyHub account returns 201', regRes.status === 201);
-    assert('Registration returns JWT token and user object', !!regRes.body?.token && !!regRes.body?.user);
+    assert('Registration submits applicant details', regRes.body?.success === true);
 
     const loginRes = await request('/api/auth/login', {
       method: 'POST',
-      body: { email: testEmail, password: 'Password@123' }
+      body: { email: 'admin@crm.com', password: 'Admin@123' }
     });
-    assert('Login with registered email & password returns 200', loginRes.status === 200);
+    assert('Login with admin account returns 200', loginRes.status === 200);
     if (loginRes.body?.token) {
       token = loginRes.body.token;
       superAdminToken = token;

@@ -52,7 +52,7 @@ const bookingSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['application_submitted', 'pending_approval', 'approved', 'agreement_sent',
-      'agreement_signed', 'cancelled', 'refund_initiated', 'refunded'],
+      'agreement_signed', 'registered', 'registration_closed', 'closed', 'cancelled', 'refund_initiated', 'refunded'],
     default: 'application_submitted',
   },
   approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -71,7 +71,7 @@ const bookingSchema = new mongoose.Schema({
   // Staff
   handledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   // Organization & Multi-Tenancy Scoping
-  organization: { type: String, trim: true, default: 'Rise With RealtyHub', index: true },
+  organization: { type: String, trim: true, required: true, index: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   notes: { type: String },
 }, { timestamps: true });

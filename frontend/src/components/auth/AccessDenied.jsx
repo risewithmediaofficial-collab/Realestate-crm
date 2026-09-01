@@ -72,7 +72,7 @@ export default function AccessDenied({ userRole, path }) {
           textAlign: 'left',
         }}>
           <div style={{ fontWeight: 700, marginBottom: 4, color: '#0f172a' }}>Need access to this module?</div>
-          <div>Contact your <strong>Super Administrator</strong> to update your Role Permissions (RBAC) matrix in <em>Users & Org → Role Permissions</em>.</div>
+          <div>Contact your <strong>Workspace Administrator</strong> to update your access permissions in <em>Users & Org</em>.</div>
         </div>
 
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>

@@ -45,13 +45,16 @@ export const DEFAULT_ROLE_MODULE_PERMISSIONS = {
     'projects', 'inventory', 'pricing', 'sitevisits', 'booking'
   ],
   telecaller: [
-    'dashboard', 'leads', 'communication', 'activities', 'sitevisits'
+    'dashboard', 'leads', 'communication', 'activities', 'sitevisits',
+    'projects', 'inventory', 'booking'
   ],
   presales: [
-    'dashboard', 'leads', 'communication', 'activities', 'sitevisits'
+    'dashboard', 'leads', 'communication', 'activities', 'sitevisits',
+    'projects', 'inventory', 'booking'
   ],
   pre_sales_manager: [
-    'dashboard', 'leads', 'communication', 'activities', 'sitevisits', 'reports'
+    'dashboard', 'leads', 'communication', 'activities', 'sitevisits',
+    'projects', 'inventory', 'booking', 'reports'
   ],
   marketing_head: [
     'dashboard', 'marketing', 'leads', 'reports', 'settings'
@@ -64,6 +67,12 @@ export const DEFAULT_ROLE_MODULE_PERMISSIONS = {
   ],
   finance: [
     'dashboard', 'pricing', 'booking', 'payments', 'reports'
+  ],
+  channel_partner: [
+    'dashboard', 'projects', 'inventory', 'leads', 'sitevisits', 'booking'
+  ],
+  partner: [
+    'dashboard', 'projects', 'inventory', 'leads', 'sitevisits', 'booking'
   ],
   customer: [
     'dashboard', 'customerportal'
@@ -82,7 +91,14 @@ export const getRoleModulePermissions = () => {
   try {
     const saved = localStorage.getItem(DYNAMIC_PERMISSIONS_KEY);
     if (saved) {
-      return { ...DEFAULT_ROLE_MODULE_PERMISSIONS, ...JSON.parse(saved) };
+      const parsed = JSON.parse(saved);
+      const merged = { ...DEFAULT_ROLE_MODULE_PERMISSIONS };
+      Object.keys(parsed).forEach(role => {
+        if (Array.isArray(parsed[role])) {
+          merged[role] = Array.from(new Set([...(DEFAULT_ROLE_MODULE_PERMISSIONS[role] || []), ...parsed[role]]));
+        }
+      });
+      return merged;
     }
   } catch (e) {
     console.error('Error reading role permissions from localStorage', e);
@@ -220,9 +236,9 @@ export const hasModuleAccess = (userOrRole, moduleId) => {
   if (disabledList.includes(moduleId)) return false;
 
   // Admin has access to all non-disabled modules
-  if (role === 'admin') return true;
+  if (role === 'admin' || role === 'superadmin') return true;
 
-  // Check user-specific custom module overrides
+  // User-specific custom module overrides (if specified)
   if (userId) {
     const allUserCustom = getUserCustomPermissions();
     if (allUserCustom[userId] && Array.isArray(allUserCustom[userId])) {
@@ -231,8 +247,7 @@ export const hasModuleAccess = (userOrRole, moduleId) => {
     }
   }
 
-  if (userCustomPerms) {
-    if (userCustomPerms.includes('*')) return true;
+  if (userCustomPerms && Array.isArray(userCustomPerms) && !userCustomPerms.includes('*')) {
     return userCustomPerms.includes(moduleId);
   }
 
@@ -282,4 +297,3 @@ export const getAccessibleNavConfig = (userOrRole, navConfig) => {
 };
 
 export const ROLE_MODULE_PERMISSIONS = DEFAULT_ROLE_MODULE_PERMISSIONS;
-

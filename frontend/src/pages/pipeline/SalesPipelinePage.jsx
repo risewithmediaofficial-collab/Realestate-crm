@@ -8,6 +8,7 @@ import api from '../../services/api';
 import { useUI } from '../../context/UIContext';
 import { LEAD_STAGES, PIPELINE_STAGES } from '../../utils/constants';
 import { formatCurrency, timeAgo, getInitials } from '../../utils/formatters';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 const mockPipelineLeads = [];
 
@@ -47,7 +48,7 @@ export default function SalesPipelinePage() {
 
   const [draggedId, setDraggedId] = useState(null);
   const [dragOverStage, setDragOverStage] = useState(null);
-  const { showNotification } = useUI();
+  const { openCreateLead, showNotification } = useUI();
 
   const moveStage = async (leadId, nextStage) => {
     const lead = leads.find(l => l._id === leadId);
@@ -133,11 +134,16 @@ export default function SalesPipelinePage() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <select className="filter-select" value={projectFilter} onChange={e => setProjectFilter(e.target.value)}>
-          <option value="">All Projects</option>
-          <option value="Green Valley">Green Valley Residences</option>
-          <option value="Skyline">Skyline Tower Commercial</option>
-        </select>
+        <CustomSelect
+          variant="filter"
+          value={projectFilter}
+          onChange={val => setProjectFilter(val)}
+          options={[
+            { value: '', label: 'All Projects', icon: '🏢' },
+            { value: 'Green Valley', label: 'Green Valley Residences', icon: '🏡' },
+            { value: 'Skyline', label: 'Skyline Tower Commercial', icon: '🏢' }
+          ]}
+        />
       </div>
 
       {/* Full Kanban Stages */}
@@ -168,69 +174,132 @@ export default function SalesPipelinePage() {
                     {formatCurrency(stageValue)}
                   </div>
                 </div>
-                <span className="kanban-col-count">{stageLeads.length}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="kanban-col-count">{stageLeads.length}</span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon btn-sm"
+                    style={{ width: 22, height: 22, padding: 0, color: 'var(--primary)', borderRadius: 4, background: '#f1f5f9' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openCreateLead();
+                    }}
+                    title={`Add deal to ${stageConf.label}`}
+                  >
+                    <Plus size={13} />
+                  </button>
+                </div>
               </div>
 
               <div className="kanban-col-body">
                 {stageLeads.length === 0 ? (
                   <div style={{
                     textAlign: 'center',
-                    padding: '30px 10px',
+                    padding: '24px 12px',
                     color: isOver ? 'var(--primary)' : 'var(--text-muted)',
                     fontSize: 12,
-                    border: isOver ? '1.5px dashed var(--primary)' : '1px dashed transparent',
-                    borderRadius: 8,
-                    background: isOver ? 'rgba(37, 99, 235, 0.05)' : 'transparent',
+                    border: isOver ? '1.5px dashed var(--primary)' : '1.5px dashed #cbd5e1',
+                    borderRadius: 10,
+                    background: isOver ? 'rgba(37, 99, 235, 0.05)' : 'white',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 8,
+                    margin: '4px 0',
                     transition: 'all 0.2s ease'
                   }}>
-                    {isOver ? '🎯 Drop deal here' : 'No active deals in this stage'}
+                    <span>{isOver ? '🎯 Drop deal here' : `No active deals in ${stageConf.label}`}</span>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      style={{
+                        fontSize: 11.5,
+                        padding: '4px 10px',
+                        height: 28,
+                        gap: 4,
+                        background: '#f8fafc',
+                        borderColor: '#cbd5e1',
+                        color: 'var(--primary)',
+                        fontWeight: 600,
+                        borderRadius: 8
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openCreateLead();
+                      }}
+                    >
+                      <Plus size={13} /> Add Deal
+                    </button>
                   </div>
                 ) : (
-                  stageLeads.map(lead => {
-                    const isDragging = draggedId === lead._id;
-                    return (
-                      <div
-                        key={lead._id}
-                        className={`kanban-card ${isDragging ? 'dragging' : ''}`}
-                        style={{ padding: 14 }}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, lead)}
-                        onDragEnd={handleDragEnd}
-                        title="Drag and drop to advance deal stage"
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                          <div style={{ fontWeight: 700, fontSize: 14 }}>{lead.name}</div>
-                          <span className={`badge ${lead.type === 'hot' ? 'badge-danger' : lead.type === 'warm' ? 'badge-warning' : 'badge-gray'}`} style={{ fontSize: 10 }}>
-                            {lead.type.toUpperCase()} ({lead.score})
-                          </span>
-                        </div>
+                  <>
+                    {stageLeads.map(lead => {
+                      const isDragging = draggedId === lead._id;
+                      return (
+                        <div
+                          key={lead._id}
+                          className={`kanban-card ${isDragging ? 'dragging' : ''}`}
+                          style={{ padding: 14 }}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, lead)}
+                          onDragEnd={handleDragEnd}
+                          title="Drag and drop to advance deal stage"
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                            <div style={{ fontWeight: 700, fontSize: 14 }}>{lead.name}</div>
+                            <span className={`badge ${lead.type === 'hot' ? 'badge-danger' : lead.type === 'warm' ? 'badge-warning' : 'badge-gray'}`} style={{ fontSize: 10 }}>
+                              {lead.type.toUpperCase()} ({lead.score})
+                            </span>
+                          </div>
 
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>
-                          {lead.project}
-                        </div>
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>
+                            {lead.project}
+                          </div>
 
-                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--primary)', marginBottom: 8 }}>
-                          {formatCurrency(lead.budgetVal)}
-                        </div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--primary)', marginBottom: 8 }}>
+                            {formatCurrency(lead.budgetVal)}
+                          </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: 'var(--text-muted)', borderTop: '1px solid #f1f5f9', paddingTop: 8 }}>
-                          <span>👤 {lead.agent}</span>
-                          <span>⏱️ {lead.daysInStage}d in stage</span>
-                        </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: 'var(--text-muted)', borderTop: '1px solid #f1f5f9', paddingTop: 8 }}>
+                            <span>👤 {lead.agent}</span>
+                            <span>⏱️ {lead.daysInStage}d in stage</span>
+                          </div>
 
-                        {/* Advance Stage Button */}
-                        {nextStageKey && (
-                          <button
-                            className="btn btn-secondary btn-sm w-full"
-                            style={{ marginTop: 10, justifyContent: 'center', fontSize: 11, padding: '4px 8px' }}
-                            onClick={() => moveStage(lead._id, nextStageKey)}
-                          >
-                            Advance to {LEAD_STAGES[nextStageKey]?.label} <ArrowRight size={12} />
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })
+                          {/* Advance Stage Button */}
+                          {nextStageKey && (
+                            <button
+                              className="btn btn-secondary btn-sm w-full"
+                              style={{ marginTop: 10, justifyContent: 'center', fontSize: 11, padding: '4px 8px' }}
+                              onClick={() => moveStage(lead._id, nextStageKey)}
+                            >
+                              Advance to {LEAD_STAGES[nextStageKey]?.label} <ArrowRight size={12} />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      style={{
+                        width: '100%',
+                        fontSize: 11.5,
+                        padding: '6px',
+                        gap: 4,
+                        color: 'var(--text-muted)',
+                        border: '1px dashed #cbd5e1',
+                        borderRadius: 8,
+                        marginTop: 4,
+                        background: '#fafbfc'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openCreateLead();
+                      }}
+                    >
+                      <Plus size={12} /> Add Deal
+                    </button>
+                  </>
                 )}
               </div>
             </div>

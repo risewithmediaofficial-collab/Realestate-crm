@@ -59,13 +59,94 @@ export const LEAD_TYPES = {
 };
 
 export const UNIT_STATUSES = {
-  available: { label: 'Available', badge: 'badge-available', color: '#dcfce7' },
-  on_hold: { label: 'On Hold', badge: 'badge-on_hold', color: '#fef3c7' },
-  blocked: { label: 'Blocked', badge: 'badge-blocked', color: '#fee2e2' },
-  booked: { label: 'Booked', badge: 'badge-booked', color: '#dbeafe' },
-  sold: { label: 'Sold', badge: 'badge-sold', color: '#e9d5ff' },
-  not_for_sale: { label: 'N/A', badge: 'badge-gray', color: '#f1f5f9' },
+  available: { label: 'Available', badge: 'badge-success', color: '#16a34a', bg: '#dcfce7' },
+  reserved: { label: 'Reserved', badge: 'badge-info', color: '#0284c7', bg: '#e0f2fe' },
+  on_hold: { label: 'Hold', badge: 'badge-warning', color: '#d97706', bg: '#fef3c7' },
+  booked: { label: 'Booked', badge: 'badge-primary', color: '#2563eb', bg: '#dbeafe' },
+  sold: { label: 'Sold', badge: 'badge-purple', color: '#7c3aed', bg: '#f3e8ff' },
+  blocked: { label: 'Blocked', badge: 'badge-danger', color: '#dc2626', bg: '#fee2e2' },
+  cancelled: { label: 'Cancelled', badge: 'badge-gray', color: '#64748b', bg: '#f1f5f9' },
+  not_for_sale: { label: 'N/A', badge: 'badge-gray', color: '#f1f5f9', bg: '#f1f5f9' },
 };
+
+export const AREA_UNITS = [
+  { id: 'sqft', label: 'Sq.Ft (Square Feet)', factorToSqFt: 1, shortUnit: 'sq.ft' },
+  { id: 'sqyard', label: 'Sq.Yard / Gaj (9 sq.ft)', factorToSqFt: 9, shortUnit: 'sq.yd' },
+  { id: 'acre', label: 'Acre (43,560 sq.ft)', factorToSqFt: 43560, shortUnit: 'Acres' },
+  { id: 'guntha', label: 'Guntha / Gunta (1,089 sq.ft)', factorToSqFt: 1089, shortUnit: 'Gunthas' },
+  { id: 'cent', label: 'Cent (435.6 sq.ft)', factorToSqFt: 435.6, shortUnit: 'Cents' },
+  { id: 'ground', label: 'Ground (2,400 sq.ft)', factorToSqFt: 2400, shortUnit: 'Grounds' },
+  { id: 'bigha', label: 'Bigha (27,225 sq.ft)', factorToSqFt: 27225, shortUnit: 'Bighas' },
+  { id: 'custom', label: 'Custom Regional Unit', factorToSqFt: null, shortUnit: 'Custom' },
+];
+
+export const RATE_TYPES = [
+  { id: 'per_sqft', label: 'Per Sq.Ft (₹ / sq.ft)', unitKey: 'sqft' },
+  { id: 'per_sqyard', label: 'Per Sq.Yard / Gaj (₹ / sq.yd)', unitKey: 'sqyard' },
+  { id: 'per_cent', label: 'Per Cent (₹ / cent)', unitKey: 'cent' },
+  { id: 'per_guntha', label: 'Per Guntha (₹ / guntha)', unitKey: 'guntha' },
+  { id: 'per_ground', label: 'Per Ground (₹ / ground)', unitKey: 'ground' },
+  { id: 'per_acre', label: 'Per Acre (₹ / acre)', unitKey: 'acre' },
+  { id: 'per_bigha', label: 'Per Bigha (₹ / bigha)', unitKey: 'bigha' },
+  { id: 'fixed', label: 'Fixed Plot Price (₹ Lump sum)', unitKey: 'fixed' },
+];
+
+export const FACING_OPTIONS = [
+  { value: 'east', label: 'East' },
+  { value: 'west', label: 'West' },
+  { value: 'north', label: 'North' },
+  { value: 'south', label: 'South' },
+  { value: 'ne', label: 'North-East' },
+  { value: 'nw', label: 'North-West' },
+  { value: 'se', label: 'South-East' },
+  { value: 'sw', label: 'South-West' },
+  { value: 'custom', label: '✏️ Custom Facing' },
+];
+
+export const WATER_SOURCES = [
+  { value: 'borewell', label: 'Borewell' },
+  { value: 'open_well', label: 'Open Well' },
+  { value: 'canal', label: 'Canal' },
+  { value: 'lake', label: 'Lake' },
+  { value: 'rainwater', label: 'Rainwater' },
+  { value: 'other', label: 'Other / Custom' },
+  { value: 'none', label: 'None' },
+];
+
+export const ELECTRICITY_OPTIONS = [
+  { value: 'available', label: 'Available' },
+  { value: 'nearby', label: 'Nearby' },
+  { value: 'not_available', label: 'Not Available' },
+];
+
+export const IRRIGATION_SYSTEMS = [
+  { value: 'borewell', label: 'Borewell' },
+  { value: 'drip', label: 'Drip Irrigation' },
+  { value: 'sprinkler', label: 'Sprinkler' },
+  { value: 'canal', label: 'Canal' },
+  { value: 'automated_drip', label: 'Automated Drip' },
+  { value: 'rain_fed', label: 'Rain-fed' },
+  { value: 'other', label: 'Other' },
+  { value: 'none', label: 'None' },
+];
+
+export const FENCING_OPTIONS = [
+  { value: 'none', label: 'None' },
+  { value: 'chain_link', label: 'Chain-link Fencing' },
+  { value: 'stone_fencing', label: 'Stone Fencing' },
+  { value: 'compound_wall', label: 'Compound Wall' },
+  { value: 'live_fencing', label: 'Live Fencing / Bio-hedge' },
+  { value: 'other', label: 'Other' },
+];
+
+export const LAND_TYPES = [
+  { value: 'Agricultural Land', label: 'Agricultural Land' },
+  { value: 'Farm Land', label: 'Farm Land' },
+  { value: 'Plantation Land', label: 'Plantation Land' },
+  { value: 'Residential Plot', label: 'Residential Plot' },
+  { value: 'Commercial Plot', label: 'Commercial Plot' },
+  { value: 'other', label: '✏️ Other / Custom Type' },
+];
 
 export const PROJECT_STATUSES = {
   upcoming: { label: 'Upcoming', badge: 'badge-gray' },
@@ -120,7 +201,7 @@ export const REAL_ESTATE_CATEGORIES = {
     label: 'Farmhouses & Managed Farmlands',
     shortLabel: 'Farmhouses & Farmlands',
     icon: '🌴',
-    unitTerm: 'Farm Lot / Parcel',
+    unitTerm: 'Farm Land / Plot',
     badge: 'badge-success',
     bg: '#f0fdf4',
     color: '#16a34a',
@@ -132,7 +213,7 @@ export const REAL_ESTATE_CATEGORIES = {
     label: 'Agricultural Lands & Agri Acreages',
     shortLabel: 'Agri Lands',
     icon: '🌾',
-    unitTerm: 'Acre / Guntha / Bigha / Plot',
+    unitTerm: 'Land / Plot',
     badge: 'badge-success',
     bg: '#f0fdf4',
     color: '#15803d',
@@ -280,22 +361,6 @@ export const getCategoryMeta = (catId, customName = '') => {
   }
   return REAL_ESTATE_CATEGORIES.residential_apartment;
 };
-
-export const FACING_OPTIONS = [
-  { value: 'East', label: 'East Facing 🌅' },
-  { value: 'North', label: 'North Facing 🧭' },
-  { value: 'West', label: 'West Facing 🌇' },
-  { value: 'South', label: 'South Facing 🧭' },
-  { value: 'North-East', label: 'North-East (Ishanya) ✨' },
-  { value: 'North-West', label: 'North-West (Vayavya)' },
-  { value: 'South-East', label: 'South-East (Agneya)' },
-  { value: 'South-West', label: 'South-West (Nairutya)' },
-  { value: 'Corner', label: 'Corner Dual-Road Facing 🛣️' },
-  { value: 'Road Facing', label: 'Main Road Frontage 🚗' },
-  { value: 'Park Facing', label: 'Park & Garden Facing 🌳' },
-  { value: 'Lake Facing', label: 'Lake / Water Body Facing 🌊' },
-  { value: 'Custom', label: '✏️ Custom / Other Facing (Manual Entry)' },
-];
 
 export const APPROVAL_BODIES = [
   'RERA Approved',

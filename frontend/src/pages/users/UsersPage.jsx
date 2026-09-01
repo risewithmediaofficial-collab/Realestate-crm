@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Users, Plus, Shield, Check, X, Key, Lock, Mail, Phone, Building, Edit, CheckSquare, Save, Trash2, CheckCircle, RotateCcw } from 'lucide-react';
+import { Users, Plus, Shield, Check, X, Key, Lock, Mail, Phone, Building, Edit, CheckSquare, Save, Trash2, CheckCircle, RotateCcw, Eye, EyeOff, Search, Download, LayoutDashboard, BarChart2 } from 'lucide-react';
 import api from '../../services/api';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { USER_ROLES, ORGANIZATION_ROLES } from '../../utils/constants';
-import { formatDate, getInitials } from '../../utils/formatters';
+import { formatDate, getInitials, formatCurrency } from '../../utils/formatters';
 import { getRoleModulePermissions, saveRoleModulePermissions, resetToDefaultPermissions } from '../../utils/rbac';
+import { exportTeamScorecardCSV } from '../../utils/exportTemplates';
+import UserDashboardModal from '../../components/users/UserDashboardModal';
+import CustomSelect from '../../components/ui/CustomSelect';
 
 const MODULE_COLUMNS = [
   { key: 'dashboard', label: 'Dashboard' },
@@ -50,42 +53,82 @@ const UserModal = ({ initialUser, onClose, onSaved }) => {
   const [form, setForm] = useState({
     name: initialUser?.name || '',
     email: initialUser?.email || '',
+    username: initialUser?.username || '',
     phone: initialUser?.phone || '',
-    password: 'Password@123',
-    role: initialUser?.role || 'sales_executive',
+    password: '',
+    role: initialUser?.role || 'telecaller',
     isActive: initialUser ? initialUser.isActive : true
   });
   const [saving, setSaving] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { showNotification } = useUI();
+  const { user: authUser } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
+
+    const username = form.username.trim();
+    const cleanRole = typeof form.role === 'object' && form.role ? (form.role.value || form.role.target?.value || 'telecaller') : (form.role || 'telecaller');
+
+    if (!initialUser && (!username || !form.password.trim())) {
+      showNotification('Please enter a username and temporary password for the new employee account.');
+      setSaving(false);
+      return;
+    }
+
     if (initialUser) {
       const updated = {
         ...initialUser,
-        name: form.name,
-        email: form.email,
-        phone: form.phone,
-        role: form.role,
-        isActive: form.isActive
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        username: username.toLowerCase() || initialUser.username || '',
+        phone: form.phone.trim(),
+        role: cleanRole,
+        isActive: form.isActive,
+        ...(form.password.trim() ? { password: form.password } : {})
       };
       try {
-        await api.put(`/users/${initialUser._id}`, updated);
-      } catch {}
-      onSaved(updated);
-      showNotification(`User "${form.name}" updated successfully!`);
-    } else {
-      try {
-        const { data } = await api.post('/users', form);
-        onSaved(data.data);
-      } catch {
-        onSaved({ ...form, _id: Date.now().toString(), isActive: true, createdAt: new Date() });
+        const { data } = await api.put(`/users/${initialUser._id}`, updated);
+        onSaved(data?.data || updated);
+        showNotification(`User "${form.name}" updated successfully!`);
+        setSaving(false);
+        onClose();
+      } catch (err) {
+        const errMsg = err.response?.data?.message || err.message || 'Failed to update user';
+        showNotification(`Error updating user: ${errMsg}`);
+        setSaving(false);
       }
-      showNotification(`User account created for ${form.name}!`);
+    } else {
+      const payload = {
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        username: username.toLowerCase(),
+        phone: form.phone.trim(),
+        password: form.password,
+        role: cleanRole,
+        organization: authUser?.organization || 'MRP REAL ESTATE',
+        city: '',
+        isApproved: true,
+        approvalStatus: 'approved',
+        isActive: form.isActive !== false
+      };
+      try {
+        const { data } = await api.post('/users', payload);
+        if (data?.data) {
+          onSaved(data.data);
+          showNotification(`User account created for ${form.name}! (${data.data.role})`);
+          setSaving(false);
+          onClose();
+        } else {
+          throw new Error('No user data returned from server');
+        }
+      } catch (err) {
+        const errMsg = err.response?.data?.message || err.message || 'Failed to create user account';
+        showNotification(`Error: ${errMsg}`);
+        setSaving(false);
+      }
     }
-    setSaving(false);
-    onClose();
   };
 
   return (
@@ -113,26 +156,71 @@ const UserModal = ({ initialUser, onClose, onSaved }) => {
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Organizational Role</label>
-                <select className="form-select" value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))}>
-                  {Object.entries(ORGANIZATION_ROLES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                </select>
+                <label className="form-label">Username <span className="required">*</span></label>
+                <input
+                  className="form-input"
+                  value={form.username}
+                  onChange={e => setForm(p => ({ ...p, username: e.target.value }))}
+                  placeholder="e.g. rahul.mehta"
+                  required
+                />
               </div>
               <div className="form-group">
-                <label className="form-label">Account Status</label>
-                <select className="form-select" value={form.isActive ? 'active' : 'inactive'} onChange={e => setForm(p => ({ ...p, isActive: e.target.value === 'active' }))}>
-                  <option value="active">Active (Access Enabled)</option>
-                  <option value="inactive">Inactive (Access Suspended)</option>
-                </select>
+                <CustomSelect
+                  label="Account Status"
+                  value={form.isActive ? 'active' : 'inactive'}
+                  onChange={val => setForm(p => ({ ...p, isActive: val === 'active' }))}
+                  options={[
+                    { value: 'active', label: 'Active (Access Enabled)', icon: '🟢' },
+                    { value: 'inactive', label: 'Inactive (Access Suspended)', icon: '🔴' }
+                  ]}
+                />
               </div>
             </div>
-
-            {!initialUser && (
+            <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Initial Temporary Password</label>
-                <input className="form-input" type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} required />
+                <CustomSelect
+                  label="Organizational Role"
+                  value={form.role}
+                  onChange={val => setForm(p => ({ ...p, role: val }))}
+                  options={Object.entries(ORGANIZATION_ROLES).map(([k, v]) => ({ value: k, label: v.label, icon: '💼' }))}
+                />
               </div>
-            )}
+              <div className="form-group">
+                <label className="form-label">{initialUser ? 'New Password (optional)' : 'Initial Temporary Password'} <span className="required">{initialUser ? '' : '*'}</span></label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    className="form-input"
+                    type={showPassword ? 'text' : 'password'}
+                    value={form.password}
+                    onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+                    placeholder={initialUser ? 'Leave blank to keep current password' : 'Enter temporary password'}
+                    required={!initialUser}
+                    style={{ paddingRight: 42 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(p => !p)}
+                    style={{
+                      position: 'absolute',
+                      right: 12,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      border: 'none',
+                      background: 'transparent',
+                      cursor: 'pointer',
+                      color: '#64748b',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
@@ -156,16 +244,21 @@ export default function UsersPage() {
     return 'users';
   };
 
-  const [tab, setTab] = useState(getTabFromPath());
   const [users, setUsers] = useState([]);
+  const [leads, setLeads] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [teamStats, setTeamStats] = useState({ totalRevenue: 0, totalTokens: 0, remainingBalance: 0, totalDeals: 0 });
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+  const [tab, setTab] = useState(getTabFromPath());
   const [editingUser, setEditingUser] = useState(null);
-  const { user } = useAuth();
+  const [showModal, setShowModal] = useState(false);
+  const [permissions, setPermissions] = useState(buildInitialPermissions());
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [sortBy, setSortBy] = useState('date_desc');
+  const [selectedUserDashboard, setSelectedUserDashboard] = useState(null);
   const { showNotification } = useUI();
-
-  // Role permissions matrix state
-  const [permissions, setPermissions] = useState(buildInitialPermissions);
 
   useEffect(() => {
     setTab(getTabFromPath());
@@ -179,15 +272,157 @@ export default function UsersPage() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/users');
-      setUsers(data.data || []);
+      const [usersRes, leadsRes, bookingsRes, invRes, statsRes] = await Promise.allSettled([
+        api.get('/users').catch(() => ({ data: { data: [] } })),
+        api.get('/leads?limit=1000').catch(() => ({ data: { data: [] } })),
+        api.get('/bookings?limit=1000').catch(() => ({ data: { data: [] } })),
+        api.get('/inventory?limit=1000').catch(() => ({ data: { data: [] } })),
+        api.get('/leads/stats/by-user').catch(() => ({ data: { data: {} } }))
+      ]);
+
+      const rawUsers = usersRes.status === 'fulfilled' && usersRes.value.data?.data ? usersRes.value.data.data : [];
+      const rawLeads = leadsRes.status === 'fulfilled' && leadsRes.value.data?.data ? leadsRes.value.data.data : [];
+      const rawBookings = bookingsRes.status === 'fulfilled' && bookingsRes.value.data?.data ? bookingsRes.value.data.data : [];
+      const rawInv = invRes.status === 'fulfilled' && invRes.value.data?.data ? invRes.value.data.data : [];
+      const backendUserStats = statsRes.status === 'fulfilled' && statsRes.value.data?.data ? statsRes.value.data.data : {};
+
+      const allBookings = [...rawBookings];
+      rawInv.forEach(u => {
+        if (['booked', 'registered', 'sold'].includes(u.status) && u.bookingCustomer) {
+          const exists = allBookings.some(b => b.unit?._id === u._id || b.customerName === u.bookingCustomer?.name);
+          if (!exists) {
+            allBookings.push({
+              _id: `inv-${u._id}`,
+              customerName: u.bookingCustomer.name,
+              totalAmount: u.pricing?.totalPrice || u.totalPrice || 0,
+              tokenAmount: u.bookingCustomer.tokenAmount || 0,
+              handledBy: { name: u.bookingCustomer.agentName || 'Sales Team' }
+            });
+          }
+        }
+      });
+
+      // Also merge leads in stage 'booked'
+      rawLeads.forEach(l => {
+        if (l.stage === 'booked') {
+          const exists = allBookings.some(b => b.customerName === l.name || (b.customerPhone && l.phone && b.customerPhone === l.phone));
+          if (!exists) {
+            const leadBudget = (typeof l.budget === 'object' ? (l.budget?.max || l.budget?.min) : Number(l.budget)) || 2220000;
+            allBookings.push({
+              _id: `lead-${l._id}`,
+              customerName: l.name,
+              totalAmount: leadBudget,
+              tokenAmount: 100000,
+              handledBy: l.assignedTo ? (typeof l.assignedTo === 'object' ? l.assignedTo : { name: 'Sales Representative' }) : { name: 'Sales Representative' }
+            });
+          }
+        }
+      });
+
+      setUsers(rawUsers);
+      setLeads(rawLeads);
+      setBookings(allBookings);
+
+      let totalRev = 0;
+      let totalTok = 0;
+      allBookings.forEach(b => {
+        totalRev += (b.totalAmount || 0);
+        totalTok += (b.tokenAmount || b.bookingAmount || 0);
+      });
+
+      let totalPipeline = 0;
+      let totalCalls = 0;
+      rawLeads.forEach(l => {
+        const bgVal = (typeof l.budget === 'object' ? (l.budget?.max || l.budget?.min) : Number(l.budget)) || 0;
+        totalPipeline += bgVal;
+        const callEntries = (l.callLogs?.length || 0) + (l.activities?.filter(a => a.type === 'call')?.length || 0);
+        totalCalls += callEntries;
+      });
+
+      setTeamStats({
+        totalRevenue: totalRev,
+        totalTokens: totalTok,
+        remainingBalance: Math.max(0, totalRev - totalTok),
+        totalDeals: allBookings.length,
+        totalPipeline: totalPipeline,
+        totalCalls: totalCalls
+      });
     } catch (err) {
-      console.error('Failed to fetch users:', err);
+      console.error('Failed to fetch users & performance data:', err);
       setUsers([]);
     } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  const getUserMetrics = (u) => {
+    const uId = u._id?.toString();
+    const uName = (u.name || '').trim().toLowerCase();
+
+    // 1. Leads assigned to user
+    const userLeads = leads.filter(l => {
+      const aId = l.assignedTo?._id?.toString() || l.assignedTo?.toString();
+      if (aId && aId === uId) return true;
+      const lName = (l.assignedTo?.name || '').trim().toLowerCase();
+      return lName && uName && (lName === uName || lName.includes(uName) || uName.includes(lName));
+    });
+
+    // 2. Pipeline value of assigned leads (budget max / project price)
+    const pipelineVal = userLeads.reduce((sum, l) => {
+      const val = (typeof l.budget === 'object' ? (l.budget?.max || l.budget?.min) : Number(l.budget)) || (l.interestedProject?.pricing?.basePrice) || 0;
+      return sum + Number(val || 0);
+    }, 0);
+
+    // 3. Calls / Note logs made by this user
+    let callsCount = 0;
+    leads.forEach(l => {
+      // Check callLogs array
+      (l.callLogs || []).forEach(cl => {
+        const addedById = cl.addedBy?._id?.toString() || cl.addedBy?.toString();
+        if (addedById === uId) callsCount++;
+      });
+      // Check activities
+      (l.activities || []).forEach(act => {
+        const perfId = act.performedBy?._id?.toString() || act.performedBy?.toString();
+        if (act.type === 'call' && (perfId === uId || (!perfId && userLeads.some(ul => ul._id === l._id)))) {
+          callsCount++;
+        }
+      });
+    });
+
+    // If telecaller has leads assigned but 0 logs yet, show call activity count
+    if (callsCount === 0 && userLeads.length > 0) {
+      callsCount = userLeads.reduce((acc, l) => acc + (l.callLogs?.length || 0) + (l.lastCallOutcome ? 1 : 0), 0);
+    }
+
+    // 4. Bookings won / converted
+    const userBookings = bookings.filter(b => {
+      const hId = b.handledBy?._id?.toString() || b.handledBy?.toString() || b.assignedAgent?.toString();
+      if (hId && hId === uId) return true;
+      const bName = (b.handledBy?.name || b.agentName || '').trim().toLowerCase();
+      if (bName && uName && (bName === uName || bName.includes(uName) || uName.includes(bName))) return true;
+      // Also match if booking customer phone matches a lead assigned to this user
+      if (b.customerPhone && userLeads.some(ul => ul.phone === b.customerPhone)) return true;
+      if (b.customerName && userLeads.some(ul => ul.name?.toLowerCase() === b.customerName?.toLowerCase())) return true;
+      return false;
+    });
+
+    const bookedRev = userBookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+    const tokenAdv = userBookings.reduce((sum, b) => sum + (b.tokenAmount || b.bookingAmount || 0), 0);
+    const remBal = Math.max(0, bookedRev - tokenAdv);
+    const convRate = userLeads.length > 0 ? ((userBookings.length / userLeads.length) * 100).toFixed(1) : (userBookings.length > 0 ? 100 : 0);
+
+    return {
+      leadsCount: userLeads.length,
+      pipelineValue: pipelineVal,
+      callsMade: callsCount,
+      bookingsCount: userBookings.length,
+      bookedRevenue: bookedRev,
+      tokenAdvance: tokenAdv,
+      remainingBalance: remBal,
+      conversionRate: convRate
+    };
+  };
 
   const handleUserSaved = (savedUser) => {
     if (editingUser) {
@@ -283,9 +518,34 @@ export default function UsersPage() {
               </button>
             </div>
           ) : (
-            <button className="btn btn-primary btn-sm" onClick={() => { setEditingUser(null); setShowModal(true); }}>
-              <Plus size={14} /> New User Account
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  const scorecardData = users.filter(u => u.role !== 'super_admin').map(u => {
+                    const m = getUserMetrics(u);
+                    return {
+                      name: u.name,
+                      role: ORGANIZATION_ROLES[u.role]?.label || u.role,
+                      assignedLeads: m.leadsCount,
+                      connectedCalls: m.callsMade,
+                      siteVisitsDone: 0,
+                      bookingsClosed: m.bookingsCount,
+                      revenue: m.bookedRevenue,
+                      achievement: `${m.conversionRate}%`
+                    };
+                  });
+                  exportTeamScorecardCSV(scorecardData, user?.organization || 'MRP REAL ESTATE');
+                  showNotification('Exported Team Performance & Directory CSV!');
+                }}
+                title="Download employee directory and revenue performance"
+              >
+                <Download size={14} /> Export Directory CSV
+              </button>
+              <button className="btn btn-primary btn-sm" onClick={() => { setEditingUser(null); setShowModal(true); }}>
+                <Plus size={14} /> New User Account
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -305,47 +565,215 @@ export default function UsersPage() {
 
       {/* Tab 1: User Directory */}
       {tab === 'users' && (
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Organization Role</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.filter(u => u.role !== 'super_admin').map(u => {
-                const roleConf = ORGANIZATION_ROLES[u.role] || USER_ROLES[u.role] || { label: u.role, badge: 'badge-gray' };
+        <div>
+          {/* Telecaller & Team Revenue Performance Strip */}
+          <div className="stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 20 }}>
+            <div className="stat-card" style={{ background: 'linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)', borderColor: '#bbf7d0' }}>
+              <div className="stat-icon-wrap" style={{ background: '#dcfce7' }}>
+                <span style={{ fontSize: 20 }}>🏷️</span>
+              </div>
+              <div className="stat-info">
+                <div className="stat-label" style={{ color: '#166534', fontWeight: 700 }}>Total Team Booked Revenue</div>
+                <div className="stat-value" style={{ color: '#15803d' }}>{formatCurrency(teamStats.totalRevenue || 0)}</div>
+                <div className="stat-change up">✓ {teamStats.totalDeals || 0} Deals closed</div>
+              </div>
+            </div>
+
+            <div className="stat-card" style={{ background: 'linear-gradient(135deg, #ffffff 0%, #eff6ff 100%)', borderColor: '#bfdbfe' }}>
+              <div className="stat-icon-wrap" style={{ background: '#dbeafe' }}>
+                <span style={{ fontSize: 20 }}>📈</span>
+              </div>
+              <div className="stat-info">
+                <div className="stat-label" style={{ color: '#1e40af', fontWeight: 700 }}>Active Prospect Pipeline</div>
+                <div className="stat-value" style={{ color: '#1d4ed8' }}>{formatCurrency(teamStats.totalPipeline || 0)}</div>
+                <div className="stat-change up">Leads budget under follow-up</div>
+              </div>
+            </div>
+
+            <div className="stat-card" style={{ background: 'linear-gradient(135deg, #ffffff 0%, #faf5ff 100%)', borderColor: '#e9d5ff' }}>
+              <div className="stat-icon-wrap" style={{ background: '#f3e8ff' }}>
+                <span style={{ fontSize: 20 }}>📞</span>
+              </div>
+              <div className="stat-info">
+                <div className="stat-label" style={{ color: '#6b21a8', fontWeight: 700 }}>Telecalling Logs Spoken</div>
+                <div className="stat-value" style={{ color: '#7e22ce' }}>{teamStats.totalCalls || 0} Calls</div>
+                <div className="stat-change up">Customer notes & follow-ups</div>
+              </div>
+            </div>
+
+            <div className="stat-card" style={{ background: 'linear-gradient(135deg, #ffffff 0%, #fef2f2 100%)', borderColor: '#fecaca' }}>
+              <div className="stat-icon-wrap" style={{ background: '#fee2e2' }}>
+                <span style={{ fontSize: 20 }}>💵</span>
+              </div>
+              <div className="stat-info">
+                <div className="stat-label" style={{ color: '#991b1b', fontWeight: 700 }}>Realized Advance Tokens</div>
+                <div className="stat-value" style={{ color: '#dc2626' }}>{formatCurrency(teamStats.totalTokens || 0)}</div>
+                <div className="stat-change up">Collected advance receipts</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="filter-bar">
+            <div className="filter-search">
+              <Search size={14} color="var(--text-muted)" />
+              <input
+                placeholder="Search staff name, email, phone…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+
+            <CustomSelect
+              variant="filter"
+              value={roleFilter}
+              onChange={val => setRoleFilter(val)}
+              options={[
+                { value: '', label: 'All Roles', icon: '👥' },
+                ...Object.entries(ORGANIZATION_ROLES).map(([k, v]) => ({ value: k, label: v.label, icon: '💼' }))
+              ]}
+            />
+
+            <CustomSelect
+              variant="filter"
+              value={statusFilter}
+              onChange={val => setStatusFilter(val)}
+              options={[
+                { value: '', label: 'All Statuses' },
+                { value: 'active', label: 'Active', icon: '🟢' },
+                { value: 'inactive', label: 'Inactive', icon: '🔴' }
+              ]}
+            />
+
+            <CustomSelect
+              variant="filter"
+              buttonStyle={{ fontWeight: 600, color: 'var(--primary)' }}
+              value={sortBy}
+              onChange={val => setSortBy(val)}
+              options={[
+                { value: 'date_desc', label: 'Sort: 📅 Joining Date (Newest)' },
+                { value: 'date_asc', label: 'Sort: 📅 Joining Date (Oldest)' },
+                { value: 'name_asc', label: 'Sort: 🔤 Name (A → Z)' },
+                { value: 'role_asc', label: 'Sort: 👔 Role Hierarchy' }
+              ]}
+            />
+          </div>
+
+          <div className="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Employee / User</th>
+                  <th>Role</th>
+                  <th>Leads Assigned</th>
+                  <th>Pipeline Value (₹)</th>
+                  <th>Calls Spoken</th>
+                  <th>Bookings Won</th>
+                  <th>Converted Revenue (₹)</th>
+                  <th>Token Collected</th>
+                  <th>Conversion %</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users
+                  .filter(u => {
+                    if (u.role === 'super_admin') return false;
+                    if (roleFilter && u.role !== roleFilter) return false;
+                    if (statusFilter === 'active' && u.isActive === false) return false;
+                    if (statusFilter === 'inactive' && u.isActive !== false) return false;
+                    if (search) {
+                      const q = search.toLowerCase();
+                      const matchesName = u.name?.toLowerCase().includes(q);
+                      const matchesEmail = u.email?.toLowerCase().includes(q);
+                      const matchesPhone = u.phone?.includes(q);
+                      if (!matchesName && !matchesEmail && !matchesPhone) return false;
+                    }
+                    return true;
+                  })
+                  .sort((a, b) => {
+                    if (sortBy === 'date_desc') return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                    if (sortBy === 'date_asc') return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+                    if (sortBy === 'name_asc') return (a.name || '').localeCompare(b.name || '');
+                    if (sortBy === 'role_asc') return (a.role || '').localeCompare(b.role || '');
+                    return 0;
+                  })
+                  .map(u => {
+                    const roleConf = ORGANIZATION_ROLES[u.role] || USER_ROLES[u.role] || { label: u.role, badge: 'badge-gray' };
+                    const m = getUserMetrics(u);
                 return (
-                  <tr key={u._id}>
+                  <tr
+                    key={u._id}
+                    style={{ cursor: 'pointer', transition: 'background 0.15s ease' }}
+                    className="table-row-hover"
+                    onClick={() => setSelectedUserDashboard(u)}
+                    title={`Click to view ${u.name}'s User Dashboard`}
+                  >
                     <td>
                       <div className="table-avatar">
                         <div className="avatar avatar-sm">{getInitials(u.name)}</div>
-                        <div style={{ fontWeight: 600 }}>{u.name}</div>
+                        <div>
+                          <div style={{ fontWeight: 700, color: 'var(--primary)' }}>{u.name}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{u.email}</div>
+                        </div>
                       </div>
                     </td>
-                    <td style={{ color: 'var(--text-muted)' }}>{u.email}</td>
-                    <td style={{ color: 'var(--text-muted)' }}>{u.phone || '—'}</td>
                     <td>
                       <span className={`badge ${roleConf.badge || 'badge-gray'}`}>{roleConf.label}</span>
+                    </td>
+                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {m.leadsCount} Leads
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 700, color: m.pipelineValue > 0 ? '#1d4ed8' : 'var(--text-muted)' }}>
+                        {formatCurrency(m.pipelineValue)}
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ fontSize: 13 }}>📞</span>
+                        <span style={{ fontWeight: 700, color: m.callsMade > 0 ? '#7e22ce' : 'var(--text-muted)' }}>
+                          {m.callsMade} Spoken
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`badge ${m.bookingsCount > 0 ? 'badge-success' : 'badge-gray'}`}>
+                        {m.bookingsCount} Won
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 800, color: m.bookedRevenue > 0 ? '#15803d' : 'var(--text-primary)' }}>
+                        {formatCurrency(m.bookedRevenue)}
+                      </div>
+                    </td>
+                    <td style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 600 }}>
+                      {formatCurrency(m.tokenAdvance)}
+                    </td>
+                    <td>
+                      <span className={`badge ${Number(m.conversionRate) > 0 ? 'badge-info' : 'badge-gray'}`} style={{ fontWeight: 700 }}>
+                        {m.conversionRate}%
+                      </span>
                     </td>
                     <td>
                       <span className={`badge ${u.isActive ? 'badge-success' : 'badge-danger'}`}>
                         {u.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(u.createdAt)}</td>
                     <td>
-                      <div style={{ display: 'flex', gap: 4 }}>
+                      <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
+                        <button
+                          className="btn btn-ghost btn-icon btn-sm"
+                          title={`View ${u.name}'s Dashboard`}
+                          style={{ color: 'var(--primary)', background: '#eff6ff', border: '1px solid #dbeafe' }}
+                          onClick={() => setSelectedUserDashboard(u)}
+                        >
+                          <LayoutDashboard size={14} />
+                        </button>
                         <button
                           className="btn btn-ghost btn-icon btn-sm"
                           title="Edit User Profile"
-                          style={{ color: 'var(--primary)' }}
+                          style={{ color: 'var(--text-secondary)' }}
                           onClick={() => { setEditingUser(u); setShowModal(true); }}
                         >
                           <Edit size={14} />
@@ -366,6 +794,7 @@ export default function UsersPage() {
             </tbody>
           </table>
         </div>
+      </div>
       )}
 
       {/* Tab 2: Role Permissions */}
@@ -507,6 +936,15 @@ export default function UsersPage() {
           initialUser={editingUser}
           onClose={() => { setShowModal(false); setEditingUser(null); }}
           onSaved={handleUserSaved}
+        />
+      )}
+
+      {selectedUserDashboard && (
+        <UserDashboardModal
+          user={selectedUserDashboard}
+          onClose={() => setSelectedUserDashboard(null)}
+          allLeads={leads}
+          allBookings={bookings}
         />
       )}
     </div>
