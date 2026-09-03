@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Bell, X, CheckCheck, Trash2, AlertCircle, Check } from 'lucide-react';
-import api from '../../../services/api';
-import '../../../styles/notifications.css';
+import api from '../../services/api';
+import '../../styles/notifications.css';
 
 const NotificationCenter = ({ isOpen, onClose, userId }) => {
   const [notifications, setNotifications] = useState([]);
@@ -89,6 +89,15 @@ const NotificationCenter = ({ isOpen, onClose, userId }) => {
 
   const getTypeIcon = (type) => {
     switch (type) {
+      case 'ready_for_registration':
+      case 'registration_upcoming':
+      case 'registration_date_set':
+      case 'registration_completed':
+        return '🏛️';
+      case 'sale_agreement_upcoming':
+      case 'agreement_date_set':
+      case 'agreement_signed':
+        return '📅';
       case 'booking_created':
       case 'booking_approved':
       case 'booking_cancelled':

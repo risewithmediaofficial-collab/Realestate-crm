@@ -157,6 +157,9 @@ export default function PaymentsPage() {
           customerPhone: p.customerPhone || p.booking?.customerPhone || '—',
           customerEmail: p.customerEmail || p.booking?.customerEmail || '',
           unitNumber: p.unitNumber || p.unit?.unitNumber || 'Unit',
+          unit: p.unit?._id || p.unit,
+          project: p.project?._id || p.project,
+          booking: p.booking?._id || p.booking,
           projectName: p.projectName || p.project?.name || 'Project',
           milestoneName: p.milestoneName || p.milestoneDescription || 'Milestone Demand',
           baseAmount: p.baseAmount || p.demandAmount || 500000,
@@ -171,7 +174,8 @@ export default function PaymentsPage() {
           paymentMode: p.paymentMode || 'bank_transfer',
           refNumber: p.transactionReference || '—',
           bankName: p.bankName || '',
-          notes: p.notes || ''
+          notes: p.notes || '',
+          transactions: p.transactions || []
         })));
       } else {
         setPayments([]);
@@ -426,6 +430,21 @@ export default function PaymentsPage() {
     setShowRecordModal(true);
   };
 
+  // Helper to normalize payment mode to valid backend enum
+  const cleanPaymentMode = (val) => {
+    if (!val) return 'bank_transfer';
+    const v = String(val).toLowerCase().trim();
+    if (v.includes('upi') || v.includes('gpay') || v.includes('phonepe') || v.includes('paytm')) return 'upi';
+    if (v.includes('neft')) return 'neft';
+    if (v.includes('rtgs')) return 'rtgs';
+    if (v.includes('imps')) return 'imps';
+    if (v.includes('cheque') || v.includes('dd')) return 'cheque';
+    if (v.includes('cash')) return 'cash';
+    if (v.includes('loan')) return 'loan_disbursement';
+    if (v.includes('card') || v.includes('pos')) return 'card';
+    return 'bank_transfer';
+  };
+
   // Submit Partial / Full Payment Collection
   const handleRecordPayment = async (e) => {
     e.preventDefault();
@@ -440,10 +459,11 @@ export default function PaymentsPage() {
     const newPaid = (selectedDemand.paidAmount || 0) + paying;
     const newBal = Math.max(0, selectedDemand.demandAmount - newPaid);
     const newStatus = newBal === 0 ? 'paid' : 'partial';
+    const cleanMode = cleanPaymentMode(recordForm.paymentMode);
 
     const recordPayload = {
       paidAmount: paying,
-      paymentMode: recordForm.paymentMode,
+      paymentMode: cleanMode,
       transactionReference: recordForm.transactionReference,
       bankName: recordForm.bankName,
       paymentDate: new Date(recordForm.paymentDate),
@@ -457,19 +477,25 @@ export default function PaymentsPage() {
       // If this is a virtual/synthesized record (inv-pay-*), create a real Payment doc first
       if (typeof targetId === 'string' && targetId.startsWith('inv-pay-')) {
         const unitId = targetId.replace('inv-pay-', '');
+        const existingPaid = Number(selectedDemand.paidAmount) || 0;
+        const initialBal = Math.max(0, (selectedDemand.demandAmount || 0) - existingPaid);
+        const demandMode = cleanPaymentMode(selectedDemand.paymentMode || recordForm.paymentMode);
         const createRes = await api.post('/payments', {
           milestoneName: selectedDemand.milestoneName,
           demandNumber: selectedDemand.demandNumber,
           customerName: selectedDemand.customerName,
           customerPhone: selectedDemand.customerPhone,
+          customerEmail: selectedDemand.customerEmail,
           demandAmount: selectedDemand.demandAmount,
-          paidAmount: 0,
-          balanceAmount: selectedDemand.demandAmount,
-          status: 'pending',
-          dueDate: selectedDemand.dueDate,
-          paymentMode: recordForm.paymentMode,
+          paidAmount: existingPaid,
+          balanceAmount: initialBal,
+          status: initialBal === 0 ? 'paid' : (existingPaid > 0 ? 'partial' : 'pending'),
+          dueDate: selectedDemand.rawDueDate ? new Date(selectedDemand.rawDueDate) : new Date(),
+          paymentMode: demandMode,
           unit: unitId,
-          project: selectedDemand.project?._id || selectedDemand.project
+          project: selectedDemand.project?._id || selectedDemand.project,
+          booking: selectedDemand.booking?._id || selectedDemand.booking,
+          transactions: selectedDemand.transactions || []
         });
         targetId = createRes.data.data._id;
       }
@@ -477,32 +503,22 @@ export default function PaymentsPage() {
       // Use the dedicated /record endpoint for proper transaction logging
       await api.put(`/payments/${targetId}/record`, recordPayload);
 
-      // Optimistically update local state
-      setPayments(prev => prev.map(p => p._id === selectedDemand._id ? {
-        ...p,
-        _id: targetId,   // update if we just created it
-        paidAmount: newPaid,
-        balanceAmount: newBal,
-        status: newStatus,
-        paymentMode: recordForm.paymentMode,
-        transactionReference: recordForm.transactionReference,
-        bankName: recordForm.bankName
-      } : p));
+      setShowRecordModal(false);
+      setSelectedDemand(null);
 
-      showNotification(`✅ Payment of ${formatCurrency(paying)} recorded! Receipt ${recordForm.receiptNumber} generated.`);
+      const clearMsg = newBal === 0
+        ? `✅ Full payment of ${formatCurrency(paying)} recorded! Receipt ${recordForm.receiptNumber} generated. Demand ${selectedDemand.demandNumber} is fully cleared and moved to Paid & Cleared.`
+        : `✅ Partial payment of ${formatCurrency(paying)} recorded! Receipt ${recordForm.receiptNumber} generated. Balance remaining: ${formatCurrency(newBal)}.`;
+      showNotification(clearMsg);
 
-      // Reload from server to get fresh state
-      const { data: fresh } = await api.get('/payments');
-      if (fresh?.data) setPayments(fresh.data);
+      // Reload from server to get fresh, consistently mapped state
+      await fetchData();
 
     } catch (err) {
       const msg = err?.response?.data?.message || err.message || 'Failed to record payment';
       showNotification(`❌ ${msg}`, 'error');
       console.error('Record payment error:', err);
     }
-
-    setShowRecordModal(false);
-    setSelectedDemand(null);
   };
 
 

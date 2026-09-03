@@ -339,15 +339,24 @@ const UnitPopup = ({ unit, onClose, onOpenHoldModal, onOpenBookingModal, onRelea
                     <div style={{ fontWeight: 700, fontFamily: 'monospace', color: '#1e293b', marginTop: 1 }}>{unit.bookingCustomer.panNumber}</div>
                   </div>
                 )}
-                {unit.bookingCustomer?.tokenAmount && (
-                  <div style={{ background: '#dcfce7', padding: '6px 8px', borderRadius: 6, gridColumn: 'span 2' }}>
-                    <div style={{ fontSize: 10, color: '#15803d', fontWeight: 700 }}>TOKEN ADVANCE PAID</div>
-                    <div style={{ fontWeight: 800, color: '#166534', fontSize: 14, marginTop: 1 }}>
-                      {formatCurrency(unit.bookingCustomer.tokenAmount)} ({unit.bookingCustomer.paymentMode || 'NEFT'})
-                      {unit.bookingCustomer.transactionRef && ` • Ref: ${unit.bookingCustomer.transactionRef}`}
+                {(unit.bookingCustomer?.tokenAmount || unit.bookingCustomer?.totalPaid || unit.bookingCustomer?.balanceDue === 0) && (() => {
+                  const isCleared = unit.bookingCustomer?.balanceDue === 0 || unit.bookingCustomer?.bookingStatus === 'cleared' || unit.bookingCustomer?.bookingStatus === 'ready_for_registration';
+                  const totalPaidAmt = unit.bookingCustomer?.totalPaid || unit.bookingCustomer?.paidAmount || (isCleared ? (unit.pricing?.totalPrice || unit.totalPrice) : unit.bookingCustomer?.tokenAmount);
+                  return (
+                    <div style={{ background: isCleared ? '#dcfce7' : '#fef9c3', border: isCleared ? '1px solid #86efac' : '1px solid #fde047', padding: '8px 10px', borderRadius: 6, gridColumn: 'span 2' }}>
+                      <div style={{ fontSize: 10, color: isCleared ? '#15803d' : '#854d0e', fontWeight: 800, display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{isCleared ? '✓ FULL PAYMENT CLEARED (100%)' : 'TOKEN ADVANCE RECORDED'}</span>
+                        {unit.bookingCustomer?.balanceDue > 0 && (
+                          <span style={{ color: '#b91c1c' }}>Bal Due: {formatCurrency(unit.bookingCustomer.balanceDue)}</span>
+                        )}
+                      </div>
+                      <div style={{ fontWeight: 800, color: isCleared ? '#166534' : '#713f12', fontSize: 14, marginTop: 2 }}>
+                        Paid: {formatCurrency(totalPaidAmt || 0)} ({unit.bookingCustomer?.paymentMode || 'NEFT'})
+                        {unit.bookingCustomer?.transactionRef && ` • Ref: ${unit.bookingCustomer.transactionRef}`}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
           )}

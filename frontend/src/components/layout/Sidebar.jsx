@@ -1,16 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, TrendingUp, MessageSquare, CheckSquare,
   GitBranch, Building2, Warehouse, DollarSign, Scale, MapPin,
   FileText, CreditCard, Handshake, User, Zap, BarChart3,
-  Settings, ChevronRight, LogOut, Building, X, Bell
+  Settings, ChevronRight, LogOut, Building, X, Bell, Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 import { getInitials } from '../../utils/formatters';
 import { getAccessibleNavConfig } from '../../utils/rbac';
 import NotificationCenter from '../notifications/NotificationCenter';
+import api from '../../services/api';
 
 const navConfig = [
   {
@@ -40,6 +41,9 @@ const navConfig = [
           { label: 'New / Unassigned', path: '/leads/new' },
           { label: 'Qualified Deals', path: '/leads/qualified' },
         ],
+      },
+      {
+        id: 'requirements', label: 'Buyer Requirements', icon: Sparkles, path: '/requirements'
       },
     ],
   },
@@ -98,89 +102,99 @@ const navConfig = [
     ],
   },
   {
-    section: 'BOOKINGS',
+    section: 'SITE VISITS & NEGOTIATION',
     items: [
       {
-        id: 'sitevisits', label: 'Site Visits', icon: MapPin, path: '/site-visits',
+        id: 'siteVisits', label: 'Site Visits', icon: MapPin, path: '/site-visits',
         children: [
-          { label: 'All Site Visits', path: '/site-visits/all' },
-          { label: "Today's Schedule", path: '/site-visits/today' },
-          { label: 'Confirmed Visits', path: '/site-visits/confirmed' },
-          { label: 'Completed Tours', path: '/site-visits/completed' },
+          { label: 'Today’s Visits', path: '/site-visits/today' },
+          { label: 'Scheduled Visits', path: '/site-visits/scheduled' },
+          { label: 'Completed Visits', path: '/site-visits/completed' },
+          { label: 'Driver & Cab Logs', path: '/site-visits/logistics' },
         ],
       },
       {
-        id: 'negotiations', label: 'Negotiations', icon: Scale, path: '/negotiations',
+        id: 'negotiations', label: 'Negotiations & Offers', icon: Scale, path: '/negotiations',
         children: [
-          { label: 'Pending Review', path: '/negotiations/pending' },
+          { label: 'Active Price Offers', path: '/negotiations/active' },
           { label: 'Approved Discounts', path: '/negotiations/approved' },
-          { label: 'Approval Limit Policy', path: '/negotiations/policy' },
-        ],
-      },
-      {
-        id: 'booking', label: 'Booking', icon: FileText, path: '/booking',
-        children: [
-          { label: 'All Bookings', path: '/booking/all' },
-          { label: 'Pending Approvals', path: '/booking/pending_approval' },
-          { label: 'Approved Agreements', path: '/booking/approved' },
+          { label: 'Floor-Rise Waivers', path: '/negotiations/waivers' },
         ],
       },
     ],
   },
   {
-    section: 'FINANCE',
+    section: 'CLOSING & FINANCE',
     items: [
       {
-        id: 'payments', label: 'Payments & Collections', icon: CreditCard, path: '/payments',
+        id: 'booking', label: 'Booking & Deeds', icon: FileText, path: '/booking',
         children: [
-          { label: 'All Demand Notices', path: '/payments/all' },
-          { label: 'Pending Collections', path: '/payments/pending' },
-          { label: 'Overdue Demands', path: '/payments/overdue' },
-          { label: 'Paid & Cleared', path: '/payments/paid' },
+          { label: 'Pending Approval', path: '/booking/pending' },
+          { label: 'Approved Bookings', path: '/booking/approved' },
+          { label: 'Agreement Signed', path: '/booking/agreements' },
+          { label: 'Cancelled / Released', path: '/booking/cancelled' },
+        ],
+      },
+      {
+        id: 'payments', label: 'Payment Collections', icon: CreditCard, path: '/payments',
+        children: [
+          { label: 'Demand Letters (CLP)', path: '/payments/demands' },
+          { label: 'Overdue Installments', path: '/payments/overdue' },
+          { label: 'Bank Approvals & NOC', path: '/payments/loans' },
+          { label: 'Receipt Generation', path: '/payments/receipts' },
+        ],
+      },
+      {
+        id: 'channelPartners', label: 'Channel Partners', icon: Handshake, path: '/channel-partners',
+        children: [
+          { label: 'Broker Directory', path: '/channel-partners/all' },
+          { label: 'Pending Slabs / Payouts', path: '/channel-partners/payouts' },
+          { label: 'Incentive Schemes', path: '/channel-partners/tiers' },
         ],
       },
     ],
   },
   {
-    section: 'BUYER PORTAL',
-    items: [
-      { id: 'customerportal', label: 'Customer Portal', icon: User, path: '/customer-portal' },
-    ],
-  },
-  {
-    section: 'OPERATIONS',
+    section: 'POST-SALES & CUSTOMER',
     items: [
       {
-        id: 'reports', label: 'Reports & Analytics', icon: BarChart3, path: '/reports',
+        id: 'customerPortal', label: 'Customer Portal', icon: User, path: '/customer-portal',
         children: [
-          { label: 'Sales & Revenue Realization', path: '/reports/sales' },
-          { label: 'Lead Sourcing & Funnel ROI', path: '/reports/leads' },
-          { label: 'Team Scorecard', path: '/reports/team' },
-          { label: 'Inventory Absorption', path: '/reports/inventory' },
+          { label: 'Buyer Documents', path: '/customer-portal/documents' },
+          { label: 'Construction Progress', path: '/customer-portal/progress' },
+          { label: 'Possession Handover', path: '/customer-portal/possession' },
         ],
       },
     ],
   },
   {
-    section: 'ADMIN',
+    section: 'INSIGHTS & ADMIN',
     items: [
       {
-        id: 'users', label: 'Users & Org', icon: Building2, path: '/users',
+        id: 'reports', label: 'Analytics & Reports', icon: BarChart3, path: '/reports',
         children: [
-          { label: 'User Directory', path: '/users/accounts' },
-          { label: 'Roles Matrix (RBAC)', path: '/users/roles' },
-          { label: 'Sales Reporting Hierarchy', path: '/users/hierarchy' },
+          { label: 'Sales Velocity & Revenue', path: '/reports/sales' },
+          { label: 'Inventory Aging Report', path: '/reports/inventory' },
+          { label: 'Agent Calling Productivity', path: '/reports/telecallers' },
+          { label: 'Lead Source ROI', path: '/reports/sources' },
+        ],
+      },
+      {
+        id: 'users', label: 'Team Management', icon: Users, path: '/users',
+        children: [
+          { label: 'All Staff Members', path: '/users' },
+          { label: 'Telecaller Teams', path: '/users/telecallers' },
+          { label: 'Sales Executives / Closers', path: '/users/executives' },
+          { label: 'Managers & Team Leads', path: '/users/managers' },
         ],
       },
       {
         id: 'settings', label: 'Settings', icon: Settings, path: '/settings',
         children: [
-          { label: 'Company & RERA Profile', path: '/settings/general' },
-          { label: 'Meta Lead Ads (FB & IG)', path: '/settings/integrations/meta' },
-          { label: 'WhatsApp Cloud API', path: '/settings/whatsapp' },
-          { label: 'Telephony Gateway', path: '/settings/telephony' },
-          { label: 'Lead Webhooks (Custom HTTP)', path: '/settings/webhooks' },
-          { label: 'Email SMTP & SMS', path: '/settings/smtp' },
+          { label: 'Company Profile & RERA', path: '/settings/company' },
+          { label: 'Team Roles & RBAC', path: '/settings/roles' },
+          { label: 'Custom Property Types', path: '/settings/properties' },
+          { label: 'API Integrations', path: '/settings/integrations' },
         ],
       },
     ],
@@ -188,18 +202,37 @@ const navConfig = [
 ];
 
 export default function Sidebar() {
-  const navigate = useNavigate();
-  const location = useLocation();
   const { user, logout } = useAuth();
-  const { isMobileMenuOpen, closeMobileMenu, simulatedRole } = useUI();
+  const { simulatedRole, isMobileMenuOpen, closeMobileMenu } = useUI();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [reminderCount, setReminderCount] = useState(0);
+  const [openMenus, setOpenMenus] = useState({});
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchReminders = async () => {
+      try {
+        const { data } = await api.get('/bookings/upcoming-reminders');
+        if (isMounted && data?.data) {
+          setReminderCount(data.data.length);
+        }
+      } catch (err) {
+        // quiet catch
+      }
+    };
+    fetchReminders();
+    const interval = setInterval(fetchReminders, 30000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [location.pathname]);
 
   const effectiveRole = simulatedRole || user?.role || 'admin';
   const effectiveUser = user ? { ...user, role: effectiveRole } : null;
   const accessibleSections = effectiveUser ? getAccessibleNavConfig(effectiveUser, navConfig) : [];
-
-  // ALL categories closed by default as requested
-  const [openMenus, setOpenMenus] = useState({});
 
   if (!user) return null;
 
@@ -215,7 +248,6 @@ export default function Sidebar() {
   const handleItemClick = (item) => {
     navigate(item.path);
     if (item.children?.length) {
-      // Toggle category open/close one by one
       setOpenMenus(prev => ({ ...prev, [item.id]: !prev[item.id] }));
     }
     if (window.innerWidth < 1024) {
@@ -233,17 +265,11 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile Backdrop Overlay */}
       {isMobileMenuOpen && (
-        <div 
-          className="sidebar-mobile-overlay" 
-          onClick={closeMobileMenu} 
-          title="Close Navigation"
-        />
+        <div className="sidebar-mobile-overlay" onClick={closeMobileMenu} title="Close Navigation" />
       )}
 
       <aside className={`sidebar ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
-        {/* Header */}
         <div className="sidebar-header">
           <div
             className="sidebar-logo"
@@ -276,9 +302,16 @@ export default function Sidebar() {
             className="btn btn-ghost btn-icon btn-sm"
             onClick={() => setIsNotificationOpen(!isNotificationOpen)}
             title="Notifications"
-            style={{ color: '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ color: '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
           >
             <Bell size={18} />
+            {reminderCount > 0 && (
+              <span 
+                className="pulse-notification-dot" 
+                style={{ position: 'absolute', top: 6, right: 6 }} 
+                title={`${reminderCount} upcoming legal/registration alerts`}
+              />
+            )}
           </button>
           <button 
             className="btn btn-ghost btn-icon btn-sm sidebar-mobile-close"
@@ -317,6 +350,15 @@ export default function Sidebar() {
                       <span className="nav-label">{item.label}</span>
                       {item.badge && (
                         <span className={`nav-badge ${item.badgeType || ''}`}>{item.badge}</span>
+                      )}
+                      {item.id === 'booking' && reminderCount > 0 && (
+                        <span className="sidebar-dotted-alert" title={`${reminderCount} upcoming agreements/registrations due in 4 days`}>
+                          <span className="pulse-notification-dot" style={{ width: 6, height: 6 }} />
+                          {reminderCount} due
+                        </span>
+                      )}
+                      {item.id === 'dashboard' && reminderCount > 0 && !active && (
+                        <span className="pulse-notification-dot" style={{ marginLeft: 'auto', width: 7, height: 7 }} title="Pending registration & legal actions" />
                       )}
                       {hasChildren && (
                         <ChevronRight

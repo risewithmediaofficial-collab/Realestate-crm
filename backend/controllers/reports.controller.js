@@ -220,7 +220,7 @@ const getFinanceReport = async (req, res, next) => {
     if (to) dateFilter.$lte = new Date(to);
     const match = { ...orgMatch, ...(Object.keys(dateFilter).length ? { createdAt: dateFilter } : {}) };
 
-    const [summaryAgg, byStatus, byPaymentMode, monthlyTrend, byMilestone] = await Promise.all([
+    const [summaryAgg, byStatus, byPaymentMode, monthlyTrend, byMilestone, bookedUnits, paymentsInMatch] = await Promise.all([
       Payment.aggregate([
         { $match: match },
         {
@@ -269,7 +269,11 @@ const getFinanceReport = async (req, res, next) => {
         },
         { $sort: { demanded: -1 } },
         { $limit: 8 }
-      ])
+      ]),
+      Unit.find({ ...orgMatch, status: { $in: ['booked', 'registered', 'sold'] } })
+        .populate('booking', 'paidAmount balanceAmount totalAmount status')
+        .lean(),
+      Payment.find(match, 'unit booking').lean()
     ]);
 
     const summary = summaryAgg[0] || {
@@ -280,6 +284,47 @@ const getFinanceReport = async (req, res, next) => {
       totalTds: 0,
       count: 0
     };
+
+    const paymentUnitIds = new Set();
+    (paymentsInMatch || []).forEach(p => {
+      if (p.unit) paymentUnitIds.add(p.unit.toString());
+      if (p.booking) paymentUnitIds.add((p.booking?._id || p.booking).toString());
+    });
+
+    (bookedUnits || []).forEach(u => {
+      const uId = u._id?.toString();
+      const bId = (u.booking?._id || u.booking)?.toString();
+      const alreadyHas = paymentUnitIds.has(uId) || (bId && paymentUnitIds.has(bId));
+      if (!alreadyHas && (u.bookingCustomer?.name || u.booking)) {
+        const bk = u.booking && typeof u.booking === 'object' ? u.booking : null;
+        const cust = u.bookingCustomer || {};
+        const totalDeal = bk?.totalAmount || u.pricing?.totalPrice || u.totalPrice || 0;
+
+        // Detect if fully paid/cleared
+        const isCleared = (bk?.balanceAmount === 0 && (bk?.paidAmount || 0) > 0) ||
+                          ['ready_for_registration', 'registered', 'registration_closed', 'closed'].includes(bk?.status) ||
+                          cust.bookingStatus === 'cleared' ||
+                          cust.balanceDue === 0 ||
+                          (cust.totalPaid != null && cust.totalPaid >= totalDeal && totalDeal > 0);
+
+        const actualPaid = isCleared
+          ? totalDeal
+          : (bk?.paidAmount != null && bk.paidAmount > 0
+              ? bk.paidAmount
+              : (cust.totalPaid != null
+                  ? cust.totalPaid
+                  : (cust.paidAmount != null
+                      ? cust.paidAmount
+                      : (cust.tokenAmount || cust.bookingAmount || 0))));
+
+        const bal = isCleared ? 0 : (bk?.balanceAmount != null ? bk.balanceAmount : Math.max(0, totalDeal - actualPaid));
+        summary.totalDemanded += totalDeal;
+        summary.totalCollected += actualPaid;
+        summary.totalOutstanding += bal;
+        summary.count += 1;
+      }
+    });
+
     summary.realizationRate = summary.totalDemanded > 0
       ? Number(((summary.totalCollected / summary.totalDemanded) * 100).toFixed(1))
       : 0;

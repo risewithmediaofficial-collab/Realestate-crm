@@ -4,10 +4,26 @@
  * Automatically purges cache keys on state-mutating requests (POST, PUT, PATCH, DELETE)
  */
 
+const jwt = require('jsonwebtoken');
 const cacheStore = new Map();
 
 const getCacheKey = (req) => {
-  return `${req.method}:${req.baseUrl || ''}${req.path}:${JSON.stringify(req.query)}:${req.user?.id || 'anon'}`;
+  let userId = req.user?._id || req.user?.id;
+  let userOrg = req.user?.organization;
+
+  // If running before protect middleware, decode token from Authorization header
+  if ((!userId || !userOrg) && req.headers?.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    try {
+      const token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.decode(token);
+      if (decoded) {
+        userId = userId || decoded.id || decoded._id;
+        userOrg = userOrg || decoded.organization;
+      }
+    } catch {}
+  }
+
+  return `${req.method}:${req.baseUrl || ''}${req.path}:${JSON.stringify(req.query)}:${userOrg || 'noorg'}:${userId || 'anon'}`;
 };
 
 const cacheMiddleware = (ttlSeconds = 30) => {

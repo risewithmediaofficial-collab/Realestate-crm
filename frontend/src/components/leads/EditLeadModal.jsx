@@ -5,8 +5,15 @@ import { useUI } from '../../context/UIContext';
 import { LEAD_STAGES, LEAD_SOURCES, LEAD_TYPES } from '../../utils/constants';
 import CustomSelect from '../ui/CustomSelect';
 
-export default function EditLeadModal({ lead, onClose, onUpdated }) {
+export default function EditLeadModal({ lead, usersList: propUsersList, onClose, onUpdated }) {
   const { showNotification } = useUI();
+
+  const getInitialAssignedTo = () => {
+    if (!lead?.assignedTo) return '';
+    if (typeof lead.assignedTo === 'string') return lead.assignedTo;
+    if (lead.assignedTo._id) return lead.assignedTo._id;
+    return '';
+  };
 
   const [form, setForm] = useState({
     name: lead?.name || '',
@@ -21,7 +28,7 @@ export default function EditLeadModal({ lead, onClose, onUpdated }) {
     interestedUnitType: lead?.interestedUnitType || '3BHK',
     budgetMin: lead?.budget?.min || 0,
     budgetMax: lead?.budget?.max || 0,
-    assignedTo: lead?.assignedTo?._id || lead?.assignedTo || '',
+    assignedTo: getInitialAssignedTo(),
     qualificationNotes: lead?.qualificationNotes || '',
     qualificationCriteria: {
       budgetConfirmed: true,
@@ -32,17 +39,35 @@ export default function EditLeadModal({ lead, onClose, onUpdated }) {
   });
 
   const [projectsList, setProjectsList] = useState([]);
+  const [usersList, setUsersList] = useState(propUsersList || []);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const loadProjects = async () => {
+    const loadData = async () => {
       try {
-        const { data } = await api.get('/projects');
-        setProjectsList(data.data || []);
+        const promises = [api.get('/projects').catch(() => ({ data: { data: [] } }))];
+        if (!propUsersList || propUsersList.length === 0) {
+          promises.push(api.get('/users').catch(() => ({ data: { data: [] } })));
+        }
+        const [projRes, userRes] = await Promise.all(promises);
+        setProjectsList(projRes.data?.data || projRes.data || []);
+        if (userRes) {
+          setUsersList(userRes.data?.data || userRes.data || []);
+        }
       } catch {}
     };
-    loadProjects();
-  }, []);
+    loadData();
+  }, [propUsersList]);
+
+  // If lead had an older name-based assignedTo instead of ID, resolve it to matching user ID
+  useEffect(() => {
+    if (usersList.length > 0 && !form.assignedTo && lead?.assignedTo?.name) {
+      const match = usersList.find(u => u.name?.toLowerCase() === lead.assignedTo.name?.toLowerCase());
+      if (match) {
+        setForm(p => ({ ...p, assignedTo: match._id }));
+      }
+    }
+  }, [usersList, lead]);
 
   // Prevent background scrolling while modal is open
   useEffect(() => {
@@ -63,8 +88,7 @@ export default function EditLeadModal({ lead, onClose, onUpdated }) {
     e.preventDefault();
     setSaving(true);
 
-    const updatedLeadData = {
-      ...lead,
+    const updatedPayload = {
       name: form.name,
       phone: form.phone,
       email: form.email,
@@ -73,23 +97,28 @@ export default function EditLeadModal({ lead, onClose, onUpdated }) {
       stage: form.stage,
       leadScore: Number(form.leadScore),
       leadType: form.leadType,
-      interestedProject: { name: form.interestedProject },
+      interestedProject: form.interestedProject || null,
       interestedUnitType: form.interestedUnitType,
       budget: { min: Number(form.budgetMin), max: Number(form.budgetMax) },
-      assignedTo: { name: form.assignedTo },
+      assignedTo: form.assignedTo || null,
       qualificationNotes: form.qualificationNotes,
       qualificationCriteria: form.qualificationCriteria,
       lastActivityAt: new Date()
     };
 
     try {
-      await api.put(`/leads/${lead._id}`, updatedLeadData);
-    } catch {}
-
-    setSaving(false);
-    onUpdated(updatedLeadData);
-    showNotification(`Lead "${form.name}" updated successfully!`);
-    onClose();
+      const { data: res } = await api.put(`/leads/${lead._id}`, updatedPayload);
+      const savedLead = res?.data || { ...lead, ...updatedPayload };
+      setSaving(false);
+      onUpdated(savedLead);
+      showNotification(`Lead "${form.name}" updated successfully!`);
+      onClose();
+    } catch (err) {
+      setSaving(false);
+      const msg = err?.response?.data?.message || err.message || 'Failed to update lead';
+      showNotification(`❌ ${msg}`, 'error');
+      console.error('Failed to update lead:', err);
+    }
   };
 
   return (
@@ -163,15 +192,21 @@ export default function EditLeadModal({ lead, onClose, onUpdated }) {
                 }))}
               />
               <CustomSelect
-                label="Assigned Sales Executive"
+                label="Assigned Executive / Telecaller"
                 value={form.assignedTo}
                 onChange={val => setForm(p => ({ ...p, assignedTo: val }))}
+                searchable={true}
+                placeholder="-- Select Telecaller or Executive --"
                 options={[
                   { value: '', label: '-- Auto-Assign / None --', icon: '⚡' },
-                  { value: 'Amit Singh', label: 'Amit Singh', avatar: 'https://ui-avatars.com/api/?name=Amit+Singh&background=4f46e5&color=fff&size=64' },
-                  { value: 'Neha Patel', label: 'Neha Patel', avatar: 'https://ui-avatars.com/api/?name=Neha+Patel&background=ec4899&color=fff&size=64' },
-                  { value: 'Ravi Verma', label: 'Ravi Verma', avatar: 'https://ui-avatars.com/api/?name=Ravi+Verma&background=0284c7&color=fff&size=64' },
-                  { value: 'Priya Sharma', label: 'Priya Sharma', avatar: 'https://ui-avatars.com/api/?name=Priya+Sharma&background=10b981&color=fff&size=64' }
+                  ...usersList
+                    .filter(u => u.isActive !== false)
+                    .map(u => ({
+                      value: u._id,
+                      label: u.name || u.email || 'Staff Member',
+                      subtext: `${u.role ? u.role.replace(/_/g, ' ') : 'User'}${u.phone ? ' · ' + u.phone : ''}`,
+                      avatar: u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || 'User')}&background=4f46e5&color=fff&size=64`
+                    }))
                 ]}
               />
             </div>

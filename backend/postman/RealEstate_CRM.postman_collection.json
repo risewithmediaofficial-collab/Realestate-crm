@@ -1,0 +1,417 @@
+{
+  "info": {
+    "_postman_id": "c1f72834-8c81-4b12-9c63-6d1a938c92a1",
+    "name": "Rise With RealtyHub - CRM & Payments API",
+    "description": "Complete Postman collection for RealtyHub CRM, Milestone Demand Notices, and Payment Collections verification.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3001/api", "type": "string" },
+    { "key": "authToken", "value": "", "type": "string" },
+    { "key": "createdDemandId", "value": "", "type": "string" },
+    { "key": "createdDemandNumber", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "1. Server Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Server health status is OK', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.status).to.eql('OK');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Admin Authentication",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"mrprealestate@gmail.com\",\n    \"password\": \"Admin@123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "login"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Token is returned and saved to variable', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.token).to.be.a('string');",
+              "    pm.collectionVariables.set('authToken', json.token);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Get Current User Profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{authToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/auth/me",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "me"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('User belongs to MRP REAL ESTATE', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.user.organization).to.eql('MRP REAL ESTATE');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Dashboard Stats & Finance Metrics",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{authToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/dashboard/stats",
+          "host": ["{{baseUrl}}"],
+          "path": ["dashboard", "stats"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Finance metrics are present and non-negative', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.data.finance.totalDemandRaised).to.be.at.least(0);",
+              "    pm.expect(json.data.finance.totalPaidCollected).to.be.at.least(0);",
+              "    pm.expect(json.data.finance.totalOutstanding).to.be.at.least(0);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Get All Payment Demands",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{authToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/payments",
+          "host": ["{{baseUrl}}"],
+          "path": ["payments"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Payments data is an array', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(Array.isArray(json.data)).to.be.true;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Get Payment Collections Stats",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{authToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/payments/stats",
+          "host": ["{{baseUrl}}"],
+          "path": ["payments", "stats"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Stats contain realization rate', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.data).to.have.property('realizationRate');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Get Pending Demands Tab",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{authToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/payments?status=pending",
+          "host": ["{{baseUrl}}"],
+          "path": ["payments"],
+          "query": [{ "key": "status", "value": "pending" }]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Pending items do not include paid items', function () {",
+              "    var json = pm.response.json();",
+              "    var hasPaid = json.data.some(function(p) { return p.status === 'paid'; });",
+              "    pm.expect(hasPaid).to.be.false;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Create Milestone Demand Notice with UPI & Token Advance",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{authToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"demandNumber\": \"DEM-POSTMAN-001\",\n    \"customerName\": \"Madhu Sudhan N\",\n    \"customerPhone\": \"9874563210\",\n    \"customerEmail\": \"madhu@gmail.com\",\n    \"unitNumber\": \"FL-0300\",\n    \"projectName\": \"VVIP Mango farm land\",\n    \"milestoneName\": \"Booking Advance & Milestone Demand 01\",\n    \"demandAmount\": 4375000,\n    \"paidAmount\": 10000,\n    \"balanceAmount\": 4365000,\n    \"status\": \"partial\",\n    \"paymentMode\": \"UPI\",\n    \"dueDate\": \"2026-09-30\",\n    \"notes\": \"Milestone demand created via Postman test\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/payments",
+          "host": ["{{baseUrl}}"],
+          "path": ["payments"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "pm.test('Uppercase paymentMode UPI normalized to upi', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.data.paymentMode).to.eql('upi');",
+              "    pm.collectionVariables.set('createdDemandId', json.data._id);",
+              "    pm.collectionVariables.set('createdDemandNumber', json.data.demandNumber);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Record Payment Collection - Full Balance Clearance",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{authToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"paidAmount\": 4365000,\n    \"paymentMode\": \"Bank Transfer\",\n    \"transactionReference\": \"UTR-POSTMAN-7890\",\n    \"bankName\": \"HDFC Bank\",\n    \"paymentDate\": \"2026-09-03\",\n    \"notes\": \"Full balance clearance via Postman\",\n    \"receiptNumber\": \"RCP-PM-001\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/payments/{{createdDemandId}}/record",
+          "host": ["{{baseUrl}}"],
+          "path": ["payments", "{{createdDemandId}}", "record"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Balance amount is 0 and status is paid', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.data.paidAmount).to.eql(4375000);",
+              "    pm.expect(json.data.balanceAmount).to.eql(0);",
+              "    pm.expect(json.data.status).to.eql('paid');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Verify Demand is in Paid & Cleared Tab",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{authToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/payments?status=paid",
+          "host": ["{{baseUrl}}"],
+          "path": ["payments"],
+          "query": [{ "key": "status", "value": "paid" }]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Cleared demand exists in paid tab with balance 0', function () {",
+              "    var json = pm.response.json();",
+              "    var targetNumber = pm.collectionVariables.get('createdDemandNumber');",
+              "    var item = json.data.find(function(d) { return d.demandNumber === targetNumber; });",
+              "    pm.expect(item).to.be.an('object');",
+              "    pm.expect(item.balanceAmount).to.eql(0);",
+              "    pm.expect(item.status).to.eql('paid');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. Verify Demand is NOT in Pending Tab (No Phantom Demand)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{authToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/payments?status=pending",
+          "host": ["{{baseUrl}}"],
+          "path": ["payments"],
+          "query": [{ "key": "status", "value": "pending" }]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Cleared demand does not appear in pending tab', function () {",
+              "    var json = pm.response.json();",
+              "    var targetNumber = pm.collectionVariables.get('createdDemandNumber');",
+              "    var item = json.data.find(function(d) { return d.demandNumber === targetNumber; });",
+              "    pm.expect(item).to.be.undefined;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "12. Cleanup Test Demand",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{authToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/payments/{{createdDemandId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["payments", "{{createdDemandId}}"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Payment demand deleted successfully', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.success).to.be.true;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    }
+  ]
+}

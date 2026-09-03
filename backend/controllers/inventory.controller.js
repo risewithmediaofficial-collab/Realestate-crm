@@ -305,9 +305,11 @@ const getInventoryMatrix = async (req, res, next) => {
     const isSuperAdmin = req.user?.role === 'super_admin';
     const userOrg = req.user?.organization;
     const project = req.params.project || req.query.project;
-    if (!project) return res.status(400).json({ success: false, message: 'Project is required' });
 
-    const query = { project };
+    const query = {};
+    if (project) {
+      query.project = project;
+    }
     if (isSuperAdmin) {
       if (req.query.organization) query.organization = { $regex: new RegExp(`^${req.query.organization.trim()}$`, 'i') };
     } else {
@@ -315,11 +317,11 @@ const getInventoryMatrix = async (req, res, next) => {
       query.organization = { $regex: new RegExp(`^${userOrg.trim()}$`, 'i') };
     }
 
-    const units = await Unit.find(query).sort('tower floor unitNumber').select('unitNumber tower block floor status type area facing pricing propertyType physicalDetails agriculturalDetails');
+    const units = await Unit.find(query).sort('tower floor unitNumber').select('unitNumber tower block floor status type area facing pricing propertyType physicalDetails agriculturalDetails project').populate('project', 'name');
     // Group by tower / block → floor
     const matrix = {};
     units.forEach(u => {
-      const section = u.block || u.tower || 'Main';
+      const section = u.block || u.tower || (u.project?.name || 'Main');
       if (!matrix[section]) matrix[section] = {};
       const floorKey = u.floor || 1;
       if (!matrix[section][floorKey]) matrix[section][floorKey] = [];

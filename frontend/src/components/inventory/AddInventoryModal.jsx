@@ -84,6 +84,10 @@ export default function AddInventoryModal({ project, onClose, onUnitAdded }) {
 
     // Section 4: Agricultural Specifications
     plantation: '',
+    treesType: '',
+    treesCount: '',
+    treesAge: '',
+    soilType: 'red_soil',
     irrigation: 'drip',
     customIrrigation: '',
     fencing: 'none',
@@ -264,6 +268,10 @@ export default function AddInventoryModal({ project, onClose, onUnitAdded }) {
         },
         agriculturalDetails: isAgriOrFarm ? {
           plantation: form.plantation.trim(),
+          treesType: form.treesType ? form.treesType.trim() : (form.plantation.trim() || undefined),
+          treesCount: Number(form.treesCount) || 0,
+          treesAge: form.treesAge ? form.treesAge.trim() : undefined,
+          soilType: form.soilType,
           irrigation: finalIrrigation,
           fencing: finalFencing
         } : undefined,
@@ -485,8 +493,8 @@ export default function AddInventoryModal({ project, onClose, onUnitAdded }) {
                     </label>
                     <input
                       type="number"
-                      step="0.001"
-                      min="0.0001"
+                      step="any"
+                      min="0.00001"
                       className={`form-input ${fieldErrors.extent ? 'input-error' : ''}`}
                       value={form.extent}
                       onChange={e => {
@@ -706,24 +714,73 @@ export default function AddInventoryModal({ project, onClose, onUnitAdded }) {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-                  {/* 13. Plantation / Tree Species */}
+                  {/* 13. Trees Count */}
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#166534' }}>
-                      Plantation / Tree Species
+                      🌳 Trees Count (Total Trees)
                     </label>
                     <input
+                      type="number"
+                      step="1"
+                      min="0"
                       className="form-input"
-                      value={form.plantation}
-                      onChange={e => setForm(p => ({ ...p, plantation: e.target.value }))}
-                      placeholder="e.g. Alphonso Mango, Sandalwood, Teak, Avocado"
+                      value={form.treesCount}
+                      onChange={e => setForm(p => ({ ...p, treesCount: e.target.value }))}
+                      placeholder="e.g. 150, 250 Trees"
                       style={{ background: 'white' }}
                     />
                   </div>
 
-                  {/* 14. Irrigation System */}
+                  {/* 14. Trees Type / Species */}
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#166534' }}>
-                      Irrigation System
+                      🌲 Trees Type / Species
+                    </label>
+                    <input
+                      className="form-input"
+                      value={form.treesType || form.plantation}
+                      onChange={e => setForm(p => ({ ...p, treesType: e.target.value, plantation: e.target.value }))}
+                      placeholder="e.g. Teak, Sandalwood, Alphonso Mango, Coconut, Mahogany"
+                      style={{ background: 'white' }}
+                    />
+                  </div>
+
+                  {/* 15. Soil Type */}
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#166534' }}>
+                      🌱 Soil Type
+                    </label>
+                    <CustomSelect
+                      value={form.soilType}
+                      onChange={val => setForm(p => ({ ...p, soilType: typeof val === 'object' && val.target ? val.target.value : val }))}
+                      options={[
+                        { value: 'red_soil', label: '🔴 Fertile Red Soil' },
+                        { value: 'black_cotton', label: '⚫ Black Cotton Soil' },
+                        { value: 'alluvial_loam', label: '🌾 Rich Alluvial Loam' },
+                        { value: 'sandy_loam', label: '🏖️ Sandy Loam' },
+                        { value: 'gravelly', label: '🪨 Gravelly / Mixed Soil' }
+                      ]}
+                    />
+                  </div>
+
+                  {/* 16. Plantation Age / Yield Status */}
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#166534' }}>
+                      ⏳ Age of Trees / Yield Status
+                    </label>
+                    <input
+                      className="form-input"
+                      value={form.treesAge}
+                      onChange={e => setForm(p => ({ ...p, treesAge: e.target.value }))}
+                      placeholder="e.g. 3 Years Old, Ready Yielding"
+                      style={{ background: 'white' }}
+                    />
+                  </div>
+
+                  {/* 17. Irrigation System */}
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#166534' }}>
+                      💧 Irrigation System
                     </label>
                     <CustomSelect
                       value={form.irrigation}
@@ -732,10 +789,10 @@ export default function AddInventoryModal({ project, onClose, onUnitAdded }) {
                     />
                   </div>
 
-                  {/* 15. Fencing */}
+                  {/* 18. Fencing */}
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#166534' }}>
-                      Fencing & Boundary
+                      🛡️ Fencing & Boundary
                     </label>
                     <CustomSelect
                       value={form.fencing}

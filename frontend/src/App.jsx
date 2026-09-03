@@ -54,6 +54,7 @@ const ReportsPage = lazy(() => import('./pages/reports/ReportsPage'));
 const UsersPage = lazy(() => import('./pages/users/UsersPage'));
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
 const MetaIntegrationPage = lazy(() => import('./pages/settings/MetaIntegrationPage'));
+const BuyerRequirementsPage = lazy(() => import('./pages/requirements/BuyerRequirementsPage'));
 
 const AppWithLayout = ({ children }) => (
   <ProtectedRoute>
@@ -90,6 +91,10 @@ export default function App() {
               {/* 3. Leads & Pre-Sales */}
               <Route path="/leads" element={<AppWithLayout><AllLeadsPage /></AppWithLayout>} />
               <Route path="/leads/*" element={<AppWithLayout><AllLeadsPage /></AppWithLayout>} />
+
+              {/* 3.1 Custom Buyer Requirements Dashboard */}
+              <Route path="/requirements" element={<AppWithLayout><BuyerRequirementsPage /></AppWithLayout>} />
+              <Route path="/requirements/*" element={<AppWithLayout><BuyerRequirementsPage /></AppWithLayout>} />
 
               {/* 4. Communication */}
               <Route path="/communication" element={<AppWithLayout><CommunicationPage /></AppWithLayout>} />

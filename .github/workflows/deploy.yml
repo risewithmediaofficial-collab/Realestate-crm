@@ -1,0 +1,60 @@
+name: Deploy Real Estate CRM to VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Production Hostinger VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 22
+          script_stop: true
+          script: |
+            TARGET_DIR="/docker/real-estate-crm"
+            REPO_URL="https://github.com/${{ github.repository }}.git"
+
+            echo "================================================="
+            echo "🚀 Starting Deployment for Real Estate CRM"
+            echo "================================================="
+
+            # Check if directory and git repository exist
+            if [ ! -d "$TARGET_DIR/.git" ]; then
+              echo "📦 Directory does not exist. Creating and cloning repository..."
+              mkdir -p /docker
+              git clone "$REPO_URL" "$TARGET_DIR"
+              cd "$TARGET_DIR"
+            else
+              echo "🔄 Existing repository found. Pulling latest commits from main..."
+              cd "$TARGET_DIR"
+              git reset --hard HEAD
+              git clean -fd
+              git pull origin main
+            fi
+
+            # Ensure upload directories exist on host
+            mkdir -p backend/uploads
+
+            # Build and deploy containers
+            echo "🐳 Starting Docker Compose build and container orchestration..."
+            docker compose -f docker-compose.yml down --remove-orphans || true
+            docker compose -f docker-compose.yml up -d --build --no-deps
+
+            # Prune dangling/unused images to preserve VPS disk space
+            echo "🧹 Cleaning up unused Docker images..."
+            docker image prune -f
+
+            echo "================================================="
+            echo "✅ Deployment completed successfully!"
+            echo "================================================="
+            docker compose -f docker-compose.yml ps

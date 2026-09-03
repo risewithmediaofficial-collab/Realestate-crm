@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const Booking = require('../models/Booking.model');
 const Unit = require('../models/Unit.model');
 const Lead = require('../models/Lead.model');
-const { createNotification, calculateLeadStage } = require('../services/notificationService');
+const { createNotification, calculateLeadStage, notifyAdminsAndAssigned, checkUpcomingAgreementsAndRegistrations } = require('../services/notificationService');
 
 const getBookings = async (req, res, next) => {
   try {
@@ -40,6 +40,36 @@ const getBookings = async (req, res, next) => {
 const getBooking = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user?.role === 'super_admin';
+    if (req.params.id?.startsWith('inv-')) {
+      const unitId = req.params.id.replace('inv-', '');
+      const unit = await Unit.findById(unitId).populate('project');
+      if (!unit) return res.status(404).json({ success: false, message: 'Unit not found' });
+      const cust = unit.bookingCustomer || {};
+      return res.json({
+        success: true,
+        data: {
+          _id: req.params.id,
+          bookingNumber: `BK-${unit.unitNumber}`,
+          customerName: cust.name || 'Primary Applicant',
+          customerPhone: cust.phone || '',
+          customerEmail: cust.email || '',
+          totalAmount: unit.pricing?.totalPrice || 0,
+          tokenAmount: cust.tokenAmount || 0,
+          saleAgreementDate: cust.saleAgreementDate,
+          registrationDate: cust.registrationDate,
+          isReadyForRegistration: cust.isReadyForRegistration || cust.bookingStatus === 'ready_for_registration',
+          status: cust.bookingStatus || (['registered', 'sold'].includes(unit.status) ? 'registered' : 'approved'),
+          unit,
+          project: unit.project,
+          createdAt: cust.bookingDate || unit.updatedAt
+        }
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ success: false, message: 'Invalid booking ID' });
+    }
+
     const query = { _id: req.params.id };
     if (!isSuperAdmin) {
       query.organization = req.user?.organization || '__UNAUTHORIZED__';
@@ -168,27 +198,124 @@ const createBooking = async (req, res, next) => {
     const populated = await booking.populate([
       { path: 'unit', select: 'unitNumber type tower floor pricing' },
       { path: 'project', select: 'name city' },
-      { path: 'lead', select: 'name phone email' },
-      { path: 'handledBy', select: 'name avatar' },
-      { path: 'approvedBy', select: 'name' }
+      { path: 'lead', select: 'name phone' },
+      { path: 'handledBy', select: 'name' }
     ]);
+
+    // Check if ready for registration or agreement/registration dates provided at creation
+    const assignedPerson = booking.assignedTelecaller || booking.handledBy || payload.lead;
+    const unitLabel = populated.unit?.unitNumber || 'Plot/Unit';
+    const custLabel = populated.customerName || populated.lead?.name || 'Client';
+
+    if (payload.isReadyForRegistration || payload.status === 'ready_for_registration') {
+      await notifyAdminsAndAssigned(payload.organization, assignedPerson, 'ready_for_registration', {
+        title: `🏛️ Plot Ready for Registration: ${unitLabel}`,
+        message: `Unit ${unitLabel} for ${custLabel} is marked READY FOR REGISTRATION! All stage clearances completed.`,
+        severity: 'critical',
+        relatedEntity: { type: 'booking', id: booking._id, name: booking.bookingNumber },
+        actionUrl: `/booking`,
+        actionLabel: 'View Booking & Schedule',
+        metadata: { bookingId: booking._id, unitNumber: unitLabel, customerName: custLabel }
+      });
+    }
+
+    if (payload.saleAgreementDate) {
+      const agDateStr = new Date(payload.saleAgreementDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      await notifyAdminsAndAssigned(payload.organization, assignedPerson, 'sale_agreement_upcoming', {
+        title: `📅 Sale Agreement Scheduled: ${unitLabel}`,
+        message: `Sale Agreement for ${custLabel} (${unitLabel}) is scheduled on ${agDateStr}.`,
+        severity: 'medium',
+        relatedEntity: { type: 'booking', id: booking._id, name: booking.bookingNumber },
+        actionUrl: `/booking`,
+        actionLabel: 'View Booking',
+        metadata: { bookingId: booking._id, unitNumber: unitLabel, customerName: custLabel, saleAgreementDate: payload.saleAgreementDate }
+      });
+    }
+
+    if (payload.registrationDate) {
+      const regDateStr = new Date(payload.registrationDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      await notifyAdminsAndAssigned(payload.organization, assignedPerson, 'registration_upcoming', {
+        title: `🏛️ Registration Scheduled: ${unitLabel}`,
+        message: `Property Registration for ${custLabel} (${unitLabel}) is scheduled on ${regDateStr}.`,
+        severity: 'critical',
+        relatedEntity: { type: 'booking', id: booking._id, name: booking.bookingNumber },
+        actionUrl: `/booking`,
+        actionLabel: 'View Booking',
+        metadata: { bookingId: booking._id, unitNumber: unitLabel, customerName: custLabel, registrationDate: payload.registrationDate }
+      });
+    }
+
     res.status(201).json({ success: true, data: populated });
   } catch (err) { next(err); }
 };
 
 const updateBooking = async (req, res, next) => {
   try {
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    if (req.params.id?.startsWith('inv-')) {
+      const unitId = req.params.id.replace('inv-', '');
+      const unit = await Unit.findById(unitId).populate('project');
+      if (!unit) return res.status(404).json({ success: false, message: 'Unit not found' });
+
+      const updateObj = {};
+      if (req.body.saleAgreementDate !== undefined) updateObj['bookingCustomer.saleAgreementDate'] = req.body.saleAgreementDate ? new Date(req.body.saleAgreementDate) : null;
+      if (req.body.registrationDate !== undefined) updateObj['bookingCustomer.registrationDate'] = req.body.registrationDate ? new Date(req.body.registrationDate) : null;
+      if (req.body.status === 'ready_for_registration' || req.body.isReadyForRegistration === true) {
+        updateObj['bookingCustomer.bookingStatus'] = 'ready_for_registration';
+        updateObj['bookingCustomer.isReadyForRegistration'] = true;
+        updateObj['bookingCustomer.registrationReadyDate'] = new Date();
+      } else if (req.body.status) {
+        updateObj['bookingCustomer.bookingStatus'] = req.body.status;
+      }
+
+      await Unit.findByIdAndUpdate(unitId, { $set: updateObj }, { new: true });
+
+      const custLabel = unit.bookingCustomer?.name || 'Client';
+      const assignedPerson = req.user?._id;
+
+      if (req.body.status === 'ready_for_registration' || req.body.isReadyForRegistration === true) {
+        await notifyAdminsAndAssigned(req.user?.organization || 'MRP REAL ESTATE', assignedPerson, 'ready_for_registration', {
+          title: `🏛️ Plot Ready for Registration: ${unit.unitNumber}`,
+          message: `Unit ${unit.unitNumber} for ${custLabel} is marked READY FOR REGISTRATION! All clearances completed.`,
+          severity: 'critical',
+          relatedEntity: { type: 'booking', id: unit._id, name: `BK-${unit.unitNumber}` },
+          actionUrl: `/booking`,
+          actionLabel: 'View Booking & Schedule',
+          metadata: { bookingId: `inv-${unit._id}`, unitNumber: unit.unitNumber, customerName: custLabel }
+        });
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          _id: req.params.id,
+          customerName: custLabel,
+          unitNumber: unit.unitNumber,
+          saleAgreementDate: req.body.saleAgreementDate || unit.bookingCustomer?.saleAgreementDate,
+          registrationDate: req.body.registrationDate || unit.bookingCustomer?.registrationDate,
+          isReadyForRegistration: req.body.status === 'ready_for_registration' || req.body.isReadyForRegistration === true,
+          status: req.body.status || 'approved'
+        },
+        message: 'Booking updated successfully'
+      });
+    }
+
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ success: false, message: 'Invalid booking ID' });
     }
-    const isSuperAdmin = req.user?.role === 'super_admin';
     const query = { _id: req.params.id };
     if (!isSuperAdmin) {
       query.organization = req.user?.organization || '__UNAUTHORIZED__';
     }
 
-    const booking = await Booking.findOneAndUpdate(query, req.body, { new: true, runValidators: true })
-      .populate('unit', 'unitNumber type pricing').populate('project', 'name').populate('lead', 'name phone');
+    const updatePayload = { ...req.body };
+    if (updatePayload.status === 'ready_for_registration' || updatePayload.isReadyForRegistration === true) {
+      updatePayload.isReadyForRegistration = true;
+      if (!updatePayload.registrationReadyDate) updatePayload.registrationReadyDate = new Date();
+    }
+
+    const booking = await Booking.findOneAndUpdate(query, updatePayload, { new: true, runValidators: true })
+      .populate('unit', 'unitNumber type pricing').populate('project', 'name').populate('lead', 'name phone email assignedTo').populate('handledBy', 'name role').populate('assignedTelecaller', 'name role');
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
 
     // Handle unit status synchronization when booking status changes
@@ -196,40 +323,97 @@ const updateBooking = async (req, res, next) => {
       if (booking.unit?._id || booking.unit) {
         await Unit.findByIdAndUpdate(booking.unit?._id || booking.unit, { status: 'available', booking: null });
       }
-    } else if (['approved', 'agreement_signed', 'registered', 'registration_closed', 'closed'].includes(req.body.status)) {
+    } else if (['approved', 'agreement_signed', 'ready_for_registration', 'registered', 'registration_closed', 'closed'].includes(req.body.status)) {
       if (booking.unit?._id || booking.unit) {
-        await Unit.findByIdAndUpdate(booking.unit?._id || booking.unit, { status: 'booked', booking: booking._id });
+        const unitCustUpdate = { status: 'booked', booking: booking._id };
+        if (booking.status === 'ready_for_registration' || booking.isReadyForRegistration) {
+          unitCustUpdate['bookingCustomer.bookingStatus'] = 'ready_for_registration';
+          unitCustUpdate['bookingCustomer.isReadyForRegistration'] = true;
+        }
+        if (booking.balanceAmount !== undefined) {
+          unitCustUpdate['bookingCustomer.balanceDue'] = booking.balanceAmount;
+          unitCustUpdate['bookingCustomer.balanceAmount'] = booking.balanceAmount;
+          if (booking.balanceAmount === 0) {
+            unitCustUpdate['bookingCustomer.bookingStatus'] = 'cleared';
+          }
+        }
+        if (booking.paidAmount !== undefined) {
+          unitCustUpdate['bookingCustomer.totalPaid'] = booking.paidAmount;
+          unitCustUpdate['bookingCustomer.paidAmount'] = booking.paidAmount;
+        }
+        await Unit.findByIdAndUpdate(booking.unit?._id || booking.unit, { $set: unitCustUpdate });
       }
     }
 
+    const assignedPerson = booking.assignedTelecaller?._id || booking.handledBy?._id || booking.lead?.assignedTo;
+    const unitLabel = booking.unit?.unitNumber || 'Plot/Unit';
+    const custLabel = booking.customerName || booking.lead?.name || 'Client';
+
+    // Send instant notification when marked Ready for Registration
+    if (req.body.status === 'ready_for_registration' || req.body.isReadyForRegistration === true) {
+      await notifyAdminsAndAssigned(booking.organization, assignedPerson, 'ready_for_registration', {
+        title: `🏛️ Plot Ready for Registration: ${unitLabel}`,
+        message: `Unit ${unitLabel} for ${custLabel} is marked READY FOR REGISTRATION! All clearances completed.`,
+        severity: 'critical',
+        relatedEntity: { type: 'booking', id: booking._id, name: booking.bookingNumber },
+        actionUrl: `/booking`,
+        actionLabel: 'View Booking & Schedule',
+        metadata: { bookingId: booking._id, unitNumber: unitLabel, customerName: custLabel }
+      });
+    }
+
+    // Send notification when Sale Agreement Date is set or changed
+    if (req.body.saleAgreementDate) {
+      const agDateStr = new Date(req.body.saleAgreementDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      await notifyAdminsAndAssigned(booking.organization, assignedPerson, 'sale_agreement_upcoming', {
+        title: `📅 Sale Agreement Scheduled: ${unitLabel}`,
+        message: `Sale Agreement for ${custLabel} (${unitLabel}) is scheduled on ${agDateStr}.`,
+        severity: 'medium',
+        relatedEntity: { type: 'booking', id: booking._id, name: booking.bookingNumber },
+        actionUrl: `/booking`,
+        actionLabel: 'View Booking',
+        metadata: { bookingId: booking._id, unitNumber: unitLabel, customerName: custLabel, saleAgreementDate: req.body.saleAgreementDate }
+      });
+    }
+
+    // Send notification when Registration Date is set or changed
+    if (req.body.registrationDate) {
+      const regDateStr = new Date(req.body.registrationDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      await notifyAdminsAndAssigned(booking.organization, assignedPerson, 'registration_upcoming', {
+        title: `🏛️ Registration Scheduled: ${unitLabel}`,
+        message: `Property Registration for ${custLabel} (${unitLabel}) is scheduled on ${regDateStr}.`,
+        severity: 'critical',
+        relatedEntity: { type: 'booking', id: booking._id, name: booking.bookingNumber },
+        actionUrl: `/booking`,
+        actionLabel: 'View Booking',
+        metadata: { bookingId: booking._id, unitNumber: unitLabel, customerName: custLabel, registrationDate: req.body.registrationDate }
+      });
+    }
+
     // Update lead's activeBookings array - update the specific booking entry
-    if (booking.lead && mongoose.Types.ObjectId.isValid(booking.lead)) {
-      const lead = await Lead.findById(booking.lead);
+    if (booking.lead && mongoose.Types.ObjectId.isValid(booking.lead?._id || booking.lead)) {
+      const lead = await Lead.findById(booking.lead?._id || booking.lead);
       if (lead) {
         // Find and update the booking in activeBookings
-        const bookingIndex = lead.activeBookings.findIndex(b => b.booking?.toString() === booking._id.toString());
+        const bookingIndex = (lead.activeBookings || []).findIndex(b => b.booking?.toString() === booking._id.toString());
         if (bookingIndex !== -1) {
           lead.activeBookings[bookingIndex].status = booking.status;
         }
 
-        // Calculate lead stage based on ALL active bookings (excluding cancelled)
-        const activeStatuses = lead.activeBookings
-          .filter(b => b.status !== 'cancelled')
-          .map(b => b.status);
-        
         const calculatedStage = calculateLeadStage(lead.activeBookings);
         lead.stage = calculatedStage;
 
         await lead.save();
       }
 
-      // Send notification about status change
+      // Send general notification about status change
       if (lead?.assignedTo && req.body.status) {
         const statusLabels = {
           'approved': 'Approved',
           'cancelled': 'Cancelled',
           'agreement_sent': 'Agreement Sent',
           'agreement_signed': 'Agreement Signed',
+          'ready_for_registration': 'Ready for Registration',
           'registered': 'Registered',
         };
 
@@ -250,7 +434,7 @@ const updateBooking = async (req, res, next) => {
             actionLabel: 'View Booking',
             metadata: {
               bookingId: booking._id,
-              leadId: booking.lead,
+              leadId: booking.lead?._id || booking.lead,
               newStatus: req.body.status,
               customerName: booking.customerName,
             },
@@ -505,10 +689,134 @@ const deleteBooking = async (req, res, next) => {
         await Lead.findByIdAndUpdate(booking.lead, { stage: 'qualified' });
       }
       await Booking.deleteOne({ _id: booking._id });
-    }
 
-    res.json({ success: true, message: 'Booking request deleted successfully' });
+      res.json({ success: true, message: 'Booking request deleted successfully' });
+    } else {
+      res.status(404).json({ success: false, message: 'Booking not found' });
+    }
   } catch (err) { next(err); }
 };
 
-module.exports = { getBookings, getBooking, createBooking, updateBooking, approveBooking, cancelBooking, deleteBooking, getBookingStats };
+const markReadyForRegistration = async (req, res, next) => {
+  try {
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    if (req.params.id?.startsWith('inv-')) {
+      const unitId = req.params.id.replace('inv-', '');
+      const { registrationDate, notes } = req.body;
+      const updateObj = {
+        'bookingCustomer.bookingStatus': 'ready_for_registration',
+        'bookingCustomer.isReadyForRegistration': true,
+        'bookingCustomer.registrationReadyDate': new Date(),
+        ...(registrationDate ? { 'bookingCustomer.registrationDate': new Date(registrationDate) } : {})
+      };
+      const unit = await Unit.findByIdAndUpdate(unitId, { $set: updateObj }, { new: true }).populate('project');
+      if (!unit) return res.status(404).json({ success: false, message: 'Unit not found' });
+      
+      const custLabel = unit.bookingCustomer?.name || 'Client';
+      await notifyAdminsAndAssigned(req.user?.organization || 'MRP REAL ESTATE', req.user?._id, 'ready_for_registration', {
+        title: `🏛️ Plot Ready for Registration: ${unit.unitNumber}`,
+        message: `Unit ${unit.unitNumber} for ${custLabel} is marked READY FOR REGISTRATION! ${registrationDate ? 'Scheduled for: ' + new Date(registrationDate).toLocaleDateString('en-IN') : 'Please coordinate with client and legal team.'}`,
+        severity: 'critical',
+        relatedEntity: { type: 'booking', id: unit._id, name: `BK-${unit.unitNumber}` },
+        actionUrl: `/booking`,
+        actionLabel: 'View Booking & Schedule',
+        metadata: { bookingId: `inv-${unit._id}`, unitNumber: unit.unitNumber, customerName: custLabel, registrationDate }
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          _id: req.params.id,
+          customerName: custLabel,
+          unitNumber: unit.unitNumber,
+          status: 'ready_for_registration',
+          isReadyForRegistration: true,
+          registrationDate: registrationDate || undefined
+        },
+        message: 'Booking is marked ready for registration!'
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid booking ID' });
+    }
+    const query = { _id: req.params.id };
+    if (!isSuperAdmin) {
+      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    }
+
+    const { registrationDate, notes } = req.body;
+    const updateData = {
+      status: 'ready_for_registration',
+      isReadyForRegistration: true,
+      registrationReadyDate: new Date(),
+      ...(registrationDate ? { registrationDate: new Date(registrationDate) } : {}),
+      ...(notes ? { notes } : {})
+    };
+
+    const booking = await Booking.findOneAndUpdate(query, updateData, { new: true })
+      .populate('unit', 'unitNumber type tower pricing')
+      .populate('project', 'name city')
+      .populate('lead', 'name phone email assignedTo')
+      .populate('handledBy', 'name avatar role')
+      .populate('assignedTelecaller', 'name role');
+
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+
+    if (booking.unit?._id || booking.unit) {
+      await Unit.findByIdAndUpdate(booking.unit?._id || booking.unit, {
+        $set: {
+          'bookingCustomer.bookingStatus': 'ready_for_registration',
+          'bookingCustomer.isReadyForRegistration': true,
+          'bookingCustomer.registrationReadyDate': new Date(),
+          'bookingCustomer.balanceDue': 0,
+          'bookingCustomer.balanceAmount': 0,
+          'bookingCustomer.totalPaid': booking.paidAmount || booking.totalAmount,
+          'bookingCustomer.paidAmount': booking.paidAmount || booking.totalAmount,
+          ...(registrationDate ? { 'bookingCustomer.registrationDate': new Date(registrationDate) } : {})
+        }
+      });
+    }
+
+    const assignedPerson = booking.assignedTelecaller?._id || booking.handledBy?._id || booking.lead?.assignedTo;
+    const unitLabel = booking.unit?.unitNumber || 'Plot/Unit';
+    const custLabel = booking.customerName || booking.lead?.name || 'Client';
+
+    await notifyAdminsAndAssigned(booking.organization, assignedPerson, 'ready_for_registration', {
+      title: `🏛️ Plot Ready for Registration: ${unitLabel}`,
+      message: `Unit ${unitLabel} for ${custLabel} is marked READY FOR REGISTRATION! ${registrationDate ? 'Scheduled for: ' + new Date(registrationDate).toLocaleDateString('en-IN') : 'Please coordinate with client and legal team.'}`,
+      severity: 'critical',
+      relatedEntity: { type: 'booking', id: booking._id, name: booking.bookingNumber },
+      actionUrl: `/booking`,
+      actionLabel: 'View Booking & Schedule',
+      metadata: { bookingId: booking._id, unitNumber: unitLabel, customerName: custLabel, registrationDate }
+    });
+
+    res.json({ success: true, data: booking, message: 'Booking is marked ready for registration!' });
+  } catch (err) { next(err); }
+};
+
+const getUpcomingReminders = async (req, res, next) => {
+  try {
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const userOrg = isSuperAdmin ? (req.query.organization || req.user?.organization) : req.user?.organization;
+    const alerts = await checkUpcomingAgreementsAndRegistrations(userOrg);
+    return res.json({ success: true, count: alerts ? alerts.length : 0, data: alerts || [] });
+  } catch (err) {
+    console.error('getUpcomingReminders error:', err);
+    return res.json({ success: true, count: 0, data: [] });
+  }
+};
+
+module.exports = {
+  getBookings,
+  getBooking,
+  createBooking,
+  updateBooking,
+  approveBooking,
+  cancelBooking,
+  deleteBooking,
+  getBookingStats,
+  markReadyForRegistration,
+  getUpcomingReminders
+};

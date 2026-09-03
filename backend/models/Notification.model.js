@@ -9,7 +9,9 @@ const notificationSchema = new mongoose.Schema({
     type: String,
     enum: ['booking_created', 'booking_approved', 'booking_cancelled', 'booking_status_changed', 
            'payment_received', 'agreement_signed', 'registration_completed', 'site_visit_scheduled',
-           'lead_assigned', 'lead_updated', 'negotiation_required', 'sla_breach', 'general'],
+           'lead_assigned', 'lead_updated', 'negotiation_required', 'sla_breach',
+           'ready_for_registration', 'sale_agreement_upcoming', 'registration_upcoming',
+           'agreement_date_set', 'registration_date_set', 'general'],
     default: 'general',
   },
   title: { type: String, required: true },
@@ -18,8 +20,8 @@ const notificationSchema = new mongoose.Schema({
   
   // Context References
   relatedEntity: {
-    type: { type: String, enum: ['booking', 'lead', 'payment', 'sitevisit', 'negotiation', 'user'] },
-    id: { type: mongoose.Schema.Types.ObjectId },
+    type: { type: String },
+    id: { type: mongoose.Schema.Types.Mixed },
     name: { type: String },
   },
   

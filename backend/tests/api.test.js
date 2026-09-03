@@ -77,16 +77,16 @@ const runAllTests = async () => {
 
     // ─── 2. Authentication ───────────────────────────
     section('2. Authentication & JWT Security');
-    const badLogin = await request('POST', '/api/auth/login', { email: 'admin@crm.com', password: 'WrongPassword' }, null);
+    const badLogin = await request('POST', '/api/auth/login', { email: 'mrprealestate@gmail.com', password: 'WrongPassword' }, null);
     assert('Invalid password rejects with 401', badLogin.status === 401);
 
-    const goodLogin = await request('POST', '/api/auth/login', { email: 'admin@crm.com', password: 'Admin@123' }, null);
+    const goodLogin = await request('POST', '/api/auth/login', { email: 'mrprealestate@gmail.com', password: 'Admin@123' }, null);
     assert('Valid admin login returns 200', goodLogin.status === 200);
     assert('JWT access token is issued', !!goodLogin.data?.token);
     authToken = goodLogin.data?.token;
 
     const me = await request('GET', '/api/auth/me');
-    assert('Current user profile retrieved via /me', me.status === 200 && me.data?.user?.email === 'admin@crm.com');
+    assert('Current user profile retrieved via /me', me.status === 200 && me.data?.user?.email === 'mrprealestate@gmail.com');
 
     // ─── 3. Dashboard Analytics & KPIs ────────────────
     section('3. Dashboard KPIs & Funnel Metrics');
@@ -242,7 +242,7 @@ const runAllTests = async () => {
       paymentPlan: 'construction_linked',
       status: 'pending_approval',
     });
-    assert('Submit booking application returns 201', newBooking.status === 201);
+    assert('Submit booking application returns 201', newBooking.status === 201, `Status: ${newBooking.status}, Data: ${JSON.stringify(newBooking.data)}`);
     const createdBookingId = newBooking.data?.data?._id;
 
     const approveBooking = await request('PUT', `/api/bookings/${createdBookingId}/approve`);

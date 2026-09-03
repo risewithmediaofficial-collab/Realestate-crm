@@ -9,6 +9,7 @@ const { protect } = require('../middleware/auth.middleware');
 
 router.use(protect);
 router.get('/stats', getLeadStats);
+router.get('/stats/stages', getLeadStats);
 router.get('/follow-ups/today', getFollowUpsToday);   // notification feed
 router.get('/stats/by-user', getStatsByUser);          // telecaller stats
 router.delete('/delete-all', deleteAllLeads);

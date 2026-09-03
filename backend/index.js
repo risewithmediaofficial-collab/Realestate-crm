@@ -26,6 +26,7 @@ const reportsRoutes = require('./routes/reports.routes');
 const campaignsRoutes = require('./routes/campaigns.routes');
 const metaIntegrationRoutes = require('./routes/metaIntegration.routes');
 const notificationsRoutes = require('./routes/notifications.routes');
+const buyerRequirementsRoutes = require('./routes/buyerRequirements.routes');
 
 const app = express();
 
@@ -87,6 +88,7 @@ app.use('/api/dashboard', cacheMiddleware(15), dashboardRoutes);
 app.use('/api/activities', activitiesRoutes);
 app.use('/api/site-visits', siteVisitsRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/booking', bookingRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/channel-partners', channelPartnersRoutes);
 app.use('/api/users', usersRoutes);
@@ -94,6 +96,7 @@ app.use('/api/reports', cacheMiddleware(15), reportsRoutes);
 app.use('/api/campaigns', campaignsRoutes);
 app.use('/api/integrations/meta', metaIntegrationRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/buyer-requirements', buyerRequirementsRoutes);
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` }));

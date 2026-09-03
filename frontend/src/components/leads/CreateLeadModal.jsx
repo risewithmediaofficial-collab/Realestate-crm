@@ -56,7 +56,17 @@ export default function CreateLeadModal({ onClose, onCreated }) {
     budgetMax: '',
     notes: '',
     leadType: 'warm',
-    assignedTo: ''
+    assignedTo: '',
+
+    // Direct Site Visit Scheduling
+    scheduleSiteVisit: false,
+    visitDate: '',
+    visitTime: '11:00 AM',
+    visitProject: '',
+    visitExecutive: '',
+    pickupRequired: false,
+    pickupLocation: '',
+    visitNotes: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -69,6 +79,10 @@ export default function CreateLeadModal({ onClose, onCreated }) {
     if (!form.phone.trim()) errors.phone = 'Please enter a valid mobile number';
     else if (form.phone.replace(/[^0-9]/g, '').length < 10) errors.phone = 'Phone number should be at least 10 digits';
 
+    if (form.scheduleSiteVisit && !form.visitDate) {
+      errors.visitDate = 'Please select a visit date to schedule site visit.';
+    }
+
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       setError('Please resolve the highlighted form fields before submitting.');
@@ -79,6 +93,8 @@ export default function CreateLeadModal({ onClose, onCreated }) {
     setError('');
 
     const unitTypeToSave = form.interestedUnitType === 'custom' ? (form.customUnitType.trim() || 'Custom Unit') : form.interestedUnitType;
+
+    const isVisitScheduled = form.scheduleSiteVisit && Boolean(form.visitDate);
 
     const payload = {
       name: form.name.trim(),
@@ -92,7 +108,7 @@ export default function CreateLeadModal({ onClose, onCreated }) {
         min: form.budgetMin ? Number(form.budgetMin) : 0,
         max: form.budgetMax ? Number(form.budgetMax) : 0
       },
-      stage: 'new',
+      stage: 'new', // Always save newly created leads in 'new' stage
       notes: form.notes.trim()
     };
     if (form.interestedProject) payload.interestedProject = form.interestedProject;
@@ -100,7 +116,29 @@ export default function CreateLeadModal({ onClose, onCreated }) {
 
     try {
       const { data } = await api.post('/leads', payload);
-      if (onCreated) onCreated(data.data);
+      const createdLead = data.data;
+
+      // Automatically create the linked Site Visit in backend
+      if (isVisitScheduled && createdLead?._id) {
+        try {
+          const targetProj = form.visitProject || form.interestedProject || (projects[0]?._id);
+          await api.post('/site-visits', {
+            lead: createdLead._id,
+            project: targetProj,
+            scheduledDate: new Date(form.visitDate),
+            scheduledTime: form.visitTime || '11:00 AM',
+            assignedTo: form.visitExecutive || form.assignedTo,
+            pickupRequired: form.pickupRequired,
+            pickupLocation: form.pickupLocation,
+            notes: form.visitNotes || 'Site visit scheduled directly during lead creation',
+            preserveLeadStage: true
+          });
+        } catch (svErr) {
+          console.warn('Could not auto-create site visit:', svErr);
+        }
+      }
+
+      if (onCreated) onCreated(createdLead);
       onClose();
     } catch (err) {
       console.error('Failed to create lead via API:', err);
@@ -349,18 +387,176 @@ export default function CreateLeadModal({ onClose, onCreated }) {
             </div>
 
             {/* Initial Notes */}
-            <div className="form-group">
+            <div className="form-group" style={{ marginBottom: 16 }}>
               <label className="form-label" title="Detailed customer preferences, specific vastu, floor preference, or payment terms">
                 Initial Notes / Requirements
               </label>
               <textarea
                 className="form-input"
-                style={{ height: 72, resize: 'none' }}
+                style={{ height: 60, resize: 'none' }}
                 value={form.notes}
                 onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
                 placeholder="Specific requirements (e.g. East facing, corner plot, immediate registration, loan approved)..."
                 title="Buyer notes and specific instructions"
               />
+            </div>
+
+            {/* Assign Executive / Telecaller */}
+            <div className="form-group" style={{ marginBottom: 16 }}>
+              <CustomSelect
+                label="Assign Executive / Telecaller"
+                value={form.assignedTo}
+                onChange={val => setForm(p => ({ ...p, assignedTo: val }))}
+                options={[
+                  { value: '', label: '-- Auto-Assign / None --', icon: '⚡' },
+                  ...users
+                    .filter(u => u.isActive !== false)
+                    .map(u => ({
+                      value: u._id,
+                      label: u.name || u.email || 'Staff Member',
+                      subtext: `${u.role ? u.role.replace(/_/g, ' ') : 'User'}${u.phone ? ' · ' + u.phone : ''}`,
+                      avatar: u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || 'User')}&background=4f46e5&color=fff&size=64`
+                    }))
+                ]}
+              />
+            </div>
+
+            {/* Direct Site Visit Scheduling Section */}
+            <div style={{
+              background: form.scheduleSiteVisit ? '#f0fdf4' : '#f8fafc',
+              border: form.scheduleSiteVisit ? '1.5px solid #86efac' : '1px solid #e2e8f0',
+              borderRadius: 10,
+              padding: '14px 16px',
+              marginBottom: 16,
+              transition: 'all 0.2s ease'
+            }}>
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                cursor: 'pointer',
+                fontWeight: 700,
+                fontSize: 13,
+                color: form.scheduleSiteVisit ? '#15803d' : 'var(--text-primary)',
+                userSelect: 'none'
+              }}>
+                <input
+                  type="checkbox"
+                  checked={form.scheduleSiteVisit}
+                  onChange={e => setForm(p => ({ ...p, scheduleSiteVisit: e.target.checked }))}
+                  style={{ width: 16, height: 16, accentColor: '#16a34a', cursor: 'pointer' }}
+                />
+                <span>📅 Schedule Site Visit Directly (No need to add in another page)</span>
+              </label>
+
+              {form.scheduleSiteVisit && (
+                <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px dashed #bbf7d0', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div className="form-row">
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label" style={{ fontSize: 11, fontWeight: 700, color: '#166534' }}>
+                        Visit Date <span className="required">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        className={`form-input ${fieldErrors.visitDate ? 'input-error' : ''}`}
+                        style={{ height: 36, background: '#fff', fontSize: 12 }}
+                        value={form.visitDate}
+                        onChange={e => {
+                          setForm(p => ({ ...p, visitDate: e.target.value }));
+                          if (fieldErrors.visitDate) setFieldErrors(p => ({ ...p, visitDate: undefined }));
+                        }}
+                        min={new Date().toISOString().split('T')[0]}
+                        required
+                      />
+                      {fieldErrors.visitDate && (
+                        <div style={{ color: '#dc2626', fontSize: 11, marginTop: 4 }}>{fieldErrors.visitDate}</div>
+                      )}
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label" style={{ fontSize: 11, fontWeight: 700, color: '#166534' }}>
+                        Visit Time Slot
+                      </label>
+                      <CustomSelect
+                        value={form.visitTime}
+                        onChange={val => setForm(p => ({ ...p, visitTime: val }))}
+                        options={[
+                          { value: '09:30 AM', label: '09:30 AM (Morning Slot)' },
+                          { value: '11:00 AM', label: '11:00 AM (Pre-Noon Slot)' },
+                          { value: '02:00 PM', label: '02:00 PM (Afternoon Slot)' },
+                          { value: '04:00 PM', label: '04:00 PM (Evening Golden Hour)' },
+                          { value: '05:30 PM', label: '05:30 PM (Sunset Slot)' }
+                        ]}
+                      />
+                    </div>
+                  </div>
+
+                  {projects.length > 0 && (
+                    <div>
+                      <CustomSelect
+                        label="Project Location to Visit"
+                        value={form.visitProject || form.interestedProject}
+                        onChange={val => setForm(p => ({ ...p, visitProject: val }))}
+                        options={[
+                          { value: '', label: '-- Same as Interested Project --' },
+                          ...projects.map(p => ({ value: p._id, label: p.name, icon: '📍' }))
+                        ]}
+                      />
+                    </div>
+                  )}
+
+                  {users.length > 0 && (
+                    <div>
+                      <CustomSelect
+                        label="Site Visit Executive / Telecaller"
+                        value={form.visitExecutive}
+                        onChange={val => setForm(p => ({ ...p, visitExecutive: val }))}
+                        options={[
+                          { value: '', label: '-- Use Lead Assigned Executive --', icon: '👤' },
+                          ...users
+                            .filter(u => u.isActive !== false)
+                            .map(u => ({
+                              value: u._id,
+                              label: u.name || u.email || 'Staff Member',
+                              subtext: `${u.role ? u.role.replace(/_/g, ' ') : 'User'}${u.phone ? ' · ' + u.phone : ''}`,
+                              avatar: u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || 'User')}&background=16a34a&color=fff&size=64`
+                            }))
+                        ]}
+                      />
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+                      <input
+                        type="checkbox"
+                        checked={form.pickupRequired}
+                        onChange={e => setForm(p => ({ ...p, pickupRequired: e.target.checked }))}
+                        style={{ accentColor: '#16a34a' }}
+                      />
+                      <span>🚗 Company Cab / Pickup Required</span>
+                    </label>
+                  </div>
+
+                  {form.pickupRequired && (
+                    <input
+                      className="form-input"
+                      style={{ fontSize: 12, background: '#fff' }}
+                      value={form.pickupLocation}
+                      onChange={e => setForm(p => ({ ...p, pickupLocation: e.target.value }))}
+                      placeholder="Enter pickup address / landmark (e.g. Near Metro Station / Airport)..."
+                    />
+                  )}
+
+                  <input
+                    className="form-input"
+                    style={{ fontSize: 12, background: '#fff' }}
+                    value={form.visitNotes}
+                    onChange={e => setForm(p => ({ ...p, visitNotes: e.target.value }))}
+                    placeholder="Site visit special instructions (e.g. Coming with family, interested in corner plot)..."
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -369,7 +565,7 @@ export default function CreateLeadModal({ onClose, onCreated }) {
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={loading} title="Validate and save lead into CRM database">
-              {loading ? 'Creating...' : 'Create Lead & Assign'}
+              {loading ? 'Creating...' : form.scheduleSiteVisit ? 'Create Lead & Schedule Visit' : 'Create Lead & Assign'}
             </button>
           </div>
         </form>

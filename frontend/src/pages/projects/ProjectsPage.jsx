@@ -1856,7 +1856,11 @@ export default function ProjectsPage() {
                           <span style={{ fontSize: 10, textDecoration: 'underline', color: '#2563eb' }}>View KYC →</span>
                         </div>
                         <div style={{ color: '#1e40af', marginTop: 3 }}>
-                          Token Paid: {formatCurrency(u.bookingCustomer?.tokenAmount || 100000)} ({u.bookingCustomer?.paymentMode || 'NEFT'})
+                          {(u.bookingCustomer?.balanceDue === 0 || u.bookingCustomer?.bookingStatus === 'cleared' || u.bookingCustomer?.bookingStatus === 'ready_for_registration') ? (
+                            <span style={{ color: '#15803d', fontWeight: 800 }}>✓ Cleared: {formatCurrency(u.bookingCustomer?.totalPaid || u.totalPrice || 0)}</span>
+                          ) : (
+                            <>Token Paid: {formatCurrency(u.bookingCustomer?.tokenAmount || 100000)} ({u.bookingCustomer?.paymentMode || 'NEFT'})</>
+                          )}
                         </div>
                       </div>
                     )}
@@ -2563,12 +2567,18 @@ export default function ProjectsPage() {
                 <CreditCard size={15} color="#2563eb" /> 3. Token Advance & Payment Instrument
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
-                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 10 }}>
-                  <div style={{ fontSize: 10, color: '#166534', fontWeight: 700 }}>TOKEN ADVANCE PAID</div>
-                  <div style={{ fontWeight: 800, fontSize: 16, color: '#15803d', marginTop: 2 }}>
-                    {formatCurrency(viewingBookingDetails.bookingCustomer?.tokenAmount || 0)}
-                  </div>
-                </div>
+                {(() => {
+                  const isCleared = viewingBookingDetails.bookingCustomer?.balanceDue === 0 || viewingBookingDetails.bookingCustomer?.bookingStatus === 'cleared' || viewingBookingDetails.bookingCustomer?.bookingStatus === 'ready_for_registration';
+                  const dispAmt = isCleared ? (viewingBookingDetails.bookingCustomer?.totalPaid || viewingBookingDetails.totalPrice || viewingBookingDetails.pricing?.totalPrice) : viewingBookingDetails.bookingCustomer?.tokenAmount;
+                  return (
+                    <div style={{ background: isCleared ? '#dcfce7' : '#f0fdf4', border: isCleared ? '1px solid #86efac' : '1px solid #bbf7d0', borderRadius: 8, padding: 10 }}>
+                      <div style={{ fontSize: 10, color: '#166534', fontWeight: 700 }}>{isCleared ? '✓ FULL PAYMENT CLEARED' : 'TOKEN ADVANCE PAID'}</div>
+                      <div style={{ fontWeight: 800, fontSize: 16, color: '#15803d', marginTop: 2 }}>
+                        {formatCurrency(dispAmt || 0)}
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 10 }}>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>PAYMENT INSTRUMENT</div>
                   <div style={{ fontWeight: 700, fontSize: 13, marginTop: 2 }}>{viewingBookingDetails.bookingCustomer?.paymentMode || 'NEFT / RTGS'}</div>
@@ -2884,10 +2894,12 @@ export default function ProjectsPage() {
                       <div style={{ display: 'flex', gap: 6 }}>
                         <input
                           type="number"
+                          step="any"
+                          min="0.0001"
                           className="form-input"
                           value={form.totalAcres}
                           onChange={e => setForm(p => ({ ...p, totalAcres: e.target.value }))}
-                          placeholder="e.g. 25"
+                          placeholder="e.g. 2.5, 25"
                           style={{ flex: 1 }}
                         />
                         <CustomSelect

@@ -1,0 +1,90 @@
+services:
+  # ─── 1. Database (MongoDB) ──────────────────────────────
+  mongo:
+    image: mongo:7-jammy
+    container_name: realestate_crm_db
+    restart: always
+    environment:
+      MONGO_INITDB_DATABASE: real_estate_crm
+    ports:
+      # Host: 27025 (Clean unused port, avoids 27018-27024)
+      - "27025:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - realestate_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ─── 2. Backend (Node.js Express API) ───────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: realestate_crm_backend
+    restart: always
+    environment:
+      PORT: 3001
+      MONGODB_URI: mongodb://mongo:27017/real_estate_crm
+      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET:-realestate_crm_jwt_secret_key_2024}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      META_VERIFY_TOKEN: ${META_VERIFY_TOKEN:-prop_crm_webhook_verify_2026}
+      META_APP_ID: ${META_APP_ID:-}
+      META_APP_SECRET: ${META_APP_SECRET:-}
+      META_PAGE_ACCESS_TOKEN: ${META_PAGE_ACCESS_TOKEN:-}
+      META_PAGE_ID: ${META_PAGE_ID:-}
+      META_API_VERSION: ${META_API_VERSION:-v21.0}
+    ports:
+      # Host: 5009 (Clean unused port, avoids 5002, 5006, 5007, 5008, 5050)
+      - "5009:3001"
+    volumes:
+      - ./backend/uploads:/app/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - realestate_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # ─── 3. Frontend (React + Nginx) ────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: realestate_crm_frontend
+    restart: always
+    ports:
+      # Host: 88 & 8089 (Clean unused ports, avoids 82-87, 93, 8080-8084, 8088)
+      - "88:80"
+      - "8089:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - realestate_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  realestate_network:
+    name: realestate_network
+    driver: bridge
+
+volumes:
+  mongo_data:
+    name: realestate_crm_mongo_data
+    driver: local

@@ -42,22 +42,33 @@ const bookingSchema = new mongoose.Schema({
   // Payment Plan
   paymentPlan: { type: String, enum: ['construction_linked', 'down_payment', 'flexi', 'custom'] },
 
-  // Booking Amount
+  // Booking Amount & Payment Tracking
   bookingAmount: { type: Number },
   bookingAmountPaid: { type: Boolean, default: false },
   bookingAmountDate: { type: Date },
   bookingAmountMode: { type: String, enum: ['cheque', 'neft', 'rtgs', 'upi', 'cash', 'dd'] },
+  paidAmount: { type: Number, default: 0 },
+  balanceAmount: { type: Number },
 
   // Status & Approval
   status: {
     type: String,
     enum: ['application_submitted', 'pending_approval', 'approved', 'agreement_sent',
-      'agreement_signed', 'registered', 'registration_closed', 'closed', 'cancelled', 'refund_initiated', 'refunded'],
+      'agreement_signed', 'ready_for_registration', 'registered', 'registration_closed', 'closed', 'cancelled', 'refund_initiated', 'refunded'],
     default: 'application_submitted',
   },
   approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   approvedAt: { type: Date },
   cancellationReason: { type: String },
+
+  // Key Legal & Registration Timeline Dates
+  saleAgreementDate: { type: Date },
+  registrationDate: { type: Date },
+  isReadyForRegistration: { type: Boolean, default: false },
+  registrationReadyDate: { type: Date },
+  assignedTelecaller: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  agreementReminderSent: { type: Boolean, default: false },
+  registrationReminderSent: { type: Boolean, default: false },
 
   // Channel Partner
   channelPartner: { type: mongoose.Schema.Types.ObjectId, ref: 'ChannelPartner' },

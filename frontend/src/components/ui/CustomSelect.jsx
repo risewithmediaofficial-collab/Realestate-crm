@@ -235,8 +235,11 @@ export default function CustomSelect({
   return (
     <div
       ref={containerRef}
-      className={`custom-select-wrapper ${variant} ${size} ${className}`}
-      style={style}
+      className={`custom-select-wrapper ${variant} ${size} ${isOpen ? 'is-open' : ''} ${className}`}
+      style={{
+        ...style,
+        ...(isOpen ? { zIndex: 99999, position: 'relative' } : {})
+      }}
     >
       {label && (
         <label className="custom-select-label" htmlFor={id}>
@@ -244,7 +247,10 @@ export default function CustomSelect({
         </label>
       )}
 
-      <div className="custom-select-container">
+      <div
+        className={`custom-select-container ${isOpen ? 'is-open' : ''}`}
+        style={isOpen ? { zIndex: 99999, position: 'relative' } : {}}
+      >
         <button
           type="button"
           id={id}

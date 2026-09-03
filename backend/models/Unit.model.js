@@ -94,6 +94,10 @@ const unitSchema = new mongoose.Schema({
   // Agricultural Specifications
   agriculturalDetails: {
     plantation: { type: String },                            // e.g. "Alphonso Mango, Sandalwood, Teak"
+    treesType: { type: String },                             // e.g. "Teakwood, Sandalwood, Coconut, Mango"
+    treesCount: { type: Number, default: 0 },                // e.g. 150
+    treesAge: { type: String },                              // e.g. "3-5 years"
+    soilType: { type: String },                              // e.g. "Red Soil", "Black Cotton Soil", "Alluvial Loam"
     irrigation: {
       type: String,
       enum: ['borewell', 'drip', 'sprinkler', 'canal', 'automated_drip', 'rain_fed', 'other', 'none', ''],
@@ -170,6 +174,10 @@ const unitSchema = new mongoose.Schema({
     aadharNumber: { type: String },
     address: { type: String },
     tokenAmount: { type: Number },
+    paidAmount: { type: Number },
+    balanceAmount: { type: Number },
+    totalPaid: { type: Number },
+    balanceDue: { type: Number },
     paymentMode: { type: String },
     transactionRef: { type: String },
     bookingDate: { type: Date, default: Date.now },

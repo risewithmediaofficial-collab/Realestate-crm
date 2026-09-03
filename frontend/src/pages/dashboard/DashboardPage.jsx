@@ -89,6 +89,7 @@ export default function DashboardPage() {
   const [leadsList, setLeadsList] = useState([]);
   const [activities, setActivities] = useState([]);
   const [teamUsers, setTeamUsers] = useState([]);
+  const [upcomingReminders, setUpcomingReminders] = useState([]);
   const [loading, setLoading] = useState(true);
   const activeRoleView = simulatedRole || user?.role || 'admin';
   const setActiveRoleView = (role) => {
@@ -113,12 +114,13 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetch = async () => {
       try {
-        const [dashRes, payRes, leadRes, actRes, userRes] = await Promise.allSettled([
+        const [dashRes, payRes, leadRes, actRes, userRes, remindersRes] = await Promise.allSettled([
           api.get('/dashboard/stats'),
           api.get('/payments'),
           api.get('/leads?limit=1000'),
           api.get('/activities?limit=10'),
-          api.get('/users')
+          api.get('/users'),
+          api.get('/bookings/upcoming-reminders')
         ]);
         if (dashRes.status === 'fulfilled' && dashRes.value.data) {
           setStats(dashRes.value.data.data);
@@ -134,6 +136,9 @@ export default function DashboardPage() {
         }
         if (userRes.status === 'fulfilled' && userRes.value.data?.data) {
           setTeamUsers(userRes.value.data.data);
+        }
+        if (remindersRes.status === 'fulfilled' && remindersRes.value.data?.data) {
+          setUpcomingReminders(remindersRes.value.data.data);
         }
       } catch (err) {
         console.error('Failed to fetch dashboard stats:', err);
@@ -310,6 +315,37 @@ export default function DashboardPage() {
       };
     });
   }, [teamUsers, leadsList, payments]);
+
+  // Live finance metrics synchronized with Payments Ledger and backend stats
+  const financeMetrics = useMemo(() => {
+    if (payments && payments.length > 0) {
+      const totalDemandRaised = payments.reduce((acc, p) => acc + (p.demandAmount || 0), 0);
+      const totalPaidCollected = payments.reduce((acc, p) => acc + (p.paidAmount || 0), 0);
+      const totalOutstanding = payments.reduce((acc, p) => acc + (p.balanceAmount || 0), 0);
+      const overdueDemandsCount = payments.filter(p => p.status === 'overdue').length;
+      const realizationRate = totalDemandRaised > 0
+        ? Number(((totalPaidCollected / totalDemandRaised) * 100).toFixed(1))
+        : 0;
+      return {
+        grossBookingValue: stats?.finance?.grossBookingValue || totalDemandRaised,
+        totalBookingsCount: stats?.finance?.totalBookingsCount || payments.length,
+        totalDemandRaised,
+        totalPaidCollected,
+        totalOutstanding,
+        overdueDemandsCount,
+        realizationRate
+      };
+    }
+    return {
+      grossBookingValue: stats?.finance?.grossBookingValue || 0,
+      totalBookingsCount: stats?.finance?.totalBookingsCount || 0,
+      totalDemandRaised: stats?.finance?.totalDemandRaised || 0,
+      totalPaidCollected: stats?.finance?.totalPaidCollected || 0,
+      totalOutstanding: stats?.finance?.totalOutstanding || 0,
+      overdueDemandsCount: stats?.finance?.overdueDemandsCount || 0,
+      realizationRate: stats?.finance?.realizationRate || 0
+    };
+  }, [payments, stats?.finance]);
 
   const handleExportDashboard = () => {
     const totalRev = stats?.kpis?.totalRevenue || (stats?.kpis?.revenue ? Number(stats.kpis.revenue) : 0);
@@ -595,6 +631,96 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* ─── UPCOMING REGISTRATIONS & SALE AGREEMENTS (4-DAY PRIORITY ALERTS) ─── */}
+      {upcomingReminders.length > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, #fefce8 0%, #fff7ed 100%)',
+          border: '1.5px solid #fed7aa',
+          borderRadius: 12,
+          padding: '14px 18px',
+          marginBottom: 20,
+          boxShadow: '0 2px 6px rgba(234, 88, 12, 0.06)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 20 }}>🏛️</span>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#9a3412', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  Upcoming Property Registrations & Sale Agreements
+                  <span style={{ fontSize: 11, background: '#ea580c', color: 'white', padding: '2px 8px', borderRadius: 12, fontWeight: 800 }}>
+                    {upcomingReminders.length} DUE IN 4 DAYS
+                  </span>
+                </div>
+                <div style={{ fontSize: 11.5, color: '#9a3412' }}>
+                  Automated advance notifications dispatched to Admins and assigned Telecallers
+                </div>
+              </div>
+            </div>
+
+            <button
+              className="btn btn-sm"
+              onClick={() => navigate('/booking')}
+              style={{ background: '#ea580c', color: 'white', border: 'none', fontWeight: 700, fontSize: 11.5, padding: '4px 12px', borderRadius: 6 }}
+            >
+              Open Booking & Registration Register →
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
+            {upcomingReminders.map((rem, idx) => (
+              <div
+                key={idx}
+                onClick={() => navigate('/booking')}
+                style={{
+                  background: 'white',
+                  border: rem.type === 'ready_for_registration' ? '1.5px solid #86efac' : rem.daysRemaining <= 1 ? '1.5px solid #fca5a5' : '1.5px solid #fdba74',
+                  borderRadius: 8,
+                  padding: '10px 14px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>{rem.type === 'ready_for_registration' ? '🏛️' : rem.type === 'registration_upcoming' ? '🏛️' : '📅'}</span>
+                    <span>{rem.customerName}</span>
+                    <span style={{ fontSize: 11, color: '#64748b' }}>({rem.unitNumber})</span>
+                  </div>
+                  <div style={{ fontSize: 11.5, color: '#64748b', marginTop: 2 }}>
+                    {rem.type === 'ready_for_registration' ? (
+                      <strong style={{ color: '#15803d' }}>Ready for Registration Clearance</strong>
+                    ) : (
+                      <span>Scheduled: <strong>{new Date(rem.scheduledDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</strong></span>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  {rem.daysRemaining !== undefined && (
+                    <span style={{
+                      fontSize: 10,
+                      fontWeight: 800,
+                      padding: '3px 7px',
+                      borderRadius: 4,
+                      background: rem.daysRemaining <= 0 ? '#fee2e2' : rem.daysRemaining === 1 ? '#ffedd5' : '#fef3c7',
+                      color: rem.daysRemaining <= 0 ? '#dc2626' : rem.daysRemaining === 1 ? '#ea580c' : '#b45309'
+                    }}>
+                      {rem.daysRemaining === 0 ? 'TODAY' : rem.daysRemaining < 0 ? 'OVERDUE' : `${rem.daysRemaining}d left`}
+                    </span>
+                  )}
+                  <div style={{ fontSize: 10.5, color: 'var(--primary)', fontWeight: 700, marginTop: 4 }}>
+                    Manage →
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ─── ROLE-SPECIFIC KPI METRICS ─── */}
       <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginBottom: 20 }}>
         {isTelecallerRole ? (
@@ -603,7 +729,7 @@ export default function DashboardPage() {
               <div className="stat-icon-wrap" style={{ background: '#dcfce7' }}><span style={{ fontSize: 20 }}>🏆</span></div>
               <div className="stat-info">
                 <div className="stat-label" style={{ color: '#166534', fontWeight: 700 }}>Deals Won & Closed</div>
-                <div className="stat-value" style={{ color: '#15803d' }}>{stats?.finance?.totalBookingsCount ?? (stats?.funnel?.find(f => f.stage === 'booked')?.count || 0)} Deals</div>
+                <div className="stat-value" style={{ color: '#15803d' }}>{financeMetrics.totalBookingsCount ?? (stats?.funnel?.find(f => f.stage === 'booked')?.count || 0)} Deals</div>
                 <div className="stat-change up"><ArrowUp size={11} /> Converted Bookings</div>
               </div>
             </div>
@@ -611,7 +737,7 @@ export default function DashboardPage() {
               <div className="stat-icon-wrap" style={{ background: '#dbeafe' }}><span style={{ fontSize: 20 }}>💰</span></div>
               <div className="stat-info">
                 <div className="stat-label" style={{ color: '#1e40af', fontWeight: 700 }}>Closed Sales Revenue</div>
-                <div className="stat-value" style={{ color: '#1d4ed8' }}>{formatCurrency(stats?.finance?.grossBookingValue || 0)}</div>
+                <div className="stat-value" style={{ color: '#1d4ed8' }}>{formatCurrency(financeMetrics.grossBookingValue || 0)}</div>
                 <div className="stat-change up"><ArrowUp size={11} /> Realized revenue</div>
               </div>
             </div>
@@ -707,7 +833,7 @@ export default function DashboardPage() {
               <div className="stat-icon-wrap" style={{ background: '#eff6ff' }}><CreditCard size={22} color="#2563eb" /></div>
               <div className="stat-info">
                 <div className="stat-label">Total Demands Raised</div>
-                <div className="stat-value">{formatCurrency(stats?.finance?.totalDemandRaised || 0)}</div>
+                <div className="stat-value">{formatCurrency(financeMetrics.totalDemandRaised || 0)}</div>
                 <div className="stat-change up"><ArrowUp size={11} /> {payments.length} Milestone Notices</div>
               </div>
             </div>
@@ -715,24 +841,24 @@ export default function DashboardPage() {
               <div className="stat-icon-wrap" style={{ background: '#dcfce7' }}><DollarSign size={22} color="#10b981" /></div>
               <div className="stat-info">
                 <div className="stat-label">Realized Collections</div>
-                <div className="stat-value">{formatCurrency(stats?.finance?.totalPaidCollected || 0)}</div>
-                <div className="stat-change up"><ArrowUp size={11} /> {stats?.finance?.realizationRate || 0}% Realization</div>
+                <div className="stat-value">{formatCurrency(financeMetrics.totalPaidCollected || 0)}</div>
+                <div className="stat-change up"><ArrowUp size={11} /> {financeMetrics.realizationRate || 0}% Realization</div>
               </div>
             </div>
             <div className="stat-card" onClick={() => navigate('/payments')} style={{ cursor: 'pointer' }} title="Past due milestone invoices">
               <div className="stat-icon-wrap" style={{ background: '#fef2f2' }}><AlertCircle size={22} color="#ef4444" /></div>
               <div className="stat-info">
                 <div className="stat-label">Outstanding Balance</div>
-                <div className="stat-value">{formatCurrency(stats?.finance?.totalOutstanding || 0)}</div>
-                <div className="stat-change down"><Clock size={11} /> {stats?.finance?.overdueDemandsCount || 0} Overdue Notices</div>
+                <div className="stat-value">{formatCurrency(financeMetrics.totalOutstanding || 0)}</div>
+                <div className="stat-change down"><Clock size={11} /> {financeMetrics.overdueDemandsCount || 0} Overdue Notices</div>
               </div>
             </div>
             <div className="stat-card" onClick={() => navigate('/booking')} style={{ cursor: 'pointer' }} title="Gross booking value across active customer bookings">
               <div className="stat-icon-wrap" style={{ background: '#f3e8ff' }}><FileText size={22} color="#8b5cf6" /></div>
               <div className="stat-info">
                 <div className="stat-label">Gross Bookings Value</div>
-                <div className="stat-value">{formatCurrency(stats?.finance?.grossBookingValue || 0)}</div>
-                <div className="stat-change up"><ArrowUp size={11} /> {stats?.finance?.totalBookingsCount || 0} Bookings</div>
+                <div className="stat-value">{formatCurrency(financeMetrics.grossBookingValue || 0)}</div>
+                <div className="stat-change up"><ArrowUp size={11} /> {financeMetrics.totalBookingsCount || 0} Bookings</div>
               </div>
             </div>
           </>
@@ -743,8 +869,8 @@ export default function DashboardPage() {
               <div className="stat-icon-wrap" style={{ background: '#dcfce7' }}><DollarSign size={22} color="#16a34a" /></div>
               <div className="stat-info">
                 <div className="stat-label" style={{ color: '#166534', fontWeight: 700 }}>Gross Bookings Revenue</div>
-                <div className="stat-value" style={{ color: '#15803d' }}>{formatCurrency(stats?.finance?.grossBookingValue || 0)}</div>
-                <div className="stat-change up"><ArrowUp size={11} /> {stats?.finance?.totalBookingsCount || 0} Confirmed Bookings</div>
+                <div className="stat-value" style={{ color: '#15803d' }}>{formatCurrency(financeMetrics.grossBookingValue || 0)}</div>
+                <div className="stat-change up"><ArrowUp size={11} /> {financeMetrics.totalBookingsCount || 0} Confirmed Bookings</div>
               </div>
             </div>
 
@@ -752,7 +878,7 @@ export default function DashboardPage() {
               <div className="stat-icon-wrap" style={{ background: '#dbeafe' }}><CreditCard size={22} color="#2563eb" /></div>
               <div className="stat-info">
                 <div className="stat-label" style={{ color: '#1e40af', fontWeight: 700 }}>Milestone Demands Raised</div>
-                <div className="stat-value" style={{ color: '#1d4ed8' }}>{formatCurrency(stats?.finance?.totalDemandRaised || 0)}</div>
+                <div className="stat-value" style={{ color: '#1d4ed8' }}>{formatCurrency(financeMetrics.totalDemandRaised || 0)}</div>
                 <div className="stat-change up"><ArrowUp size={11} /> {payments.length} Milestone Notices</div>
               </div>
             </div>
@@ -761,8 +887,8 @@ export default function DashboardPage() {
               <div className="stat-icon-wrap" style={{ background: '#dcfce7' }}><CheckCircle size={22} color="#16a34a" /></div>
               <div className="stat-info">
                 <div className="stat-label" style={{ color: '#166534', fontWeight: 700 }}>Realized Collections (Paid)</div>
-                <div className="stat-value" style={{ color: '#16a34a' }}>{formatCurrency(stats?.finance?.totalPaidCollected || 0)}</div>
-                <div className="stat-change up"><ArrowUp size={11} /> {stats?.finance?.realizationRate || 0}% Realization</div>
+                <div className="stat-value" style={{ color: '#16a34a' }}>{formatCurrency(financeMetrics.totalPaidCollected || 0)}</div>
+                <div className="stat-change up"><ArrowUp size={11} /> {financeMetrics.realizationRate || 0}% Realization</div>
               </div>
             </div>
 
@@ -770,8 +896,8 @@ export default function DashboardPage() {
               <div className="stat-icon-wrap" style={{ background: '#fee2e2' }}><AlertCircle size={22} color="#dc2626" /></div>
               <div className="stat-info">
                 <div className="stat-label" style={{ color: '#991b1b', fontWeight: 700 }}>Outstanding Balance</div>
-                <div className="stat-value" style={{ color: '#dc2626' }}>{formatCurrency(stats?.finance?.totalOutstanding || 0)}</div>
-                <div className="stat-change down"><Clock size={11} /> {stats?.finance?.overdueDemandsCount || 0} Overdue Notices</div>
+                <div className="stat-value" style={{ color: '#dc2626' }}>{formatCurrency(financeMetrics.totalOutstanding || 0)}</div>
+                <div className="stat-change down"><Clock size={11} /> {financeMetrics.overdueDemandsCount || 0} Overdue Notices</div>
               </div>
             </div>
 

@@ -12,6 +12,7 @@ const STATUS_CONFIG = {
   pending_approval: { label: 'Pending Approval', badge: 'badge-warning', color: '#fef3c7' },
   approved: { label: 'Approved', badge: 'badge-success', color: '#dcfce7' },
   agreement_signed: { label: 'Agreement Signed', badge: 'badge-primary', color: '#dbeafe' },
+  ready_for_registration: { label: 'Ready for Registration', badge: 'badge-info', color: '#e0f2fe' },
   registered: { label: 'Registered', badge: 'badge-purple', color: '#f3e8ff' },
   cancelled: { label: 'Cancelled', badge: 'badge-danger', color: '#fef2f2' },
   transferred: { label: 'Transferred', badge: 'badge-gray', color: '#f1f5f9' },
@@ -28,7 +29,8 @@ const BookingKanbanView = ({ bookings, onApprove, onCancel, onDeleteBooking, onS
     { id: 'pending_approval', title: 'Pending Approval', color: '#f59e0b', bg: '#fffbeb', icon: '⏳' },
     { id: 'approved', title: 'Approved', color: '#10b981', bg: '#ecfdf5', icon: '✅' },
     { id: 'agreement_signed', title: 'Agreement Signed', color: '#3b82f6', bg: '#eff6ff', icon: '📝' },
-    { id: 'registered', title: 'Registered / Closed', color: '#8b5cf6', bg: '#f5f3ff', icon: '🏛️' },
+    { id: 'ready_for_registration', title: 'Ready for Reg.', color: '#0284c7', bg: '#f0f9ff', icon: '🏛️' },
+    { id: 'registered', title: 'Registered / Closed', color: '#8b5cf6', bg: '#f5f3ff', icon: '🎉' },
     { id: 'cancelled', title: 'Cancelled', color: '#ef4444', bg: '#fef2f2', icon: '❌' },
   ];
 
@@ -242,6 +244,41 @@ const BookingKanbanView = ({ bookings, onApprove, onCancel, onDeleteBooking, onS
                         </span>
                       </div>
 
+                      {/* Timeline & Registration Schedule Tags */}
+                      {(b.saleAgreementDate || b.registrationDate || b.isReadyForRegistration || b.status === 'ready_for_registration') && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+                          {(b.isReadyForRegistration || b.status === 'ready_for_registration') && (
+                            <div style={{ fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 4, background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              🏛️ <span>READY FOR REGISTRATION</span>
+                            </div>
+                          )}
+                          {b.saleAgreementDate && (
+                            (() => {
+                              const diff = Math.ceil((new Date(b.saleAgreementDate) - new Date()) / 86400000);
+                              const isUrgent = diff >= 0 && diff <= 4;
+                              return (
+                                <div style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: isUrgent ? '#fff7ed' : '#eff6ff', color: isUrgent ? '#c2410c' : '#1e40af', border: isUrgent ? '1px solid #fed7aa' : '1px solid #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  <span>📅 Agreement: {formatDate(b.saleAgreementDate)}</span>
+                                  <span style={{ fontSize: 9, fontWeight: 800 }}>{diff === 0 ? 'TODAY' : diff < 0 ? 'OVERDUE' : `${diff}d left`}</span>
+                                </div>
+                              );
+                            })()
+                          )}
+                          {b.registrationDate && (
+                            (() => {
+                              const diff = Math.ceil((new Date(b.registrationDate) - new Date()) / 86400000);
+                              const isUrgent = diff >= 0 && diff <= 4;
+                              return (
+                                <div style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: isUrgent ? '#fdf2f8' : '#f5f3ff', color: isUrgent ? '#be185d' : '#6b21a8', border: isUrgent ? '1px solid #fbcfe8' : '1px solid #e9d5ff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  <span>🏛️ Reg: {formatDate(b.registrationDate)}</span>
+                                  <span style={{ fontSize: 9, fontWeight: 800 }}>{diff === 0 ? 'TODAY' : diff < 0 ? 'OVERDUE' : `${diff}d left`}</span>
+                                </div>
+                              );
+                            })()
+                          )}
+                        </div>
+                      )}
+
                       {/* Financials */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
                         <div>
@@ -363,6 +400,9 @@ const CreateBookingModal = ({ onClose, onCreated, initialBooking }) => {
     totalAmount: initialBooking?.totalAmount?.toString() || '',
     tokenAmount: initialBooking?.tokenAmount?.toString() || '',
     paymentPlan: initialBooking?.paymentPlan || '',
+    saleAgreementDate: initialBooking?.saleAgreementDate ? initialBooking.saleAgreementDate.split('T')[0] : '',
+    registrationDate: initialBooking?.registrationDate ? initialBooking.registrationDate.split('T')[0] : '',
+    isReadyForRegistration: initialBooking?.isReadyForRegistration || false,
     loanRequired: false, loanAmount: '', bankName: '',
     coApplicantName: '', coApplicantPhone: '', coApplicantEmail: '',
     coApplicantPan: '', coApplicantAadhaar: '', coApplicantRelation: '',
@@ -473,6 +513,10 @@ const CreateBookingModal = ({ onClose, onCreated, initialBooking }) => {
       bookingAmount: Number(form.tokenAmount) || 0,
       bookingAmountMode: form.paymentMode ? form.paymentMode.toLowerCase() : 'cheque',
       paymentPlan: form.paymentPlan,
+      saleAgreementDate: form.saleAgreementDate || undefined,
+      registrationDate: form.registrationDate || undefined,
+      isReadyForRegistration: !!form.isReadyForRegistration,
+      status: form.isReadyForRegistration ? 'ready_for_registration' : undefined,
       coApplicants: form.coApplicantName ? [{
         name: form.coApplicantName,
         phone: form.coApplicantPhone,
@@ -705,7 +749,7 @@ const CreateBookingModal = ({ onClose, onCreated, initialBooking }) => {
                     <input className="form-input" value={form.transactionRef || ''} onChange={e => setForm(p => ({ ...p, transactionRef: e.target.value }))} placeholder="e.g. HDFC-CHK-99120" />
                   </div>
                 </div>
-                <div className="form-group">
+                <div className="form-group" style={{ marginBottom: 16 }}>
                   <label className="form-label">Payment Plan Schedule</label>
                   <CustomSelect
                     value={form.paymentPlan}
@@ -717,6 +761,55 @@ const CreateBookingModal = ({ onClose, onCreated, initialBooking }) => {
                       { value: 'subvention', label: 'Subvention Scheme', subtext: 'Developer pays EMI till possession' }
                     ]}
                   />
+                </div>
+
+                {/* Section: Legal Agreement & Registration Timeline (Automated 4-Day Notification) */}
+                <div style={{ background: '#f8fafc', border: '1.5px solid #bfdbfe', borderRadius: 10, padding: 14, marginTop: 14 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 800, color: '#1e40af', marginBottom: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      🏛️ Legal Agreement & Registration Schedule
+                    </span>
+                    <span style={{ fontSize: 10, background: '#dbeafe', color: '#1e40af', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>
+                      ⚡ 4-Day Advance Alerts
+                    </span>
+                  </div>
+                  <p style={{ fontSize: 11, color: '#64748b', margin: '0 0 10px 0' }}>
+                    Setting these dates automatically dispatches advance reminder notifications to Admin and assigned Telecaller 4 days before execution and on the due date.
+                  </p>
+
+                  <div className="form-row">
+                    <div className="form-group" style={{ marginBottom: 8 }}>
+                      <label className="form-label" style={{ fontSize: 11, fontWeight: 700 }}>Sale Agreement Scheduled Date</label>
+                      <input
+                        type="date"
+                        className="form-input"
+                        value={form.saleAgreementDate}
+                        onChange={e => setForm(p => ({ ...p, saleAgreementDate: e.target.value }))}
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 8 }}>
+                      <label className="form-label" style={{ fontSize: 11, fontWeight: 700 }}>Target Property Registration Date</label>
+                      <input
+                        type="date"
+                        className="form-input"
+                        value={form.registrationDate}
+                        onChange={e => setForm(p => ({ ...p, registrationDate: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, paddingTop: 8, borderTop: '1px solid #e2e8f0' }}>
+                    <input
+                      type="checkbox"
+                      id="ready-for-registration-check"
+                      checked={form.isReadyForRegistration}
+                      onChange={e => setForm(p => ({ ...p, isReadyForRegistration: e.target.checked }))}
+                      style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--primary)' }}
+                    />
+                    <label htmlFor="ready-for-registration-check" style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', cursor: 'pointer' }}>
+                      Mark as "Ready for Registration" immediately (triggers high-priority Admin/Telecaller notification)
+                    </label>
+                  </div>
                 </div>
               </>
             )}
@@ -761,14 +854,57 @@ const BookingDetailsModal = ({ booking, onClose, onStatusChange, onCancel, isAdm
   }, []);
 
   const { showNotification } = useUI();
+  const [agDate, setAgDate] = useState(booking.saleAgreementDate ? booking.saleAgreementDate.split('T')[0] : '');
+  const [regDate, setRegDate] = useState(booking.registrationDate ? booking.registrationDate.split('T')[0] : '');
+  const [isUpdatingDates, setIsUpdatingDates] = useState(false);
+  const [isMarkingReady, setIsMarkingReady] = useState(false);
+
   const statusConf = STATUS_CONFIG[booking.status] || STATUS_CONFIG.pending_approval;
   const totalVal = booking.totalAmount || 0;
   const tokenVal = booking.tokenAmount || booking.bookingAmount || 0;
-  const remBal = Math.max(0, totalVal - tokenVal);
+  const totalPaid = booking.paidAmount != null && booking.paidAmount > tokenVal ? booking.paidAmount : tokenVal;
+  const remBal = booking.balanceAmount != null ? booking.balanceAmount : Math.max(0, totalVal - totalPaid);
+
+  const handleSaveTimelineDates = async () => {
+    setIsUpdatingDates(true);
+    try {
+      const { data } = await api.put(`/bookings/${booking._id}`, {
+        saleAgreementDate: agDate || null,
+        registrationDate: regDate || null,
+      });
+      if (data?.data) {
+        showNotification('Legal timeline & agreement dates updated! 4-day notification alerts activated.');
+        if (onStatusChange) onStatusChange(booking._id, data.data.status, data.data);
+      }
+    } catch (err) {
+      console.error('Failed to update timeline dates:', err);
+      showNotification('Failed to update dates');
+    } finally {
+      setIsUpdatingDates(false);
+    }
+  };
+
+  const handleMarkReadyForReg = async () => {
+    setIsMarkingReady(true);
+    try {
+      const { data } = await api.put(`/bookings/${booking._id}/ready-for-registration`, {
+        registrationDate: regDate || undefined
+      });
+      if (data?.data) {
+        showNotification('🏛️ Unit marked READY FOR REGISTRATION! High-priority notification dispatched to Admin & Telecaller.');
+        if (onStatusChange) onStatusChange(booking._id, 'ready_for_registration', data.data);
+      }
+    } catch (err) {
+      console.error('Failed to mark ready for registration:', err);
+      showNotification('Failed to mark ready for registration');
+    } finally {
+      setIsMarkingReady(false);
+    }
+  };
 
   return (
     <div className="modal-overlay" onClick={onClose} style={{ zIndex: 9999 }}>
-      <div className="modal" style={{ maxWidth: 720, padding: 0, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+      <div className="modal" style={{ maxWidth: 740, padding: 0, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
         {/* Modal Header */}
         <div style={{ padding: '18px 24px', background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -804,19 +940,113 @@ const BookingDetailsModal = ({ booking, onClose, onStatusChange, onCancel, isAdm
             </div>
 
             <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: 12 }}>
-              <div style={{ fontSize: 11, color: '#1e40af', textTransform: 'uppercase', fontWeight: 700 }}>Token Advance Paid</div>
+              <div style={{ fontSize: 11, color: '#1e40af', textTransform: 'uppercase', fontWeight: 700 }}>Total Collected / Paid</div>
               <div style={{ fontSize: 16, fontWeight: 800, color: '#1d4ed8', marginTop: 4 }}>
-                {formatCurrency(tokenVal)}
+                {formatCurrency(totalPaid)}
               </div>
-              <div style={{ fontSize: 11, color: '#1e40af' }}>Mode: {booking.bookingAmountMode || 'NEFT'}</div>
+              <div style={{ fontSize: 11, color: '#1e40af' }}>
+                {totalPaid > tokenVal ? `Token: ${formatCurrency(tokenVal)} + Collections` : `Mode: ${booking.bookingAmountMode || 'NEFT'}`}
+              </div>
             </div>
 
-            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: 12 }}>
-              <div style={{ fontSize: 11, color: '#991b1b', textTransform: 'uppercase', fontWeight: 700 }}>Remaining Balance</div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#dc2626', marginTop: 4 }}>
-                {formatCurrency(remBal)}
+            <div style={{ background: remBal === 0 ? '#f0fdf4' : '#fef2f2', border: `1px solid ${remBal === 0 ? '#bbf7d0' : '#fecaca'}`, borderRadius: 8, padding: 12 }}>
+              <div style={{ fontSize: 11, color: remBal === 0 ? '#166534' : '#991b1b', textTransform: 'uppercase', fontWeight: 700 }}>Remaining Balance</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: remBal === 0 ? '#15803d' : '#dc2626', marginTop: 4 }}>
+                {remBal === 0 ? '₹0 (Fully Cleared ✓)' : formatCurrency(remBal)}
               </div>
-              <div style={{ fontSize: 11, color: '#991b1b' }}>Pending milestone dues</div>
+              <div style={{ fontSize: 11, color: remBal === 0 ? '#166534' : '#991b1b' }}>
+                {remBal === 0 ? 'All dues cleared' : 'Pending milestone dues'}
+              </div>
+            </div>
+          </div>
+
+          {/* Section: Legal Agreement & Registration Dates (4-Day Notification Engine) */}
+          <div style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', border: '1.5px solid #cbd5e1', borderRadius: 10, padding: 16, marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                🏛️ Legal Agreement & Registration Timelines
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: '#dbeafe', color: '#1e40af' }}>
+                🔔 Auto-alerts Admin & Telecallers 4 Days Before
+              </span>
+            </div>
+
+            <div className="form-row" style={{ marginBottom: 12 }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontSize: 11, fontWeight: 700, color: '#334155' }}>
+                  Sale Agreement Scheduled Date
+                </label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={agDate}
+                  onChange={e => setAgDate(e.target.value)}
+                />
+                {agDate && (
+                  <div style={{ fontSize: 11, marginTop: 4, fontWeight: 700, color: '#2563eb' }}>
+                    {(() => {
+                      const diff = Math.ceil((new Date(agDate) - new Date()) / 86400000);
+                      if (diff === 0) return '⚠️ Sale Agreement is due TODAY!';
+                      if (diff === 1) return '⚡ Sale Agreement is due TOMORROW!';
+                      if (diff < 0) return `⚠️ Overdue by ${Math.abs(diff)} days`;
+                      return `📅 Scheduled in ${diff} days (${diff <= 4 ? '🔔 4-day alert active' : 'Tracking'})`;
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontSize: 11, fontWeight: 700, color: '#334155' }}>
+                  Sub-Registrar Registration Date
+                </label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={regDate}
+                  onChange={e => setRegDate(e.target.value)}
+                />
+                {regDate && (
+                  <div style={{ fontSize: 11, marginTop: 4, fontWeight: 700, color: '#7c3aed' }}>
+                    {(() => {
+                      const diff = Math.ceil((new Date(regDate) - new Date()) / 86400000);
+                      if (diff === 0) return '🏛️ Registration scheduled TODAY!';
+                      if (diff === 1) return '⚡ Registration scheduled TOMORROW!';
+                      if (diff < 0) return `⚠️ Past registration date (${Math.abs(diff)}d ago)`;
+                      return `🏛️ Scheduled in ${diff} days (${diff <= 4 ? '🔔 4-day alert active' : 'Tracking'})`;
+                    })()}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid #e2e8f0', flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {(booking.status === 'ready_for_registration' || booking.isReadyForRegistration) ? (
+                  <span style={{ fontSize: 12, fontWeight: 800, color: '#15803d', background: '#dcfce7', padding: '4px 10px', borderRadius: 6, border: '1px solid #bbf7d0' }}>
+                    ✓ READY FOR REGISTRATION (Notified)
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    style={{ background: '#0284c7', borderColor: '#0284c7', gap: 6 }}
+                    disabled={isMarkingReady}
+                    onClick={handleMarkReadyForReg}
+                  >
+                    🏛️ {isMarkingReady ? 'Notifying...' : 'Mark Ready for Registration'}
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={isUpdatingDates}
+                onClick={handleSaveTimelineDates}
+                style={{ background: 'white' }}
+              >
+                💾 {isUpdatingDates ? 'Saving...' : 'Save Timeline Dates'}
+              </button>
             </div>
           </div>
 
@@ -948,8 +1178,42 @@ const BookingCard = ({ booking, onApprove, onCancel, onDeleteBooking, onViewDeta
                 🏛️ Registered / Closed
               </span>
             )}
+            {(booking.status === 'ready_for_registration' || booking.isReadyForRegistration) && (
+              <span style={{ fontSize: 11, color: '#15803d', background: '#f0fdf4', padding: '2px 8px', borderRadius: 6, fontWeight: 800, border: '1px solid #bbf7d0' }}>
+                🏛️ READY FOR REGISTRATION
+              </span>
+            )}
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>{booking.customerPhone} · {booking.customerEmail}</div>
+          
+          {/* Timeline schedule indicators */}
+          {(booking.saleAgreementDate || booking.registrationDate) && (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+              {booking.saleAgreementDate && (
+                (() => {
+                  const diff = Math.ceil((new Date(booking.saleAgreementDate) - new Date()) / 86400000);
+                  const isUrgent = diff >= 0 && diff <= 4;
+                  return (
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: isUrgent ? '#fff7ed' : '#eff6ff', color: isUrgent ? '#c2410c' : '#1e40af', border: isUrgent ? '1px solid #fed7aa' : '1px solid #bfdbfe' }}>
+                      📅 Sale Agreement: {formatDate(booking.saleAgreementDate)} ({diff === 0 ? 'TODAY' : diff < 0 ? 'OVERDUE' : `${diff}d left`})
+                    </span>
+                  );
+                })()
+              )}
+              {booking.registrationDate && (
+                (() => {
+                  const diff = Math.ceil((new Date(booking.registrationDate) - new Date()) / 86400000);
+                  const isUrgent = diff >= 0 && diff <= 4;
+                  return (
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: isUrgent ? '#fdf2f8' : '#f5f3ff', color: isUrgent ? '#be185d' : '#6b21a8', border: isUrgent ? '1px solid #fbcfe8' : '1px solid #e9d5ff' }}>
+                      🏛️ Registration: {formatDate(booking.registrationDate)} ({diff === 0 ? 'TODAY' : diff < 0 ? 'OVERDUE' : `${diff}d left`})
+                    </span>
+                  );
+                })()
+              )}
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
             <div style={{ fontSize: 12 }}>
               <div style={{ color: 'var(--text-muted)', fontSize: 10, textTransform: 'uppercase', fontWeight: 600 }}>Unit</div>
@@ -1007,6 +1271,7 @@ export default function BookingPage() {
   };
 
   const [bookings, setBookings] = useState([]);
+  const [reminders, setReminders] = useState([]);
   const [projectsList, setProjectsList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('kanban'); // 'kanban' (Board 1st default) | 'list'
@@ -1033,12 +1298,17 @@ export default function BookingPage() {
   const fetchBookings = useCallback(async () => {
     setLoading(true);
     try {
-      const [bookingsRes, invRes, leadsRes, statsRes] = await Promise.allSettled([
+      const [bookingsRes, invRes, leadsRes, statsRes, remindersRes] = await Promise.allSettled([
         api.get('/bookings?limit=1000'),
         api.get('/inventory?limit=1000'),
         api.get('/leads?limit=1000'),
-        api.get('/bookings/stats')
+        api.get('/bookings/stats'),
+        api.get('/bookings/upcoming-reminders')
       ]);
+
+      if (remindersRes.status === 'fulfilled' && remindersRes.value.data?.data) {
+        setReminders(remindersRes.value.data.data);
+      }
 
       const rawBookings = bookingsRes.status === 'fulfilled' && bookingsRes.value.data?.data ? bookingsRes.value.data.data : [];
       const rawInventory = invRes.status === 'fulfilled' && invRes.value.data?.data ? invRes.value.data.data : [];
@@ -1201,9 +1471,12 @@ export default function BookingPage() {
     }
   };
 
-  const handleStatusChange = async (id, status) => {
+  const handleStatusChange = async (id, status, extraData = {}) => {
     // 1. Instant optimistic UI update
-    setBookings(prev => prev.map(b => (b._id === id || b.id === id) ? { ...b, status } : b));
+    setBookings(prev => prev.map(b => (b._id === id || b.id === id) ? { ...b, status, ...extraData } : b));
+    if (viewingBooking && (viewingBooking._id === id || viewingBooking.id === id)) {
+      setViewingBooking(prev => ({ ...prev, status, ...extraData }));
+    }
     const label = STATUS_CONFIG[status]?.label || status.replace('_', ' ').toUpperCase();
     showNotification(`🎉 Booking moved to ${label}!`);
 
@@ -1216,6 +1489,8 @@ export default function BookingPage() {
         } else if (status === 'registered') {
           await api.put(`/inventory/${unitId}`, { status: 'registered', 'bookingCustomer.bookingStatus': 'registered' });
           await api.put(`/inventory/${unitId}/status`, { status: 'registered' });
+        } else if (status === 'ready_for_registration') {
+          await api.put(`/inventory/${unitId}`, { 'bookingCustomer.bookingStatus': 'ready_for_registration', 'bookingCustomer.isReadyForRegistration': true });
         } else if (status === 'agreement_signed') {
           await api.put(`/inventory/${unitId}`, { 'bookingCustomer.bookingStatus': 'agreement_signed' });
         } else if (status === 'approved') {
@@ -1234,10 +1509,16 @@ export default function BookingPage() {
           await api.put(`/bookings/${id}/approve`);
         } else if (status === 'cancelled') {
           await api.put(`/bookings/${id}/cancel`, { reason: 'Cancelled via Kanban board' });
+        } else if (status === 'ready_for_registration') {
+          await api.put(`/bookings/${id}/ready-for-registration`);
         } else {
-          await api.put(`/bookings/${id}`, { status });
+          await api.put(`/bookings/${id}`, { status, ...extraData });
         }
       }
+      // Refresh reminders in background
+      api.get('/bookings/upcoming-reminders').then(res => {
+        if (res.data?.data) setReminders(res.data.data);
+      }).catch(() => {});
     } catch (err) {
       console.warn('Booking status backend response:', err);
     }
@@ -1376,6 +1657,85 @@ export default function BookingPage() {
           </button>
         </div>
       </div>
+
+      {/* Upcoming Sale Agreement & Registration Alerts Banner (4-Day Window) */}
+      {reminders.length > 0 && (
+        <div style={{ background: 'linear-gradient(135deg, #fefce8 0%, #fff7ed 100%)', border: '1.5px solid #fed7aa', borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 18 }}>🔔</span>
+              <span style={{ fontSize: 13.5, fontWeight: 800, color: '#9a3412' }}>
+                Upcoming Sale Agreements & Registrations (4-Day Priority Window)
+              </span>
+              <span style={{ fontSize: 11, background: '#ea580c', color: 'white', padding: '1px 8px', borderRadius: 10, fontWeight: 800 }}>
+                {reminders.length} DUE
+              </span>
+            </div>
+            <span style={{ fontSize: 11, color: '#9a3412', fontWeight: 600 }}>
+              Auto-notified to Admin & Assigned Telecallers
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
+            {reminders.map((rem, idx) => (
+              <div
+                key={idx}
+                style={{
+                  background: 'white',
+                  border: rem.type === 'ready_for_registration' ? '1px solid #bbf7d0' : rem.daysRemaining <= 1 ? '1px solid #fecaca' : '1px solid #fed7aa',
+                  borderRadius: 8,
+                  padding: '10px 12px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>{rem.type === 'ready_for_registration' ? '🏛️' : rem.type === 'registration_upcoming' ? '🏛️' : '📅'}</span>
+                    <span>{rem.customerName}</span>
+                    <span style={{ fontSize: 11, color: '#64748b' }}>({rem.unitNumber})</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                    {rem.type === 'ready_for_registration' ? (
+                      <span style={{ color: '#15803d', fontWeight: 700 }}>Ready for Registration Clearance</span>
+                    ) : rem.scheduledDate ? (
+                      <span>Scheduled: <strong>{new Date(rem.scheduledDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</strong></span>
+                    ) : rem.message}
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  {rem.daysRemaining !== undefined && (
+                    <span style={{
+                      fontSize: 10,
+                      fontWeight: 800,
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      background: rem.daysRemaining <= 0 ? '#fee2e2' : rem.daysRemaining === 1 ? '#ffedd5' : '#fef3c7',
+                      color: rem.daysRemaining <= 0 ? '#dc2626' : rem.daysRemaining === 1 ? '#ea580c' : '#b45309'
+                    }}>
+                      {rem.daysRemaining === 0 ? 'TODAY' : rem.daysRemaining < 0 ? 'OVERDUE' : `${rem.daysRemaining}d left`}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    style={{ fontSize: 11, padding: '2px 6px', height: 22, color: 'var(--primary)', marginTop: 4, display: 'block' }}
+                    onClick={() => {
+                      const found = bookings.find(b => b._id === rem.bookingId || b.id === rem.bookingId);
+                      if (found) setViewingBooking(found);
+                    }}
+                  >
+                    View →
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Revenue & Booking Metrics Strip */}
       <div className="stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 20 }}>

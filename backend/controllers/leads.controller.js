@@ -134,8 +134,32 @@ const updateLead = async (req, res, next) => {
       query.organization = req.user?.organization || '__UNAUTHORIZED__';
     }
 
-    const lead = await Lead.findOneAndUpdate(query, req.body, { new: true, runValidators: true })
-      .populate('assignedTo', 'name email avatar')
+    const updateData = { ...req.body };
+
+    // Sanitize assignedTo ObjectId
+    if (updateData.assignedTo === '' || updateData.assignedTo === null) {
+      updateData.assignedTo = null;
+    } else if (updateData.assignedTo && typeof updateData.assignedTo === 'object' && updateData.assignedTo._id) {
+      updateData.assignedTo = updateData.assignedTo._id;
+    } else if (updateData.assignedTo && !mongoose.Types.ObjectId.isValid(updateData.assignedTo)) {
+      delete updateData.assignedTo;
+    }
+
+    // Sanitize interestedProject ObjectId
+    if (updateData.interestedProject === '' || updateData.interestedProject === null) {
+      updateData.interestedProject = null;
+    } else if (updateData.interestedProject && typeof updateData.interestedProject === 'object' && updateData.interestedProject._id) {
+      updateData.interestedProject = updateData.interestedProject._id;
+    } else if (updateData.interestedProject && !mongoose.Types.ObjectId.isValid(updateData.interestedProject)) {
+      delete updateData.interestedProject;
+    }
+
+    if (updateData.assignedTo) {
+      updateData.assignedAt = new Date();
+    }
+
+    const lead = await Lead.findOneAndUpdate(query, updateData, { new: true, runValidators: true })
+      .populate('assignedTo', 'name email phone role avatar')
       .populate('interestedProject', 'name city code');
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
     res.json({ success: true, data: lead });

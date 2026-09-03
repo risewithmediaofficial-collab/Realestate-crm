@@ -22,7 +22,7 @@ const getDashboardStats = async (req, res, next) => {
       totalLeads, todayLeads, newLeads,
       pendingTasks, todaySiteVisits, todayBookings,
       inventoryStats, stageStats, sourceStats, leadTypeStats,
-      bookingValueAgg, unitBookedAgg, paymentAgg, paymentModeStats, overdueDemandsCount
+      bookingValueAgg, unitBookedAgg, paymentsList, bookedUnitsList
     ] = await Promise.all([
       Lead.countDocuments({ ...orgQuery }),
       Lead.countDocuments({ ...orgQuery, createdAt: { $gte: today } }),
@@ -52,8 +52,8 @@ const getDashboardStats = async (req, res, next) => {
           $group: {
             _id: null,
             totalBookingsCount: { $sum: 1 },
-            totalBookingValue: { $sum: '$totalAmount' },
-            totalTokenCollected: { $sum: '$tokenAmount' }
+            totalBookingValue: { $sum: { $ifNull: ['$totalAmount', 0] } },
+            totalTokenCollected: { $sum: { $ifNull: ['$tokenAmount', { $ifNull: ['$bookingAmount', 0] }] } }
           }
         }
       ]),
@@ -63,34 +63,15 @@ const getDashboardStats = async (req, res, next) => {
           $group: {
             _id: null,
             count: { $sum: 1 },
-            totalValue: { $sum: '$pricing.totalPrice' },
-            tokenCollected: { $sum: '$bookingCustomer.tokenAmount' }
+            totalValue: { $sum: { $ifNull: ['$pricing.totalPrice', { $ifNull: ['$totalPrice', 0] }] } },
+            tokenCollected: { $sum: { $ifNull: ['$bookingCustomer.tokenAmount', { $ifNull: ['$bookingCustomer.bookingAmount', 0] }] } }
           }
         }
       ]),
-      Payment.aggregate([
-        ...(Object.keys(orgQuery).length > 0 ? [{ $match: orgQuery }] : []),
-        {
-          $group: {
-            _id: null,
-            totalDemandRaised: { $sum: '$demandAmount' },
-            totalPaidCollected: { $sum: '$paidAmount' },
-            totalOutstanding: { $sum: '$balanceAmount' },
-            count: { $sum: 1 }
-          }
-        }
-      ]),
-      Payment.aggregate([
-        ...(Object.keys(orgQuery).length > 0 ? [{ $match: orgQuery }] : []),
-        {
-          $group: {
-            _id: '$paymentMode',
-            count: { $sum: 1 },
-            collected: { $sum: '$paidAmount' }
-          }
-        }
-      ]),
-      Payment.countDocuments({ ...orgQuery, status: 'overdue' })
+      Payment.find({ ...orgQuery }).populate('booking', 'paidAmount balanceAmount totalAmount status').lean(),
+      Unit.find({ ...orgQuery, status: { $in: ['booked', 'registered', 'sold'] } })
+        .populate('booking', 'paidAmount balanceAmount totalAmount status')
+        .lean()
     ]);
 
     // Lead funnel (ordered stages)
@@ -110,22 +91,86 @@ const getDashboardStats = async (req, res, next) => {
 
     const totalBookingsCount = Math.max(bookingValueAgg[0]?.totalBookingsCount || 0, unitBookedAgg[0]?.count || 0);
 
-    const totalDemand = paymentAgg[0]?.totalDemandRaised || 0;
-    const totalCollected = (paymentAgg[0]?.totalPaidCollected || 0) + totalTokensCollected;
-    // Use actual DB balance (respects 0 as a valid value via nullish coalescing)
-    // Never fall back to grossRevenue - collected, as that inflates outstanding with undemanded amounts
-    const totalOutstanding = paymentAgg[0] != null
-      ? (paymentAgg[0].totalOutstanding ?? 0)
-      : 0;
+    let totalDemand = 0;
+    let totalCollected = 0;
+    let totalOutstanding = 0;
+    let overdueDemandsCount = 0;
+    const paymentModeMap = {};
+
+    const paymentUnitIds = new Set();
+    const paymentBookingIds = new Set();
+
+    (paymentsList || []).forEach(p => {
+      const dem = p.demandAmount || 0;
+      const paid = p.paidAmount || 0;
+      const bal = p.balanceAmount != null ? p.balanceAmount : Math.max(0, dem - paid);
+      totalDemand += dem;
+      totalCollected += paid;
+      totalOutstanding += bal;
+      if (p.status === 'overdue' || (p.status !== 'paid' && p.dueDate && new Date(p.dueDate) < today)) {
+        overdueDemandsCount++;
+      }
+      if (p.paymentMode) {
+        if (!paymentModeMap[p.paymentMode]) paymentModeMap[p.paymentMode] = { count: 0, collected: 0 };
+        paymentModeMap[p.paymentMode].count++;
+        paymentModeMap[p.paymentMode].collected += paid;
+      }
+      if (p.unit) paymentUnitIds.add(p.unit.toString());
+      if (p.booking) paymentBookingIds.add((p.booking?._id || p.booking).toString());
+    });
+
+    (bookedUnitsList || []).forEach(u => {
+      const uId = u._id?.toString();
+      const bId = (u.booking?._id || u.booking)?.toString();
+      const alreadyHas = paymentUnitIds.has(uId) || (bId && paymentBookingIds.has(bId));
+      if (!alreadyHas && (u.bookingCustomer?.name || u.booking)) {
+        const bk = u.booking && typeof u.booking === 'object' ? u.booking : null;
+        const cust = u.bookingCustomer || {};
+        const totalDeal = bk?.totalAmount || u.pricing?.totalPrice || u.totalPrice || 0;
+
+        // Detect if fully paid/cleared
+        const isCleared = (bk?.balanceAmount === 0 && (bk?.paidAmount || 0) > 0) ||
+                          ['ready_for_registration', 'registered', 'registration_closed', 'closed'].includes(bk?.status) ||
+                          cust.bookingStatus === 'cleared' ||
+                          cust.balanceDue === 0 ||
+                          (cust.totalPaid != null && cust.totalPaid >= totalDeal && totalDeal > 0);
+
+        const actualPaid = isCleared
+          ? totalDeal
+          : (bk?.paidAmount != null && bk.paidAmount > 0
+              ? bk.paidAmount
+              : (cust.totalPaid != null
+                  ? cust.totalPaid
+                  : (cust.paidAmount != null
+                      ? cust.paidAmount
+                      : (cust.tokenAmount || cust.bookingAmount || 0))));
+
+        const bal = isCleared ? 0 : (bk?.balanceAmount != null ? bk.balanceAmount : Math.max(0, totalDeal - actualPaid));
+        totalDemand += totalDeal;
+        totalCollected += actualPaid;
+        totalOutstanding += bal;
+        const mode = cust.paymentMode || 'neft';
+        if (!paymentModeMap[mode]) paymentModeMap[mode] = { count: 0, collected: 0 };
+        paymentModeMap[mode].count++;
+        paymentModeMap[mode].collected += actualPaid;
+      }
+    });
+
+    const paymentModeStats = Object.entries(paymentModeMap).map(([mode, data]) => ({
+      _id: mode,
+      count: data.count,
+      collected: data.collected
+    }));
+
     const realizationRate = totalDemand > 0 ? Number(((totalCollected / totalDemand) * 100).toFixed(1)) : 0;
 
     const finance = {
       grossBookingValue: grossBookingsVal,
       totalBookingsCount: totalBookingsCount,
       totalTokenCollected: totalTokensCollected,
-      totalDemandRaised: totalDemand,          // actual demands only, no grossRevenue fallback
+      totalDemandRaised: totalDemand,
       totalPaidCollected: totalCollected,
-      totalOutstanding: totalOutstanding,       // actual balance from payment records only
+      totalOutstanding: totalOutstanding,
       overdueDemandsCount,
       realizationRate,
       paymentModeStats

@@ -1,0 +1,11 @@
+.git
+.gitignore
+.github
+node_modules
+dist
+.env
+.env.*
+*.log
+scratch
+.system_generated
+.DS_Store

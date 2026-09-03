@@ -73,6 +73,9 @@ const createSiteVisit = async (req, res, next) => {
     if (req.user?._id && mongoose.Types.ObjectId.isValid(req.user._id)) {
       payload.scheduledBy = req.user._id;
     }
+    if (payload.assignedTo && !payload.assignedExecutive) {
+      payload.assignedExecutive = payload.assignedTo;
+    }
     if (payload.lead && !mongoose.Types.ObjectId.isValid(payload.lead)) delete payload.lead;
     if (payload.project && !mongoose.Types.ObjectId.isValid(payload.project)) delete payload.project;
     if (payload.assignedExecutive && !mongoose.Types.ObjectId.isValid(payload.assignedExecutive)) delete payload.assignedExecutive;
@@ -80,7 +83,21 @@ const createSiteVisit = async (req, res, next) => {
 
     const visit = await SiteVisit.create(payload);
     if (payload.lead) {
-      await Lead.findByIdAndUpdate(payload.lead, { stage: 'site_visit_scheduled' });
+      const updateData = {
+        $push: {
+          activities: {
+            type: 'site_visit',
+            title: `Site Visit Scheduled (${payload.scheduledTime || '11:00 AM'})`,
+            description: payload.notes || 'Site visit scheduled',
+            performedAt: new Date()
+          }
+        }
+      };
+      // Do not overwrite lead stage if preserveLeadStage is set to true (e.g. keeping new leads in 'new' stage)
+      if (!payload.preserveLeadStage) {
+        updateData.stage = 'site_visit_scheduled';
+      }
+      await Lead.findByIdAndUpdate(payload.lead, updateData);
     }
     const populated = await visit.populate([
       { path: 'lead', select: 'name phone email' },

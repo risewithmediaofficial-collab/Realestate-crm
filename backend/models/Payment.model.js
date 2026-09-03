@@ -1,8 +1,23 @@
 const mongoose = require('mongoose');
 
+const normalizePaymentMode = (val) => {
+  if (!val) return 'bank_transfer';
+  const v = String(val).toLowerCase().trim().replace(/[\s\/-]+/g, '_');
+  if (['upi', 'gpay', 'phonepe', 'paytm'].some(k => v.includes(k))) return 'upi';
+  if (v.includes('neft')) return 'neft';
+  if (v.includes('rtgs')) return 'rtgs';
+  if (v.includes('imps')) return 'imps';
+  if (v.includes('cheque') || v.includes('check') || v.includes('dd') || v.includes('demand_draft')) return 'cheque';
+  if (v.includes('cash')) return 'cash';
+  if (v.includes('card') || v.includes('pos')) return 'card';
+  if (v.includes('loan') || v.includes('disbursement')) return 'loan_disbursement';
+  if (v.includes('bank') || v.includes('transfer') || v.includes('wire')) return 'bank_transfer';
+  return 'bank_transfer';
+};
+
 const paymentTransactionSchema = new mongoose.Schema({
   amount: { type: Number, required: true },
-  paymentMode: { type: String, default: 'bank_transfer' },
+  paymentMode: { type: String, default: 'bank_transfer', set: normalizePaymentMode },
   transactionReference: { type: String },
   bankName: { type: String },
   paymentDate: { type: Date, default: Date.now },
@@ -44,7 +59,8 @@ const paymentSchema = new mongoose.Schema({
   paymentMode: {
     type: String,
     enum: ['cash', 'bank_transfer', 'neft', 'rtgs', 'imps', 'upi', 'cheque', 'dd', 'card', 'loan_disbursement', 'other'],
-    default: 'bank_transfer'
+    default: 'bank_transfer',
+    set: normalizePaymentMode
   },
   transactionReference: { type: String },
   bankName: { type: String },

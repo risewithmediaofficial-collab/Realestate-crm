@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Search, Filter, Plus, List, Columns, Phone, MessageSquare,
@@ -280,7 +280,7 @@ const CALL_OUTCOMES = {
   other: { label: 'Other Note', color: '#475569', bg: '#f1f5f9', icon: '📝' }
 };
 
-const LeadDrawer = ({ lead, onClose, onUpdateLead, onEditLead, onDeleteLead }) => {
+const LeadDrawer = ({ lead, usersList = [], onReassign, onClose, onUpdateLead, onEditLead, onDeleteLead }) => {
   const navigate = useNavigate();
   const [drawerTab, setDrawerTab] = useState('call_logs'); // 'call_logs' | 'activities' | 'info'
   const [callNote, setCallNote] = useState('');
@@ -489,7 +489,7 @@ const LeadDrawer = ({ lead, onClose, onUpdateLead, onEditLead, onDeleteLead }) =
 
         <div className="drawer-body">
           {/* Stage & Type Header */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
             <Badge className={LEAD_STAGES[lead.stage]?.color || 'badge-gray'}>
               {LEAD_STAGES[lead.stage]?.label || lead.stage}
             </Badge>
@@ -510,6 +510,40 @@ const LeadDrawer = ({ lead, onClose, onUpdateLead, onEditLead, onDeleteLead }) =
                 {formatDate(lead.nextFollowUp)} {lead.nextFollowUpTime ? `@ ${lead.nextFollowUpTime}` : ''}
               </span>
             )}
+          </div>
+
+          {/* Quick Assign / Reassign Bar */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: 8,
+            padding: '8px 12px',
+            marginBottom: 14,
+            gap: 10
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <UserCheck size={14} color="var(--primary)" />
+              <span>Assigned Executive:</span>
+            </div>
+            <div style={{ flex: 1, maxWidth: 220 }}>
+              <CustomSelect
+                value={lead.assignedTo?._id || lead.assignedTo || ''}
+                onChange={val => onReassign && onReassign(lead._id, val)}
+                searchable={true}
+                placeholder="-- Reassign Lead --"
+                options={[
+                  { value: '', label: 'Unassigned', icon: '👤' },
+                  ...(usersList || []).map(u => ({
+                    value: u._id,
+                    label: u.name,
+                    subtext: u.role?.replace(/_/g, ' ')
+                  }))
+                ]}
+              />
+            </div>
           </div>
 
           {/* Quick Call & Comms Bar */}
@@ -950,11 +984,13 @@ export default function AllLeadsPage() {
 
   const [sourceFilter, setSourceFilter] = useState('');
   const [projectFilter, setProjectFilter] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
   const [dateRangeFilter, setDateRangeFilter] = useState('');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [sortBy, setSortBy] = useState('date_desc');
   const [projectsList, setProjectsList] = useState([]);
+  const [usersList, setUsersList] = useState([]);
   const [selectedLead, setSelectedLead] = useState(null);
   const [editingLead, setEditingLead] = useState(null);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -1002,14 +1038,52 @@ export default function AllLeadsPage() {
   }, [fetchLeads]);
 
   useEffect(() => {
-    const loadProjects = async () => {
+    const loadData = async () => {
       try {
-        const { data } = await api.get('/projects');
-        setProjectsList(data.data || []);
+        const [projRes, userRes] = await Promise.all([
+          api.get('/projects').catch(() => ({ data: { data: [] } })),
+          api.get('/users').catch(() => ({ data: { data: [] } }))
+        ]);
+        setProjectsList(projRes.data?.data || projRes.data || []);
+        setUsersList(userRes.data?.data || userRes.data || []);
       } catch {}
     };
-    loadProjects();
+    loadData();
   }, []);
+
+  const handleQuickAssign = async (leadId, newUserId) => {
+    const targetUser = usersList.find(u => u._id === newUserId);
+    const lead = leads.find(l => l._id === leadId);
+    if (!lead) return;
+
+    const oldName = lead.assignedTo?.name || 'Unassigned';
+    const newName = targetUser ? targetUser.name : 'Unassigned';
+
+    const newActivity = {
+      type: 'assignment',
+      title: `Reassigned to ${newName}`,
+      description: `Lead transferred from ${oldName} to ${newName}`,
+      performedAt: new Date()
+    };
+
+    const updatedLead = {
+      ...lead,
+      assignedTo: targetUser ? { _id: targetUser._id, name: targetUser.name, avatar: targetUser.avatar, email: targetUser.email, role: targetUser.role } : null,
+      activities: [...(lead.activities || []), newActivity]
+    };
+
+    // Optimistic local state update
+    setLeads(prev => prev.map(l => l._id === leadId ? updatedLead : l));
+    if (selectedLead?._id === leadId) setSelectedLead(updatedLead);
+
+    try {
+      await api.put(`/leads/${leadId}/assign`, { assignedTo: newUserId || null });
+      showNotification(`✅ Lead "${lead.name}" assigned to ${newName}!`);
+    } catch (err) {
+      console.error('Failed to assign lead:', err);
+      showNotification(`Failed to reassign lead: ${err.message}`, 'error');
+    }
+  };
 
   // Listen for globally created leads
   useEffect(() => {
@@ -1099,6 +1173,17 @@ export default function AllLeadsPage() {
     showNotification(`Lead "${lead.name}" moved to ${newStageLabel}!`);
   };
 
+  const availableLocations = useMemo(() => {
+    const set = new Set();
+    leads.forEach(l => {
+      if (l.city) set.add(l.city.trim());
+      if (l.state) set.add(l.state.trim());
+      if (l.interestedProject?.city) set.add(l.interestedProject.city.trim());
+      if (l.interestedProject?.address) set.add(l.interestedProject.address.trim());
+    });
+    return Array.from(set).filter(Boolean);
+  }, [leads]);
+
   const filteredLeads = leads
     .filter(l => {
       if (search && !l.name?.toLowerCase().includes(search.toLowerCase()) && !l.phone?.includes(search) && !l.email?.toLowerCase().includes(search.toLowerCase())) return false;
@@ -1106,6 +1191,15 @@ export default function AllLeadsPage() {
       if (typeFilter && l.leadType !== typeFilter) return false;
       if (sourceFilter && l.source !== sourceFilter) return false;
       if (projectFilter && (l.interestedProject?._id !== projectFilter && l.interestedProject !== projectFilter)) return false;
+      if (locationFilter) {
+        const term = locationFilter.toLowerCase();
+        const matchesLoc = (l.city && l.city.toLowerCase().includes(term)) ||
+                           (l.state && l.state.toLowerCase().includes(term)) ||
+                           (l.interestedProject?.city && l.interestedProject.city.toLowerCase().includes(term)) ||
+                           (l.interestedProject?.address && l.interestedProject.address.toLowerCase().includes(term)) ||
+                           (l.address && l.address.toLowerCase().includes(term));
+        if (!matchesLoc) return false;
+      }
       if (dateRangeFilter) {
         const d = new Date(l.createdAt || Date.now());
         const now = new Date();
@@ -1195,6 +1289,18 @@ export default function AllLeadsPage() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
+
+        <CustomSelect
+          variant="filter"
+          value={locationFilter}
+          onChange={val => setLocationFilter(val)}
+          searchable={true}
+          placeholder="📍 All Locations / Cities"
+          options={[
+            { value: '', label: '📍 All Locations / Cities', icon: '📍' },
+            ...availableLocations.map(c => ({ value: c, label: c, icon: '📍' }))
+          ]}
+        />
 
         {projectsList.length > 0 && (
           <CustomSelect
@@ -1387,17 +1493,21 @@ export default function AllLeadsPage() {
                       <LeadScoreBar score={lead.leadScore || 50} />
                     </td>
                     <td style={{ fontSize: 12 }}>{lead.interestedProject?.name || '—'}</td>
-                    <td>
-                      {lead.assignedTo ? (
-                        <div className="table-avatar">
-                          <div className="avatar avatar-sm" style={{ width: 24, height: 24, fontSize: 10 }}>
-                            {getInitials(lead.assignedTo.name)}
-                          </div>
-                          <span style={{ fontSize: 12 }}>{lead.assignedTo.name?.split(' ')[0]}</span>
-                        </div>
-                      ) : (
-                        <span style={{ fontSize: 12, color: 'var(--danger)' }}>Unassigned</span>
-                      )}
+                    <td onClick={e => e.stopPropagation()} style={{ minWidth: 150 }}>
+                      <CustomSelect
+                        value={lead.assignedTo?._id || lead.assignedTo || ''}
+                        onChange={val => handleQuickAssign(lead._id, val)}
+                        searchable={true}
+                        placeholder="Assign Lead..."
+                        options={[
+                          { value: '', label: '👤 Unassigned' },
+                          ...usersList.map(u => ({
+                            value: u._id,
+                            label: u.name,
+                            subtext: u.role?.replace(/_/g, ' ')
+                          }))
+                        ]}
+                      />
                     </td>
                     <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{timeAgo(lead.createdAt)}</td>
                     <td onClick={e => e.stopPropagation()}>
@@ -1469,6 +1579,8 @@ export default function AllLeadsPage() {
       {/* Lead Drawer */}
       <LeadDrawer
         lead={selectedLead}
+        usersList={usersList}
+        onReassign={handleQuickAssign}
         onClose={() => setSelectedLead(null)}
         onUpdateLead={handleUpdateLead}
         onEditLead={setEditingLead}
@@ -1479,6 +1591,7 @@ export default function AllLeadsPage() {
       {editingLead && (
         <EditLeadModal
           lead={editingLead}
+          usersList={usersList}
           onClose={() => setEditingLead(null)}
           onUpdated={handleUpdateLead}
         />

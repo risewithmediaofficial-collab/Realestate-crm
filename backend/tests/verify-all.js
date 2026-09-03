@@ -84,7 +84,7 @@ async function runTests() {
 
     const loginRes = await request('/api/auth/login', {
       method: 'POST',
-      body: { email: 'admin@crm.com', password: 'Admin@123' }
+      body: { email: 'mrprealestate@gmail.com', password: 'Admin@123' }
     });
     assert('Login with admin account returns 200', loginRes.status === 200);
     if (loginRes.body?.token) {

@@ -1,0 +1,12 @@
+# Local Development Override (automatically loaded alongside docker-compose.yml for local testing)
+services:
+  backend:
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+
+  frontend:
+    # In local testing, frontend container continues to serve through Nginx
+    restart: unless-stopped

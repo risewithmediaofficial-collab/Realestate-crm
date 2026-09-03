@@ -8,10 +8,10 @@ const {
   deleteNotification,
   getNotificationStats,
 } = require('../controllers/notifications.controller');
-const { auth } = require('../middleware/auth.middleware');
+const { protect } = require('../middleware/auth.middleware');
 
 // All routes require authentication
-router.use(auth);
+router.use(protect);
 
 // Get all notifications with optional filters
 router.get('/', getAllNotifications);
