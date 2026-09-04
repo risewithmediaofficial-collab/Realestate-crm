@@ -205,6 +205,35 @@ const deleteUser = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// Purge all default seeded demo accounts (leaves only Super Admin and newly registered accounts)
+const cleanupSeededUsers = async (req, res, next) => {
+  try {
+    const demoEmails = [
+      'admin@crm.com',
+      'sales.head@crm.com',
+      'sales1@crm.com',
+      'sales2@crm.com',
+      'telecaller1@crm.com',
+      'marketing@crm.com',
+      'finance@crm.com'
+    ];
+
+    const result = await User.deleteMany({
+      role: { $ne: 'super_admin' },
+      $or: [
+        { email: { $in: demoEmails } },
+        { organization: 'Rise With RealtyHub' }
+      ]
+    });
+
+    res.json({
+      success: true,
+      message: `Cleaned up ${result.deletedCount} seeded demo accounts successfully. Only newly registered accounts and Super Admin remain.`,
+      deletedCount: result.deletedCount
+    });
+  } catch (err) { next(err); }
+};
+
 module.exports = {
   getUsers,
   getUser,
@@ -214,5 +243,6 @@ module.exports = {
   rejectUser,
   revokeApproval,
   toggleUserStatus,
-  deleteUser
+  deleteUser,
+  cleanupSeededUsers
 };

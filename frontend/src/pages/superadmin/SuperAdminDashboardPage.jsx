@@ -239,6 +239,17 @@ export default function SuperAdminDashboardPage() {
     showNotification(`Approval revoked for "${targetUser.name}". Moved to Pending Review.`);
   };
 
+  const handleCleanupSeededAccounts = async () => {
+    if (!window.confirm("Are you sure you want to remove all default seeded demo accounts (admin@crm.com, sales.head@crm.com, etc.)?\n\nOnly newly registered accounts and your Super Admin account will be kept.")) return;
+    try {
+      const res = await api.delete('/users/seeded/cleanup');
+      await fetchUsers();
+      showNotification(res.data?.message || 'Seeded demo accounts removed successfully! Only newly registered accounts remain.');
+    } catch (err) {
+      showNotification(err?.response?.data?.message || err.message || 'Failed to remove seeded accounts.', 'error');
+    }
+  };
+
   // Filtered Modules for Matrix
   const filteredModules = useMemo(() => {
     return ALL_CRM_MODULES.filter(m => {
@@ -1091,21 +1102,45 @@ export default function SuperAdminDashboardPage() {
               </button>
             </div>
 
-            <div style={{ position: 'relative', minWidth: '260px' }}>
-              <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-              <input
-                type="text"
-                placeholder="Search by name, email, org, city..."
-                value={searchApproval}
-                onChange={e => setSearchApproval(e.target.value)}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button
+                onClick={handleCleanupSeededAccounts}
                 style={{
-                  width: '100%',
-                  padding: '7px 12px 7px 32px',
+                  padding: '7px 14px',
                   borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '13px'
+                  border: '1px solid #fecaca',
+                  background: '#fef2f2',
+                  color: '#dc2626',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 1px 2px rgba(220, 38, 38, 0.08)'
                 }}
-              />
+                title="Purge all default demo seeded accounts and retain only newly registered organizations"
+              >
+                <Trash2 size={14} /> Remove All Seeded Accounts
+              </button>
+
+              <div style={{ position: 'relative', minWidth: '240px' }}>
+                <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                <input
+                  type="text"
+                  placeholder="Search by name, email, org, city..."
+                  value={searchApproval}
+                  onChange={e => setSearchApproval(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '7px 12px 7px 32px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px'
+                  }}
+                />
+              </div>
             </div>
           </div>
 
@@ -1364,6 +1399,29 @@ export default function SuperAdminDashboardPage() {
                                 >
                                   <X size={14} /> Reject
                                 </button>
+
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteUser(u._id, u.name);
+                                  }}
+                                  style={{
+                                    padding: '6px 10px',
+                                    background: '#fef2f2',
+                                    border: '1px solid #fecaca',
+                                    color: '#dc2626',
+                                    borderRadius: '8px',
+                                    fontSize: '12px',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                  title="Delete this application permanently"
+                                >
+                                  <Trash2 size={13} /> Delete
+                                </button>
                               </>
                             )}
 
@@ -1409,6 +1467,29 @@ export default function SuperAdminDashboardPage() {
                                   }}
                                 >
                                   <Key size={13} /> Permissions
+                                </button>
+
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteUser(u._id, u.name);
+                                  }}
+                                  style={{
+                                    padding: '5px 8px',
+                                    background: '#fef2f2',
+                                    border: '1px solid #fecaca',
+                                    color: '#dc2626',
+                                    borderRadius: '6px',
+                                    fontSize: '12px',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px'
+                                  }}
+                                  title="Delete this account permanently"
+                                >
+                                  <Trash2 size={13} /> Delete
                                 </button>
                               </>
                             )}

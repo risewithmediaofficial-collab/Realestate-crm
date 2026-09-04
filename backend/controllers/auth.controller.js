@@ -49,42 +49,6 @@ const login = async (req, res, next) => {
       return res.json({ success: true, token, user: superAdmin.toJSON() });
     }
 
-    // Auto-provision Workspace Admin if database was not yet seeded
-    if (identifier === 'admin@crm.com' || identifier === 'admin') {
-      let adminUser = await User.findOne({
-        $or: [{ email: 'admin@crm.com' }, { username: 'admin' }]
-      }).select('+password');
-      if (!adminUser) {
-        adminUser = await User.create({
-          name: 'Workspace Admin',
-          email: 'admin@crm.com',
-          username: 'admin',
-          password: 'Admin@123',
-          role: 'admin',
-          phone: '+91-9876543210',
-          organization: 'Rise With RealtyHub',
-          approvalStatus: 'approved',
-          isApproved: true,
-          isActive: true,
-          permissions: ['*']
-        });
-      }
-
-      const isValidPassword = (await adminUser.comparePassword(password)) ||
-        password === 'Admin@123' ||
-        password === 'admin' ||
-        password === 'SuperAdmin@2026';
-
-      if (!isValidPassword) {
-        return res.status(401).json({ success: false, message: 'Invalid credentials' });
-      }
-
-      adminUser.lastLogin = new Date();
-      await adminUser.save({ validateBeforeSave: false });
-      const token = generateToken(adminUser._id);
-      return res.json({ success: true, token, user: adminUser.toJSON() });
-    }
-
     // Find user by email or username
     const user = await User.findOne({
       $or: [{ email: identifier }, { username: identifier }]

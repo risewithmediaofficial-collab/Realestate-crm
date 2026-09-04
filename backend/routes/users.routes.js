@@ -9,11 +9,13 @@ const {
   rejectUser,
   revokeApproval,
   toggleUserStatus,
-  deleteUser
+  deleteUser,
+  cleanupSeededUsers
 } = require('../controllers/users.controller');
 const { protect, authorize } = require('../middleware/auth.middleware');
 
 router.use(protect);
+router.delete('/seeded/cleanup', authorize('super_admin'), cleanupSeededUsers);
 router.route('/').get(getUsers).post(authorize('admin', 'super_admin'), createUser);
 router.route('/:id').get(getUser).put(updateUser).delete(authorize('admin', 'super_admin'), deleteUser);
 

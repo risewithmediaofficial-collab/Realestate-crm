@@ -30,19 +30,30 @@ const buyerRequirementsRoutes = require('./routes/buyerRequirements.routes');
 
 const app = express();
 
-// Connect to MongoDB and auto-initialize if empty
+// Connect to MongoDB and ensure Super Admin master exists
 connectDB().then(async () => {
   try {
     const User = require('./models/User.model');
-    const userCount = await User.countDocuments();
-    if (userCount === 0) {
-      console.log('⚡ Empty database detected. Auto-seeding initial CRM datasets & default users...');
-      const seed = require('./db/seed');
-      await seed(false);
-      console.log('✅ Auto-seed completed successfully.');
+    const superAdmin = await User.findOne({ role: 'super_admin' });
+    if (!superAdmin) {
+      console.log('⚡ Initializing Super Admin root account...');
+      await User.create({
+        name: 'Super Admin Master',
+        email: 'superadmin@crm.com',
+        username: 'superadmin',
+        password: 'SuperAdmin@2026',
+        role: 'super_admin',
+        phone: '+91-9999999999',
+        organization: 'RealtyHub HQ',
+        approvalStatus: 'approved',
+        isApproved: true,
+        isActive: true,
+        permissions: ['*']
+      });
+      console.log('✅ Super Admin root account created.');
     }
   } catch (err) {
-    console.error('⚠️ Auto-initialization check notice:', err.message);
+    console.error('⚠️ Super Admin initialization notice:', err.message);
   }
 });
 
