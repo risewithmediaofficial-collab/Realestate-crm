@@ -1,3 +1,5 @@
+name: realestate-crm
+
 services:
   # ─── 1. Database (MongoDB) ──────────────────────────────
   mongo:

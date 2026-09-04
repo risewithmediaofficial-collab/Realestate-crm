@@ -21,21 +21,28 @@ jobs:
           port: 22
           script_stop: true
           script: |
-            TARGET_DIR="/docker/real-estate-crm"
             REPO_URL="https://github.com/${{ github.repository }}.git"
 
             echo "================================================="
             echo "🚀 Starting Deployment for Real Estate CRM"
             echo "================================================="
 
+            # Detect directory if already cloned under realestate-crm or real-estate-crm
+            TARGET_DIR="/docker/realestate-crm"
+            if [ -d "/docker/realestate-crm/.git" ]; then
+              TARGET_DIR="/docker/realestate-crm"
+            elif [ -d "/docker/real-estate-crm/.git" ]; then
+              TARGET_DIR="/docker/real-estate-crm"
+            fi
+
             # Check if directory and git repository exist
             if [ ! -d "$TARGET_DIR/.git" ]; then
-              echo "📦 Directory does not exist. Creating and cloning repository..."
+              echo "📦 Directory does not exist. Creating and cloning repository into $TARGET_DIR..."
               mkdir -p /docker
               git clone "$REPO_URL" "$TARGET_DIR"
               cd "$TARGET_DIR"
             else
-              echo "🔄 Existing repository found. Pulling latest commits from main..."
+              echo "🔄 Existing repository found at $TARGET_DIR. Pulling latest commits from main..."
               cd "$TARGET_DIR"
               git reset --hard HEAD
               git clean -fd
@@ -45,10 +52,14 @@ jobs:
             # Ensure upload directories exist on host
             mkdir -p backend/uploads
 
-            # Build and deploy containers
+            # Stop and remove previous conflicting containers by name to prevent Docker conflict errors
+            echo "🛑 Removing old conflicting containers if any..."
+            docker rm -f realestate_crm_frontend realestate_crm_backend realestate_crm_db 2>/dev/null || true
+            docker compose -p realestate-crm -f docker-compose.yml down --remove-orphans 2>/dev/null || true
+
+            # Build and deploy containers with consistent project name
             echo "🐳 Starting Docker Compose build and container orchestration..."
-            docker compose -f docker-compose.yml down --remove-orphans || true
-            docker compose -f docker-compose.yml up -d --build --no-deps
+            docker compose -p realestate-crm -f docker-compose.yml up -d --build
 
             # Prune dangling/unused images to preserve VPS disk space
             echo "🧹 Cleaning up unused Docker images..."
@@ -57,4 +68,4 @@ jobs:
             echo "================================================="
             echo "✅ Deployment completed successfully!"
             echo "================================================="
-            docker compose -f docker-compose.yml ps
+            docker compose -p realestate-crm -f docker-compose.yml ps
