@@ -14,8 +14,10 @@ const ChannelPartner = require('../models/ChannelPartner.model');
 const Booking = require('../models/Booking.model');
 const Payment = require('../models/Payment.model');
 
-const seed = async () => {
-  await connectDB();
+const seed = async (shouldExit = false) => {
+  if (mongoose.connection.readyState !== 1) {
+    await connectDB();
+  }
   console.log('🌱 Starting comprehensive real estate CRM database seed...');
 
   // Clear all collections
@@ -681,10 +683,17 @@ const seed = async () => {
   console.log('   Executive:  sales1@crm.com     / Admin@123');
   console.log('=============================================\n');
 
-  process.exit(0);
+  if (shouldExit) {
+    process.exit(0);
+  }
+  return true;
 };
 
-seed().catch(err => {
-  console.error('❌ Database seed failed:', err);
-  process.exit(1);
-});
+module.exports = seed;
+
+if (require.main === module) {
+  seed(true).catch(err => {
+    console.error('❌ Database seed failed:', err);
+    process.exit(1);
+  });
+}

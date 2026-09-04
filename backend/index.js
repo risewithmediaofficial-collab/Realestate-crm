@@ -30,8 +30,21 @@ const buyerRequirementsRoutes = require('./routes/buyerRequirements.routes');
 
 const app = express();
 
-// Connect to MongoDB
-connectDB();
+// Connect to MongoDB and auto-initialize if empty
+connectDB().then(async () => {
+  try {
+    const User = require('./models/User.model');
+    const userCount = await User.countDocuments();
+    if (userCount === 0) {
+      console.log('⚡ Empty database detected. Auto-seeding initial CRM datasets & default users...');
+      const seed = require('./db/seed');
+      await seed(false);
+      console.log('✅ Auto-seed completed successfully.');
+    }
+  } catch (err) {
+    console.error('⚠️ Auto-initialization check notice:', err.message);
+  }
+});
 
 // High Performance & Traffic Load Balancing Middleware
 app.use(helmet({ crossOriginResourcePolicy: false, crossOriginEmbedderPolicy: false }));
@@ -60,7 +73,7 @@ app.use('/api/auth/superadmin-login', authLimiter);
 
 // CORS & Body Parsers
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'],
+  origin: true,
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -68,6 +81,15 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Auto-Invalidate cache on write mutations
 app.use('/api', autoInvalidateCache);
+
+// Root informational endpoint for direct browser/monitoring inspection
+app.get('/', (req, res) => res.json({
+  success: true,
+  message: 'Rise With RealtyHub CRM Backend API is online',
+  status: 'healthy',
+  health: '/api/health',
+  timestamp: new Date()
+}));
 
 // Health check with system metrics
 app.get('/api/health', (req, res) => res.json({

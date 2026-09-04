@@ -58,11 +58,13 @@ export const AuthProvider = ({ children }) => {
         return { success: true, user: superAdminUser };
       }
 
-      const errorMessage = err.response?.data?.message || err.message || 'Invalid credentials. Please check your email/username and password.';
+      const errorMessage = (err && typeof err === 'object' && err.message) ||
+        err.response?.data?.message ||
+        (typeof err === 'string' ? err : 'Invalid credentials. Please check your email/username and password.');
       return {
         success: false,
-        pendingApproval: Boolean(err.response?.data?.pendingApproval),
-        rejected: Boolean(err.response?.data?.rejected),
+        pendingApproval: Boolean(err?.pendingApproval || err.response?.data?.pendingApproval),
+        rejected: Boolean(err?.rejected || err.response?.data?.rejected),
         message: errorMessage
       };
     } finally {
