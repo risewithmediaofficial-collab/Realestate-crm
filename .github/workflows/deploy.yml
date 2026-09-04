@@ -21,43 +21,30 @@ jobs:
           port: 22
           script_stop: true
           script: |
+            TARGET_DIR="/docker/real-estate-crm"
             REPO_URL="https://github.com/${{ github.repository }}.git"
 
             echo "================================================="
             echo "🚀 Starting Deployment for Real Estate CRM"
             echo "================================================="
 
-            # Detect directory if already cloned under realestate-crm or real-estate-crm
-            TARGET_DIR="/docker/realestate-crm"
-            if [ -d "/docker/realestate-crm/.git" ]; then
-              TARGET_DIR="/docker/realestate-crm"
-            elif [ -d "/docker/real-estate-crm/.git" ]; then
-              TARGET_DIR="/docker/real-estate-crm"
-            fi
+            # Remove existing conflicting containers before building
+            echo "🛑 Stopping and removing previous containers..."
+            docker rm -f realestate_crm_frontend realestate_crm_backend realestate_crm_db 2>/dev/null || true
 
-            # Check if directory and git repository exist
-            if [ ! -d "$TARGET_DIR/.git" ]; then
-              echo "📦 Directory does not exist. Creating and cloning repository into $TARGET_DIR..."
-              mkdir -p /docker
-              git clone "$REPO_URL" "$TARGET_DIR"
-              cd "$TARGET_DIR"
+            # Clone or update repository
+            if [ -d "$TARGET_DIR/.git" ]; then
+              echo "🔄 Updating repository at $TARGET_DIR..."
+              cd "$TARGET_DIR" && git reset --hard HEAD && git clean -fd && git pull origin main
             else
-              echo "🔄 Existing repository found at $TARGET_DIR. Pulling latest commits from main..."
-              cd "$TARGET_DIR"
-              git reset --hard HEAD
-              git clean -fd
-              git pull origin main
+              echo "📦 Cloning repository into $TARGET_DIR..."
+              mkdir -p /docker && git clone "$REPO_URL" "$TARGET_DIR" && cd "$TARGET_DIR"
             fi
 
-            # Ensure upload directories exist on host
+            # Ensure upload directories exist
             mkdir -p backend/uploads
 
-            # Stop and remove previous conflicting containers by name to prevent Docker conflict errors
-            echo "🛑 Removing old conflicting containers if any..."
-            docker rm -f realestate_crm_frontend realestate_crm_backend realestate_crm_db 2>/dev/null || true
-            docker compose -p realestate-crm -f docker-compose.yml down --remove-orphans 2>/dev/null || true
-
-            # Build and deploy containers with consistent project name
+            # Build and deploy containers
             echo "🐳 Starting Docker Compose build and container orchestration..."
             docker compose -p realestate-crm -f docker-compose.yml up -d --build
 
