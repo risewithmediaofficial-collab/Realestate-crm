@@ -32,6 +32,8 @@ export default function PublicProjectDetailPage() {
   });
   const [visitSuccess, setVisitSuccess] = useState(false);
   const [visitSubmitting, setVisitSubmitting] = useState(false);
+  const [activeHeroImg, setActiveHeroImg] = useState(null);
+  const [viewingPlotPhoto, setViewingPlotPhoto] = useState(null);
 
   useEffect(() => {
     fetchProjectDetails();
@@ -121,7 +123,10 @@ export default function PublicProjectDetailPage() {
     );
   }
 
-  const defaultImg = project.images?.[0] || 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80';
+  const galleryImages = Array.isArray(project.images) && project.images.length > 0
+    ? project.images
+    : (project.logo ? [project.logo] : []);
+  const defaultImg = activeHeroImg || galleryImages[0] || 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80';
 
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 24px 100px' }}>
@@ -211,6 +216,42 @@ export default function PublicProjectDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Multi-Photo Gallery Carousel Strip */}
+        {galleryImages.length > 1 && (
+          <div style={{
+            display: 'flex',
+            gap: 10,
+            padding: '12px 20px',
+            background: '#f8fafc',
+            borderBottom: '1px solid #e2e8f0',
+            overflowX: 'auto',
+            alignItems: 'center'
+          }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', whiteSpace: 'nowrap' }}>
+              📸 Property Gallery ({galleryImages.length}):
+            </span>
+            {galleryImages.map((img, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setActiveHeroImg(img)}
+                style={{
+                  width: 64,
+                  height: 48,
+                  borderRadius: 6,
+                  overflow: 'hidden',
+                  border: defaultImg === img ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                  padding: 0,
+                  cursor: 'pointer',
+                  flexShrink: 0
+                }}
+              >
+                <img src={img} alt={`Gallery ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Quick Spec Metrics Bar */}
         <div style={{
@@ -417,6 +458,42 @@ export default function PublicProjectDetailPage() {
 
                 return (
                   <div key={unit._id} className="pub-unit-card">
+                    {/* Plot / Unit Photo Banner */}
+                    {(unit.image || unit.images?.[0] || unit.floorPlan) && (
+                      <div
+                        onClick={() => setViewingPlotPhoto({
+                          url: unit.image || unit.images?.[0] || unit.floorPlan,
+                          title: `Plot / Unit ${unit.unitNumber} (${unit.type || 'Layout'})`
+                        })}
+                        style={{
+                          width: '100%',
+                          height: 130,
+                          borderRadius: 10,
+                          overflow: 'hidden',
+                          marginBottom: 12,
+                          position: 'relative',
+                          cursor: 'pointer',
+                          border: '1px solid #e2e8f0',
+                          background: '#f1f5f9'
+                        }}
+                        title="Click to zoom plot / unit image"
+                      >
+                        <img
+                          src={unit.image || unit.images?.[0] || unit.floorPlan}
+                          alt={`Plot ${unit.unitNumber}`}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                        <span style={{
+                          position: 'absolute', bottom: 6, right: 6,
+                          background: 'rgba(15,23,42,0.8)', color: '#ffffff',
+                          padding: '2px 8px', borderRadius: 4, fontSize: 10.5, fontWeight: 700,
+                          display: 'flex', alignItems: 'center', gap: 4
+                        }}>
+                          🔍 View Layout Plan
+                        </span>
+                      </div>
+                    )}
+
                     <div className="pub-unit-header">
                       <div>
                         <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--pub-primary)' }}>
@@ -666,6 +743,41 @@ export default function PublicProjectDetailPage() {
                 </form>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Lightbox Plot / Layout Photo Viewer */}
+      {viewingPlotPhoto && (
+        <div
+          className="modal-overlay"
+          onClick={() => setViewingPlotPhoto(null)}
+          style={{ zIndex: 9999, background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(4px)' }}
+        >
+          <div
+            className="modal"
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: 750, padding: 20, background: '#ffffff', borderRadius: 16, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ fontWeight: 800, fontSize: 16, color: '#0f172a' }}>
+                📸 {viewingPlotPhoto.title}
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon btn-sm"
+                onClick={() => setViewingPlotPhoto(null)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div style={{ maxHeight: '72vh', overflow: 'hidden', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a' }}>
+              <img
+                src={viewingPlotPhoto.url}
+                alt={viewingPlotPhoto.title}
+                style={{ maxWidth: '100%', maxHeight: '72vh', objectFit: 'contain' }}
+              />
+            </div>
           </div>
         </div>
       )}

@@ -103,9 +103,14 @@ export default function AddInventoryModal({ project, onClose, onUnitAdded }) {
     isManualPriceOverride: false,
 
     // Section 6: Inventory Status
-    status: 'available'
+    status: 'available',
+
+    // Section 7: Plot / Unit Media
+    image: '',
+    images: []
   });
 
+  const [plotUrlInput, setPlotUrlInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [generalError, setGeneralError] = useState('');
@@ -286,7 +291,10 @@ export default function AddInventoryModal({ project, onClose, onUnitAdded }) {
           totalPrice: finalTotalPackage
         },
         status: form.status,
-        isCorner: form.isCorner
+        isCorner: form.isCorner,
+        image: form.image || '',
+        images: form.image ? [form.image] : [],
+        floorPlan: form.image || ''
       };
 
       const { data } = await api.post('/inventory', payload);
@@ -971,6 +979,79 @@ export default function AddInventoryModal({ project, onClose, onUnitAdded }) {
               </div>
             </div>
 
+            {/* ================================================== */}
+            {/* SECTION 7 — PLOT / UNIT PHOTOS & SITE LAYOUT */}
+            {/* ================================================== */}
+            <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, background: '#f8fafc' }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ background: '#e0e7ff', color: '#4338ca', width: 22, height: 22, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>7</span>
+                SECTION 7 — PLOT / UNIT PHOTOS &amp; SITE LAYOUT
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+                <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0, fontSize: 12 }}>
+                  📁 Upload Plot / Unit Photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 12 * 1024 * 1024) {
+                        showNotification('File exceeds 12MB limit', 'warning');
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onload = (loadEvt) => {
+                        setForm(p => ({ ...p, image: loadEvt.target.result, images: [loadEvt.target.result] }));
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </label>
+
+                <div style={{ display: 'flex', gap: 6, flex: 1, minWidth: 200 }}>
+                  <input
+                    className="form-input"
+                    placeholder="Or paste plot image URL (https://...)"
+                    value={plotUrlInput}
+                    onChange={e => setPlotUrlInput(e.target.value)}
+                    style={{ fontSize: 12, padding: '6px 10px' }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      if (plotUrlInput.trim()) {
+                        setForm(p => ({ ...p, image: plotUrlInput.trim(), images: [plotUrlInput.trim()] }));
+                        setPlotUrlInput('');
+                      }
+                    }}
+                  >
+                    Set URL
+                  </button>
+                </div>
+              </div>
+
+              {form.image ? (
+                <div style={{ position: 'relative', width: 140, height: 95, borderRadius: 8, overflow: 'hidden', border: '2px solid #2563eb', marginTop: 8 }}>
+                  <img src={form.image} alt="Plot / Unit preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <button
+                    type="button"
+                    onClick={() => setForm(p => ({ ...p, image: '', images: [] }))}
+                    style={{ position: 'absolute', top: 3, right: 3, background: 'rgba(0,0,0,0.7)', color: 'white', border: 'none', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 11 }}
+                    title="Remove Image"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <div style={{ fontSize: 11.5, color: '#94a3b8', fontStyle: 'italic' }}>
+                  Optional: Upload a photo of the plot, unit boundary, or layout floor plan to show on the public website.
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Modal Footer */}

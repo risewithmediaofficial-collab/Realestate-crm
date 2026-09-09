@@ -298,6 +298,17 @@ export default function PublicSelfBookingPage() {
                       boxShadow: isSelected ? '0 4px 14px rgba(37,99,235,0.12)' : 'none'
                     }}
                   >
+                    {/* Plot / Unit Image Preview */}
+                    {(unit.image || unit.images?.[0] || unit.floorPlan) && (
+                      <div style={{ height: 90, width: '100%', borderRadius: 8, overflow: 'hidden', marginBottom: 10, background: '#f1f5f9' }}>
+                        <img
+                          src={unit.image || unit.images?.[0] || unit.floorPlan}
+                          alt={`Plot ${unit.unitNumber}`}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      </div>
+                    )}
+
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                       <span style={{ fontWeight: 800, fontSize: 16, color: '#0f172a' }}>
                         Unit {unit.unitNumber}

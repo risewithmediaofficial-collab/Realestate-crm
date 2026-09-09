@@ -170,7 +170,7 @@ exports.getPublicProjectUnits = async (req, res) => {
     }
 
     const units = await Unit.find(query)
-      .select('unitNumber tower floor propertyType type facing area bedrooms bathrooms balconies pricing physicalDetails status')
+      .select('unitNumber tower floor propertyType type facing area bedrooms bathrooms balconies pricing physicalDetails status image images floorPlan')
       .sort({ floor: 1, unitNumber: 1 })
       .lean();
 
@@ -472,7 +472,7 @@ exports.createPublicBooking = async (req, res) => {
       balanceAmount: 0,
       paymentDate: new Date(),
       paymentMode: booking.bookingAmountMode,
-      status: 'completed',
+      status: 'paid',
       type: 'token_advance',
       transactionReference: `TXN-WEB-${Date.now()}`,
       organization

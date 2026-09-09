@@ -15,190 +15,67 @@ import api from '../../services/api';
 
 const navConfig = [
   {
-    section: 'MAIN',
+    section: 'OVERVIEW',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
       { id: 'public-site', label: 'Customer Website ↗', icon: Globe, path: '/', external: true },
     ],
   },
   {
-    section: 'MARKETING & LEADS',
+    section: 'SALES & LEADS',
     items: [
       {
-        id: 'marketing', label: 'Marketing', icon: TrendingUp, path: '/marketing',
+        id: 'leads', label: 'Leads Pipeline', icon: Users, path: '/leads',
         children: [
-          { label: 'Ad Campaigns', path: '/marketing/campaigns' },
-          { label: 'Meta Lead Ads (FB & IG)', path: '/settings/integrations/meta' },
-          { label: 'Lead Sources & Integrations', path: '/marketing/sources' },
-          { label: 'Drip Automations', path: '/marketing/drip' },
-          { label: 'Lead Scoring Algorithm', path: '/marketing/scoring' },
-        ],
-      },
-      {
-        id: 'leads', label: 'Leads / Pre-Sales', icon: Users, path: '/leads',
-        children: [
-          { label: '🗂️ All Leads Board (Total)', path: '/leads' },
+          { label: '🗂️ All Leads Board', path: '/leads' },
           { label: '⚡ New Leads Board', path: '/leads/new' },
-          { label: '📅 SV Scheduled & Changed', path: '/leads/scheduled' },
-          { label: '🔥 My Hot Leads', path: '/leads/hot' },
-          { label: '🎯 Qualified Deals', path: '/leads/qualified' },
+          { label: '📅 SV Scheduled & Done', path: '/leads/scheduled' },
+          { label: '🔥 Hot Priority Leads', path: '/leads/hot' },
         ],
       },
-      {
-        id: 'requirements', label: 'Buyer Requirements', icon: Sparkles, path: '/requirements'
-      },
+      { id: 'pipeline', label: 'Visual Pipeline', icon: GitBranch, path: '/pipeline' },
+      { id: 'requirements', label: 'Buyer Requirements', icon: Sparkles, path: '/requirements' },
+      { id: 'activities', label: 'Follow-ups & Tasks', icon: CheckSquare, path: '/activities' },
+      { id: 'communication', label: 'Call & WhatsApp', icon: MessageSquare, path: '/communication' },
     ],
   },
   {
-    section: 'SALES',
+    section: 'PROPERTY & INVENTORY',
     items: [
       {
-        id: 'communication', label: 'Communication', icon: MessageSquare, path: '/communication',
+        id: 'projects', label: 'Projects & Developments', icon: Building, path: '/projects',
         children: [
-          { label: 'Cloud Dialer & Call Logs', path: '/communication/calling' },
-          { label: 'WhatsApp Live Chat', path: '/communication/whatsapp' },
-          { label: 'Email Automation', path: '/communication/email' },
-          { label: 'Message Templates', path: '/communication/templates' },
-        ],
-      },
-      {
-        id: 'activities', label: 'Activities', icon: CheckSquare, path: '/activities',
-        children: [
-          { label: 'All Tasks', path: '/activities/all' },
-          { label: 'Follow-up Calls', path: '/activities/call' },
-          { label: 'Overdue SLA Tasks', path: '/activities/overdue' },
-          { label: 'Scheduled Meetings', path: '/activities/meeting' },
-        ],
-      },
-      { id: 'pipeline', label: 'Sales Pipeline', icon: GitBranch, path: '/pipeline' },
-    ],
-  },
-  {
-    section: 'PROJECTS & INVENTORY',
-    items: [
-      {
-        id: 'projects', label: 'Projects', icon: Building, path: '/projects',
-        children: [
-          { label: 'All Projects', path: '/projects/all' },
+          { label: 'All Master Projects', path: '/projects' },
           { label: 'Residential Apartments', path: '/projects/residential' },
-          { label: 'Commercial Offices', path: '/projects/commercial' },
-          { label: 'Plotted Developments', path: '/projects/plots' },
+          { label: 'Plots & Farmlands', path: '/projects/plots' },
+          { label: 'Commercial Spaces', path: '/projects/commercial' },
         ],
       },
       {
-        id: 'inventory', label: 'Inventory', icon: Warehouse, path: '/inventory',
+        id: 'inventory', label: 'Inventory & Plot Grid', icon: Warehouse, path: '/inventory',
         children: [
-          { label: 'Tower A Plan (GVR)', path: '/inventory/tower-a' },
-          { label: 'Tower B Plan (GVR)', path: '/inventory/tower-b' },
-          { label: 'Commercial Suites (STC)', path: '/inventory/tower-commercial' },
+          { label: 'All Inventory Units', path: '/inventory' },
+          { label: 'Tower & Sector Matrix', path: '/inventory/tower-a' },
         ],
       },
-      {
-        id: 'pricing', label: 'Pricing & Cost Sheets', icon: DollarSign, path: '/pricing',
-        children: [
-          { label: 'Cost Sheet Calculator', path: '/pricing/calculator' },
-          { label: 'Base Rates & PLC Rules', path: '/pricing/rules' },
-          { label: 'Payment Schemes (CLP/Subvention)', path: '/pricing/plans' },
-        ],
-      },
+      { id: 'pricing', label: 'Pricing & Cost Sheets', icon: DollarSign, path: '/pricing' },
     ],
   },
   {
-    section: 'SITE VISITS & NEGOTIATION',
+    section: 'BOOKINGS & CLOSINGS',
     items: [
-      {
-        id: 'siteVisits', label: 'Site Visits', icon: MapPin, path: '/site-visits',
-        children: [
-          { label: 'Today’s Visits', path: '/site-visits/today' },
-          { label: 'Scheduled Visits', path: '/site-visits/scheduled' },
-          { label: 'Completed Visits', path: '/site-visits/completed' },
-          { label: 'Driver & Cab Logs', path: '/site-visits/logistics' },
-        ],
-      },
-      {
-        id: 'negotiations', label: 'Negotiations & Offers', icon: Scale, path: '/negotiations',
-        children: [
-          { label: 'Active Price Offers', path: '/negotiations/active' },
-          { label: 'Approved Discounts', path: '/negotiations/approved' },
-          { label: 'Floor-Rise Waivers', path: '/negotiations/waivers' },
-        ],
-      },
+      { id: 'siteVisits', label: 'Site Visits', icon: MapPin, path: '/site-visits' },
+      { id: 'booking', label: 'Bookings & Applications', icon: FileText, path: '/booking' },
+      { id: 'payments', label: 'Payments & Demands', icon: CreditCard, path: '/payments' },
     ],
   },
   {
-    section: 'CLOSING & FINANCE',
+    section: 'ADMIN & TOOLS',
     items: [
-      {
-        id: 'booking', label: 'Booking & Deeds', icon: FileText, path: '/booking',
-        children: [
-          { label: 'Pending Approval', path: '/booking/pending' },
-          { label: 'Approved Bookings', path: '/booking/approved' },
-          { label: 'Agreement Signed', path: '/booking/agreements' },
-          { label: 'Cancelled / Released', path: '/booking/cancelled' },
-        ],
-      },
-      {
-        id: 'payments', label: 'Payment Collections', icon: CreditCard, path: '/payments',
-        children: [
-          { label: 'Demand Letters (CLP)', path: '/payments/demands' },
-          { label: 'Overdue Installments', path: '/payments/overdue' },
-          { label: 'Bank Approvals & NOC', path: '/payments/loans' },
-          { label: 'Receipt Generation', path: '/payments/receipts' },
-        ],
-      },
-      {
-        id: 'channelPartners', label: 'Channel Partners', icon: Handshake, path: '/channel-partners',
-        children: [
-          { label: 'Broker Directory', path: '/channel-partners/all' },
-          { label: 'Pending Slabs / Payouts', path: '/channel-partners/payouts' },
-          { label: 'Incentive Schemes', path: '/channel-partners/tiers' },
-        ],
-      },
-    ],
-  },
-  {
-    section: 'POST-SALES & CUSTOMER',
-    items: [
-      {
-        id: 'customerPortal', label: 'Customer Portal', icon: User, path: '/customer-portal',
-        children: [
-          { label: 'Buyer Documents', path: '/customer-portal/documents' },
-          { label: 'Construction Progress', path: '/customer-portal/progress' },
-          { label: 'Possession Handover', path: '/customer-portal/possession' },
-        ],
-      },
-    ],
-  },
-  {
-    section: 'INSIGHTS & ADMIN',
-    items: [
-      {
-        id: 'reports', label: 'Analytics & Reports', icon: BarChart3, path: '/reports',
-        children: [
-          { label: 'Sales Velocity & Revenue', path: '/reports/sales' },
-          { label: 'Inventory Aging Report', path: '/reports/inventory' },
-          { label: 'Agent Calling Productivity', path: '/reports/telecallers' },
-          { label: 'Lead Source ROI', path: '/reports/sources' },
-        ],
-      },
-      {
-        id: 'users', label: 'Team Management', icon: Users, path: '/users',
-        children: [
-          { label: 'All Staff Members', path: '/users' },
-          { label: 'Telecaller Teams', path: '/users/telecallers' },
-          { label: 'Sales Executives / Closers', path: '/users/executives' },
-          { label: 'Managers & Team Leads', path: '/users/managers' },
-        ],
-      },
-      {
-        id: 'settings', label: 'Settings', icon: Settings, path: '/settings',
-        children: [
-          { label: 'Company Profile & RERA', path: '/settings/company' },
-          { label: 'Team Roles & RBAC', path: '/settings/roles' },
-          { label: 'Custom Property Types', path: '/settings/properties' },
-          { label: 'API Integrations', path: '/settings/integrations' },
-        ],
-      },
+      { id: 'marketing', label: 'Marketing & Meta Ads', icon: TrendingUp, path: '/marketing' },
+      { id: 'reports', label: 'Reports & Revenue BI', icon: BarChart3, path: '/reports' },
+      { id: 'users', label: 'Team Members', icon: User, path: '/users' },
+      { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
     ],
   },
 ];

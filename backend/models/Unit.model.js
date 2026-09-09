@@ -195,10 +195,12 @@ const unitSchema = new mongoose.Schema({
   heldBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   blockedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 
-  // Features
+  // Features & Media
   isCorner: { type: Boolean, default: false },
   isPenthouse: { type: Boolean, default: false },
   floorPlan: { type: String },
+  image: { type: String },
+  images: [String],
   // Organization & Multi-Tenancy Scoping
   organization: { type: String, trim: true, required: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

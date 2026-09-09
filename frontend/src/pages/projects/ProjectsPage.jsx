@@ -99,7 +99,8 @@ export default function ProjectsPage() {
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [showAddUnitModal, setShowAddUnitModal] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
-  const [showWorkflowGuide, setShowWorkflowGuide] = useState(true);
+  const [showWorkflowGuide, setShowWorkflowGuide] = useState(false);
+  const [projectImgUrlInput, setProjectImgUrlInput] = useState('');
   const { user } = useAuth();
   const { simulatedRole, showNotification } = useUI();
   const effectiveRole = simulatedRole || user?.role || 'admin';
@@ -170,7 +171,9 @@ export default function ProjectsPage() {
     approvals: [],
     newCustomApproval: '',
     totalAcres: '',
-    extentUnit: 'Acres'
+    extentUnit: 'Acres',
+    images: [],
+    coverImage: ''
   });
 
   // Dynamic Unit Form for Active Project
@@ -351,7 +354,9 @@ export default function ProjectsPage() {
         approvalBody: selectedApprovals.join(', '),
         totalAcres: Number(form.totalAcres),
         extentUnit: form.extentUnit || 'Acres'
-      }
+      },
+      images: Array.isArray(form.images) && form.images.length > 0 ? form.images : (form.coverImage ? [form.coverImage] : []),
+      logo: form.coverImage || form.images?.[0] || ''
     };
 
     if (editingProject) {
@@ -840,8 +845,11 @@ export default function ProjectsPage() {
       approvals: existingApprovals,
       newCustomApproval: '',
       totalAcres: proj.categoryDetails?.totalAcres || '10',
-      extentUnit: proj.categoryDetails?.extentUnit || 'Acres'
+      extentUnit: proj.categoryDetails?.extentUnit || 'Acres',
+      images: Array.isArray(proj.images) && proj.images.length > 0 ? proj.images : (proj.logo ? [proj.logo] : []),
+      coverImage: proj.images?.[0] || proj.logo || ''
     });
+    setProjectImgUrlInput('');
     setShowProjectModal(true);
   };
 
@@ -1031,8 +1039,13 @@ export default function ProjectsPage() {
                       minPrice: '',
                       maxPrice: '',
                       approvalBody: 'RERA Approved',
-                      totalAcres: ''
+                      approvals: ['RERA Approved'],
+                      totalAcres: '',
+                      extentUnit: 'Acres',
+                      images: [],
+                      coverImage: ''
                     });
+                    setProjectImgUrlInput('');
                     setShowProjectModal(true);
                   }}
                 >
@@ -2949,6 +2962,111 @@ export default function ProjectsPage() {
                       onChange={e => setForm(p => ({ ...p, maxPrice: e.target.value }))}
                     />
                   </div>
+                </div>
+
+                {/* ── PROPERTY PHOTOS & MEDIA GALLERY ── */}
+                <div style={{ background: '#f8fafc', padding: 16, borderRadius: 10, margin: '14px 0', border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <label className="form-label" style={{ fontWeight: 700, marginBottom: 0, display: 'flex', alignItems: 'center', gap: 6, color: '#0f172a' }}>
+                      📸 Property Photos &amp; Website Showcase
+                    </label>
+                    <span style={{ fontSize: 11, color: '#64748b' }}>Displays on public customer portal</span>
+                  </div>
+
+                  {/* Upload Controls */}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+                    <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0, fontSize: 12, padding: '7px 12px' }}>
+                      📁 Select Images from Computer
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          if (!files.length) return;
+                          files.forEach(file => {
+                            if (file.size > 12 * 1024 * 1024) {
+                              showNotification('Image exceeds 12MB limit', 'warning');
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = (loadEvt) => {
+                              const base64 = loadEvt.target.result;
+                              setForm(prev => ({
+                                ...prev,
+                                images: [...(prev.images || []), base64],
+                                coverImage: prev.coverImage || base64
+                              }));
+                            };
+                            reader.readAsDataURL(file);
+                          });
+                        }}
+                      />
+                    </label>
+
+                    <div style={{ display: 'flex', gap: 6, flex: 1, minWidth: 220 }}>
+                      <input
+                        className="form-input"
+                        placeholder="Or paste image URL (https://...)"
+                        value={projectImgUrlInput}
+                        onChange={e => setProjectImgUrlInput(e.target.value)}
+                        style={{ fontSize: 12, padding: '6px 10px' }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{ whiteSpace: 'nowrap', fontSize: 12 }}
+                        onClick={() => {
+                          if (projectImgUrlInput.trim()) {
+                            const url = projectImgUrlInput.trim();
+                            setForm(prev => ({
+                              ...prev,
+                              images: [...(prev.images || []), url],
+                              coverImage: prev.coverImage || url
+                            }));
+                            setProjectImgUrlInput('');
+                          }
+                        }}
+                      >
+                        + Add URL
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Thumbnail Preview Grid */}
+                  {Array.isArray(form.images) && form.images.length > 0 ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8, marginTop: 8 }}>
+                      {form.images.map((img, idx) => (
+                        <div key={idx} style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', height: 75, border: (form.coverImage === img || idx === 0) ? '2px solid #2563eb' : '1px solid #cbd5e1' }}>
+                          <img src={img} alt={`Property upload ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          {(form.coverImage === img || idx === 0) && (
+                            <span style={{ position: 'absolute', top: 2, left: 2, background: '#2563eb', color: 'white', fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3 }}>
+                              Cover
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setForm(p => ({
+                                ...p,
+                                images: p.images.filter((_, i) => i !== idx),
+                                coverImage: p.coverImage === img ? (p.images.find((_, i) => i !== idx) || '') : p.coverImage
+                              }));
+                            }}
+                            style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.7)', color: 'white', border: 'none', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 11 }}
+                            title="Remove Photo"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 11.5, color: '#94a3b8', fontStyle: 'italic', background: '#ffffff', padding: '10px 12px', borderRadius: 6, border: '1px dashed #cbd5e1', textAlign: 'center' }}>
+                      No photos added yet. Upload property pictures or paste URLs to display on the public website.
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="modal-footer">
