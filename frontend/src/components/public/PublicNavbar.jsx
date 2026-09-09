@@ -27,15 +27,29 @@ export default function PublicNavbar() {
       <div className="pub-nav-container">
         {/* Brand Logo */}
         <Link to="/" className="pub-brand" onClick={() => setMobileOpen(false)}>
-          <div className="pub-brand-icon">
-            <Building2 size={22} />
-          </div>
+          <img
+            src="/mrp-logo.jpeg"
+            alt="MRP Real Estate"
+            className="pub-brand-logo-img"
+            style={{
+              height: 44,
+              width: 44,
+              objectFit: 'contain',
+              borderRadius: 8,
+              border: '1px solid #dbead4',
+              background: '#ffffff',
+              padding: 2,
+              flexShrink: 0
+            }}
+          />
           <div>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span>MRP Real Estate</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontWeight: 800, fontSize: 17, color: 'var(--pub-primary)', letterSpacing: '-0.01em' }}>
+                MRP Real Estate
+              </span>
               <span className="pub-brand-tag">Verified</span>
             </div>
-            <div style={{ fontSize: 10, color: 'var(--pub-text-muted)', fontWeight: 500, letterSpacing: '0.02em' }}>
+            <div style={{ fontSize: 11, color: 'var(--pub-text-muted)', fontWeight: 500, letterSpacing: '0.01em' }}>
               Direct Buyer Portal &amp; Self-Booking
             </div>
           </div>

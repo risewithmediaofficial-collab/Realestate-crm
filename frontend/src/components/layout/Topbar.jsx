@@ -34,6 +34,16 @@ export default function Topbar() {
           <Menu size={19} />
         </button>
 
+        {/* Mobile Brand Logo */}
+        <div
+          className="topbar-mobile-logo"
+          onClick={() => navigate('/dashboard')}
+          style={{ display: 'none', alignItems: 'center', gap: 6, cursor: 'pointer' }}
+        >
+          <img src="/mrp-logo.jpeg" alt="MRP" style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 6, border: '1px solid #dbead4', background: '#ffffff', padding: 1 }} />
+          <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>MRP CRM</span>
+        </div>
+
         {/* Search Bar */}
         <div className="topbar-search">
           <Search size={15} color="var(--text-muted)" />

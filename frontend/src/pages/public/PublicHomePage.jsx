@@ -105,7 +105,7 @@ export default function PublicHomePage() {
         <div className="pub-hero-bg-glow" />
         <div className="pub-hero-container">
           <div className="pub-hero-badge">
-            <Sparkles size={14} color="#60a5fa" /> Direct Developer Booking Portal · 0% Brokerage
+            <Sparkles size={14} color="var(--pub-accent)" /> Direct Developer Booking Portal · 0% Brokerage
           </div>
 
           <h1 className="pub-hero-title">
@@ -518,34 +518,35 @@ export default function PublicHomePage() {
 
           {/* Quick VIP Lead Capture Card */}
           <div style={{
-            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+            background: 'linear-gradient(135deg, #15290e 0%, #224217 100%)',
+            border: '1px solid #2f5a20',
             color: '#ffffff',
             borderRadius: 20,
             padding: '36px 30px',
-            boxShadow: '0 20px 45px rgba(15, 23, 42, 0.25)'
+            boxShadow: '0 20px 45px rgba(21, 41, 14, 0.25)'
           }}>
-            <div style={{ fontSize: 12, color: '#60a5fa', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <div style={{ fontSize: 12, color: '#86efac', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               VIP Brochure &amp; Price List
             </div>
             <h3 style={{ fontSize: 22, fontWeight: 800, margin: '6px 0 10px', color: '#ffffff' }}>
               Download Master Plans &amp; Cost Sheets
             </h3>
-            <p style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.5, marginBottom: 24 }}>
+            <p style={{ fontSize: 13, color: '#cbdcc8', lineHeight: 1.5, marginBottom: 24 }}>
               Get detailed layout plans, unit dimensions, and special pre-launch pricing directly on WhatsApp or Email.
             </p>
 
             {inquirySuccess ? (
-              <div style={{ background: 'rgba(16, 185, 129, 0.2)', border: '1px solid #10b981', borderRadius: 12, padding: 20, textAlign: 'center' }}>
-                <CheckCircle2 size={36} color="#10b981" style={{ margin: '0 auto 8px' }} />
+              <div style={{ background: 'rgba(69, 133, 34, 0.25)', border: '1px solid #458522', borderRadius: 12, padding: 20, textAlign: 'center' }}>
+                <CheckCircle2 size={36} color="#86efac" style={{ margin: '0 auto 8px' }} />
                 <div style={{ fontWeight: 700, fontSize: 16 }}>Request Received!</div>
-                <div style={{ fontSize: 12.5, color: '#e2e8f0', marginTop: 4 }}>
+                <div style={{ fontSize: 12.5, color: '#e2f0dc', marginTop: 4 }}>
                   Our senior property specialist will send over the customized cost sheet and reach out shortly.
                 </div>
               </div>
             ) : (
               <form onSubmit={handleBrochureInquiry} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div>
-                  <label style={{ fontSize: 11.5, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 4 }}>
+                  <label style={{ fontSize: 11.5, fontWeight: 600, color: '#a7c2a4', display: 'block', marginBottom: 4 }}>
                     Your Full Name *
                   </label>
                   <input
@@ -557,8 +558,8 @@ export default function PublicHomePage() {
                       width: '100%',
                       padding: '10px 14px',
                       borderRadius: 9,
-                      border: '1px solid #334155',
-                      background: '#0f172a',
+                      border: '1px solid #2e5520',
+                      background: '#11220c',
                       color: '#ffffff',
                       fontSize: 13.5,
                       boxSizing: 'border-box'
@@ -567,7 +568,7 @@ export default function PublicHomePage() {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: 11.5, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 4 }}>
+                  <label style={{ fontSize: 11.5, fontWeight: 600, color: '#a7c2a4', display: 'block', marginBottom: 4 }}>
                     WhatsApp Mobile Number *
                   </label>
                   <input
@@ -580,8 +581,8 @@ export default function PublicHomePage() {
                       width: '100%',
                       padding: '10px 14px',
                       borderRadius: 9,
-                      border: '1px solid #334155',
-                      background: '#0f172a',
+                      border: '1px solid #2e5520',
+                      background: '#11220c',
                       color: '#ffffff',
                       fontSize: 13.5,
                       boxSizing: 'border-box'
@@ -590,7 +591,7 @@ export default function PublicHomePage() {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: 11.5, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 4 }}>
+                  <label style={{ fontSize: 11.5, fontWeight: 600, color: '#a7c2a4', display: 'block', marginBottom: 4 }}>
                     Email Address (Optional)
                   </label>
                   <input
@@ -602,8 +603,8 @@ export default function PublicHomePage() {
                       width: '100%',
                       padding: '10px 14px',
                       borderRadius: 9,
-                      border: '1px solid #334155',
-                      background: '#0f172a',
+                      border: '1px solid #2e5520',
+                      background: '#11220c',
                       color: '#ffffff',
                       fontSize: 13.5,
                       boxSizing: 'border-box'
@@ -616,7 +617,7 @@ export default function PublicHomePage() {
                   disabled={inquirySubmitting}
                   style={{
                     marginTop: 8,
-                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                    background: 'linear-gradient(135deg, #529928 0%, #366d1a 100%)',
                     color: '#ffffff',
                     border: 'none',
                     padding: '12px',

@@ -565,7 +565,7 @@ export default function PublicSelfBookingPage() {
                     {formatCurrency(totalUnitPrice)}
                   </td>
                 </tr>
-                <tr style={{ background: '#eff6ff' }}>
+                <tr style={{ background: 'var(--pub-emerald-light)' }}>
                   <td style={{ color: 'var(--pub-accent)', fontWeight: 700, paddingLeft: 8 }}>
                     Token Advance Payable Now (Lock Deposit):
                   </td>
@@ -593,15 +593,15 @@ export default function PublicSelfBookingPage() {
               <div
                 onClick={() => setPaymentMethod('upi')}
                 style={{
-                  border: paymentMethod === 'upi' ? '2px solid #2563eb' : '1px solid #cbd5e1',
-                  background: paymentMethod === 'upi' ? '#eff6ff' : '#ffffff',
+                  border: paymentMethod === 'upi' ? '2px solid var(--pub-accent)' : '1px solid #cbd5e1',
+                  background: paymentMethod === 'upi' ? 'var(--pub-emerald-light)' : '#ffffff',
                   padding: 16,
                   borderRadius: 12,
                   cursor: 'pointer'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 14 }}>
-                  <QrCode size={18} color="#2563eb" /> Instant UPI / QR
+                  <QrCode size={18} color="var(--pub-accent)" /> Instant UPI / QR
                 </div>
                 <div style={{ fontSize: 11.5, color: '#64748b', marginTop: 4 }}>
                   GPay, PhonePe, Paytm, BHIM UPI
@@ -611,15 +611,15 @@ export default function PublicSelfBookingPage() {
               <div
                 onClick={() => setPaymentMethod('netbanking')}
                 style={{
-                  border: paymentMethod === 'netbanking' ? '2px solid #2563eb' : '1px solid #cbd5e1',
-                  background: paymentMethod === 'netbanking' ? '#eff6ff' : '#ffffff',
+                  border: paymentMethod === 'netbanking' ? '2px solid var(--pub-accent)' : '1px solid #cbd5e1',
+                  background: paymentMethod === 'netbanking' ? 'var(--pub-emerald-light)' : '#ffffff',
                   padding: 16,
                   borderRadius: 12,
                   cursor: 'pointer'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 14 }}>
-                  <CreditCard size={18} color="#059669" /> NetBanking / Cards
+                  <CreditCard size={18} color="var(--pub-accent)" /> NetBanking / Cards
                 </div>
                 <div style={{ fontSize: 11.5, color: '#64748b', marginTop: 4 }}>
                   All Major Banks &amp; Credit Cards
@@ -629,15 +629,15 @@ export default function PublicSelfBookingPage() {
               <div
                 onClick={() => setPaymentMethod('neft')}
                 style={{
-                  border: paymentMethod === 'neft' ? '2px solid #2563eb' : '1px solid #cbd5e1',
-                  background: paymentMethod === 'neft' ? '#eff6ff' : '#ffffff',
+                  border: paymentMethod === 'neft' ? '2px solid var(--pub-accent)' : '1px solid #cbd5e1',
+                  background: paymentMethod === 'neft' ? 'var(--pub-emerald-light)' : '#ffffff',
                   padding: 16,
                   borderRadius: 12,
                   cursor: 'pointer'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 14 }}>
-                  <Building2 size={18} color="#d97706" /> Bank Wire / Hold
+                  <Building2 size={18} color="var(--pub-gold)" /> Bank Wire / Hold
                 </div>
                 <div style={{ fontSize: 11.5, color: '#64748b', marginTop: 4 }}>
                   NEFT / RTGS Escrow Account

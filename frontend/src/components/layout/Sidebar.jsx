@@ -155,32 +155,29 @@ export default function Sidebar() {
 
       <aside className={`sidebar ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header">
-          <div
-            className="sidebar-logo"
-            onClick={() => { navigate('/'); closeMobileMenu(); }}
+          <img
+            src="/mrp-logo.jpeg"
+            alt="MRP Real Estate"
+            onClick={() => { navigate('/dashboard'); closeMobileMenu(); }}
             style={{
-              cursor: 'pointer',
-              background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-              color: 'white',
-              fontWeight: 800,
-              fontSize: 14,
               width: 38,
               height: 38,
-              borderRadius: 10,
-              boxShadow: '0 2px 6px rgba(37,99,235,0.25)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              objectFit: 'contain',
+              borderRadius: 8,
+              border: '1px solid #dbead4',
+              background: '#ffffff',
+              padding: 2,
+              cursor: 'pointer',
               flexShrink: 0
             }}
-          >
-            RH
-          </div>
-          <div className="sidebar-brand" onClick={() => { navigate('/'); closeMobileMenu(); }} style={{ cursor: 'pointer', flex: 1, minWidth: 0 }}>
-            <div className="sidebar-brand-name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={user?.organization || 'Rise With RealtyHub'}>
-              {user?.organization || 'Rise With RealtyHub'}
+          />
+          <div className="sidebar-brand" onClick={() => { navigate('/dashboard'); closeMobileMenu(); }} style={{ cursor: 'pointer', flex: 1, minWidth: 0 }}>
+            <div className="sidebar-brand-name" style={{ lineHeight: 1.25, fontWeight: 800, fontSize: '12.5px', color: 'var(--text-primary)', letterSpacing: '-0.01em' }} title="MRP REAL ESTATE CRM">
+              MRP REAL ESTATE CRM
             </div>
-            <div className="sidebar-brand-sub">Real Estate Revenue OS</div>
+            <div className="sidebar-brand-sub" style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>
+              {user?.organization || 'Revenue OS'}
+            </div>
           </div>
           <button 
             className="btn btn-ghost btn-icon btn-sm"

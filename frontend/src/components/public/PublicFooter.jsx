@@ -12,15 +12,24 @@ export default function PublicFooter() {
         {/* Brand & About */}
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-            <div className="pub-brand-icon" style={{ width: 34, height: 34, fontSize: 16 }}>
-              <Building2 size={18} />
-            </div>
+            <img
+              src="/mrp-logo.jpeg"
+              alt="MRP Real Estate"
+              style={{
+                width: 38,
+                height: 38,
+                objectFit: 'contain',
+                borderRadius: 8,
+                background: '#ffffff',
+                padding: 2
+              }}
+            />
             <span style={{ fontSize: 18, fontWeight: 800, color: '#ffffff' }}>MRP Real Estate</span>
           </div>
           <p style={{ fontSize: 13.5, lineHeight: 1.6, color: '#94a3b8', margin: '0 0 16px', maxWidth: 360 }}>
             Premium residential, farmland, and commercial developments. Transparent pricing, RERA-approved master layouts, and seamless direct buyer self-service bookings with 0% brokerage.
           </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#38bdf8', fontSize: 12, fontWeight: 600 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#86efac', fontSize: 12, fontWeight: 600 }}>
             <ShieldCheck size={16} /> 100% RERA &amp; Title Deed Verified
           </div>
         </div>

@@ -3,19 +3,19 @@
 ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  --pub-primary: #0f172a;       /* Deep Luxury Navy */
-  --pub-primary-light: #1e293b;
-  --pub-accent: #2563eb;        /* Vibrant Royal Blue */
-  --pub-accent-hover: #1d4ed8;
-  --pub-gold: #d97706;          /* Premium Gold */
-  --pub-gold-light: #fef3c7;
-  --pub-emerald: #059669;       /* Verified Emerald Green */
-  --pub-emerald-light: #ecfdf5;
+  --pub-primary: #172a11;       /* Deep Luxury Forest Green */
+  --pub-primary-light: #28471f;
+  --pub-accent: #458522;        /* Vibrant MRP Logo Green */
+  --pub-accent-hover: #366d1a;
+  --pub-gold: #c98c14;          /* Warm Amber Gold */
+  --pub-gold-light: #fef9ed;
+  --pub-emerald: #458522;       /* Verified MRP Green */
+  --pub-emerald-light: #edf7e8;
   --pub-surface: #ffffff;
-  --pub-bg: #f8fafc;
-  --pub-border: #e2e8f0;
-  --pub-text: #0f172a;
-  --pub-text-muted: #64748b;
+  --pub-bg: #f7fbf5;            /* Fresh Light Botanical Canvas */
+  --pub-border: #dbead4;
+  --pub-text: #172a11;
+  --pub-text-muted: #536b4e;
   --pub-radius: 14px;
 }
 
@@ -69,14 +69,14 @@
 .pub-brand-icon {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #366d1a 0%, #458522 100%);
   color: #ffffff;
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 20px;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 4px 12px rgba(69, 133, 34, 0.25);
 }
 
 .pub-brand-tag {
@@ -159,19 +159,19 @@
   font-size: 13px;
   font-weight: 700;
   color: #ffffff;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #458522 0%, #366d1a 100%);
   border: none;
   padding: 9px 18px;
   border-radius: 10px;
   text-decoration: none;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 14px rgba(69, 133, 34, 0.3);
   transition: all 0.2s ease;
   cursor: pointer;
 }
 
 .pub-btn-book:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 6px 20px rgba(69, 133, 34, 0.4);
 }
 
 /* Mobile Toggle */
@@ -187,19 +187,20 @@
 /* ─── HERO SECTION ───────────────────────────────────────────────────────── */
 .pub-hero {
   position: relative;
-  background: radial-gradient(circle at top right, #1e3a8a 0%, #0f172a 60%, #020617 100%);
-  color: #ffffff;
+  background: linear-gradient(180deg, #edf7e8 0%, #f7fbf5 100%);
+  color: var(--pub-text);
   padding: 80px 24px 100px;
   overflow: hidden;
+  border-bottom: 1px solid var(--pub-border);
 }
 
 .pub-hero-bg-glow {
   position: absolute;
-  top: -10%;
-  right: -5%;
+  top: -15%;
+  right: 15%;
   width: 550px;
   height: 550px;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.35) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(69, 133, 34, 0.12) 0%, transparent 70%);
   filter: blur(60px);
   pointer-events: none;
 }
@@ -216,13 +217,12 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px);
-  color: #93c5fd;
+  background: #e2f2da;
+  border: 1px solid #cce5c0;
+  color: #275214;
   font-size: 13px;
-  font-weight: 600;
-  padding: 6px 16px;
+  font-weight: 700;
+  padding: 6px 18px;
   border-radius: 30px;
   margin-bottom: 24px;
 }
@@ -233,11 +233,11 @@
   line-height: 1.15;
   letter-spacing: -0.03em;
   margin: 0 0 20px;
-  color: #ffffff;
+  color: #172a11;
 }
 
 .pub-hero-title span {
-  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+  background: linear-gradient(135deg, #2d5a16 0%, #458522 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -245,7 +245,7 @@
 .pub-hero-subtitle {
   font-size: 17px;
   line-height: 1.6;
-  color: #cbd5e1;
+  color: #4b6346;
   max-width: 680px;
   margin: 0 auto 40px;
 }
@@ -256,8 +256,9 @@
   margin: 0 auto;
   background: #ffffff;
   border-radius: 18px;
+  border: 1px solid #dbead4;
   padding: 12px 16px;
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 20px 45px rgba(45, 90, 22, 0.08);
   display: grid;
   grid-template-columns: 1.3fr 1.2fr 1.2fr auto;
   gap: 12px;
@@ -268,7 +269,7 @@
 
 .pub-search-col {
   padding: 6px 12px;
-  border-right: 1px solid #e2e8f0;
+  border-right: 1px solid #e3ece0;
 }
 
 .pub-search-col:last-of-type {
@@ -299,7 +300,7 @@
 }
 
 .pub-search-btn {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #458522 0%, #366d1a 100%);
   color: #ffffff;
   border: none;
   padding: 14px 28px;
@@ -316,7 +317,7 @@
 
 .pub-search-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 4px 16px rgba(69, 133, 34, 0.35);
 }
 
 /* ─── TRUST STATS STRIP ─────────────────────────────────────────────────── */
@@ -546,9 +547,9 @@
 }
 
 .pub-card-btn-view {
-  background: #eff6ff;
+  background: #edf7e8;
   color: var(--pub-accent);
-  border: 1px solid #bfdbfe;
+  border: 1px solid #cce5c0;
   padding: 8px 14px;
   border-radius: 8px;
   font-size: 12.5px;
@@ -582,7 +583,7 @@
 }
 
 .pub-unit-card {
-  border: 1.5px solid #e2e8f0;
+  border: 1.5px solid #e2ece0;
   border-radius: 12px;
   padding: 16px;
   background: #f8fafc;
@@ -593,7 +594,7 @@
 .pub-unit-card:hover {
   border-color: var(--pub-accent);
   background: #ffffff;
-  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.08);
+  box-shadow: 0 8px 20px rgba(69, 133, 34, 0.08);
 }
 
 .pub-unit-header {
@@ -606,7 +607,7 @@
 .pub-unit-badge-avail {
   background: var(--pub-emerald-light);
   color: var(--pub-emerald);
-  border: 1px solid #a7f3d0;
+  border: 1px solid #c2e5b5;
   font-size: 10.5px;
   font-weight: 700;
   padding: 2px 7px;
@@ -633,7 +634,7 @@
 
 .pub-unit-btn-book {
   width: 100%;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #458522 0%, #366d1a 100%);
   color: #ffffff;
   border: none;
   padding: 9px;
@@ -707,7 +708,7 @@
   border-color: var(--pub-accent);
   background: var(--pub-accent);
   color: #ffffff;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 0 4px rgba(69, 133, 34, 0.18);
 }
 
 .pub-step-item.completed .pub-step-circle {
@@ -760,12 +761,12 @@
 /* ─── DIGITAL BOOKING DOCKET RECEIPT ─────────────────────────────────────── */
 .pub-receipt-card {
   background: #ffffff;
-  border: 2px dashed #93c5fd;
+  border: 2px dashed #b8dfaa;
   border-radius: 16px;
   padding: 36px;
   text-align: center;
   position: relative;
-  background-image: radial-gradient(#eff6ff 1px, transparent 1px);
+  background-image: radial-gradient(#edf7e8 1px, transparent 1px);
   background-size: 16px 16px;
 }
 
@@ -785,11 +786,11 @@
 
 /* ─── PUBLIC FOOTER ──────────────────────────────────────────────────────── */
 .pub-footer {
-  background: #090d16;
-  color: #94a3b8;
+  background: #11220c;
+  color: #9fbda0;
   padding: 60px 24px 30px;
   margin-top: 80px;
-  border-top: 1px solid #1e293b;
+  border-top: 1px solid #1f3b16;
 }
 
 .pub-footer-grid {
@@ -817,7 +818,7 @@
 }
 
 .pub-footer-links a {
-  color: #94a3b8;
+  color: #9fbda0;
   text-decoration: none;
   font-size: 13.5px;
   transition: color 0.2s ease;
@@ -831,7 +832,7 @@
   max-width: 1280px;
   margin: 40px auto 0;
   padding-top: 24px;
-  border-top: 1px solid #1e293b;
+  border-top: 1px solid #1f3b16;
   display: flex;
   align-items: center;
   justify-content: space-between;

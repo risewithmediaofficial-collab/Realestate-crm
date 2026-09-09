@@ -196,12 +196,22 @@ export default function LoginPage() {
       <div className="auth-card" style={{ maxWidth: mode === 'register' ? 520 : 420, width: '100%', padding: '24px 24px', background: '#ffffff', borderRadius: 16, boxShadow: '0 20px 40px rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.1)', margin: 'auto', boxSizing: 'border-box' }}>
         {/* Logo */}
         <div className="auth-logo" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-          <div className="auth-logo-icon" style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff' }}>
-            <Building2 size={22} />
-          </div>
+          <img
+            src="/mrp-logo.jpeg"
+            alt="MRP Real Estate"
+            style={{
+              width: 44,
+              height: 44,
+              objectFit: 'contain',
+              borderRadius: 10,
+              border: '1px solid #dbead4',
+              background: '#ffffff',
+              padding: 2
+            }}
+          />
           <div>
-            <div className="auth-logo-text" style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>Rise With RealtyHub</div>
-            <div className="auth-logo-sub" style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>Real Estate Operating System</div>
+            <div className="auth-logo-text" style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>MRP Real Estate CRM</div>
+            <div className="auth-logo-sub" style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>Real Estate Operations Platform</div>
           </div>
         </div>
 
@@ -250,7 +260,7 @@ export default function LoginPage() {
               transition: 'all 0.2s ease'
             }}
           >
-            Register Your RealtyHub
+            Register Workspace
           </button>
         </div>
 
@@ -494,7 +504,7 @@ export default function LoginPage() {
                 </>
               ) : (
                 <>
-                  Sign In to RealtyHub <ArrowRight size={16} />
+                  Sign In to CRM <ArrowRight size={16} />
                 </>
               )}
             </button>
@@ -503,9 +513,9 @@ export default function LoginPage() {
               Don't have a workspace yet?{' '}
               <span
                 onClick={() => { setMode('register'); setError(''); setSuccessMsg(''); }}
-                style={{ color: '#2563eb', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
+                style={{ color: 'var(--primary)', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
               >
-                Register Your RealtyHub
+                Register Your Workspace
               </span>
             </div>
           </form>
@@ -675,20 +685,20 @@ export default function LoginPage() {
               {loading ? (
                 <>
                   <div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
-                  Creating RealtyHub Workspace…
+                  Creating Workspace…
                 </>
               ) : (
                 <>
-                  Create RealtyHub Account <ArrowRight size={16} />
+                  Create Account <ArrowRight size={16} />
                 </>
               )}
             </button>
 
             <div style={{ marginTop: 14, textAlign: 'center', fontSize: 13, color: '#64748b' }}>
-              Already registered with RealtyHub?{' '}
+              Already registered?{' '}
               <span
                 onClick={() => { setMode('login'); setError(''); setSuccessMsg(''); }}
-                style={{ color: '#2563eb', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
+                style={{ color: 'var(--primary)', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}
               >
                 Sign In to Workspace
               </span>
