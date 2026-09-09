@@ -27,6 +27,7 @@ const campaignsRoutes = require('./routes/campaigns.routes');
 const metaIntegrationRoutes = require('./routes/metaIntegration.routes');
 const notificationsRoutes = require('./routes/notifications.routes');
 const buyerRequirementsRoutes = require('./routes/buyerRequirements.routes');
+const publicPortalRoutes = require('./routes/publicPortal.routes');
 
 const app = express();
 
@@ -130,6 +131,7 @@ app.use('/api/campaigns', campaignsRoutes);
 app.use('/api/integrations/meta', metaIntegrationRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/buyer-requirements', buyerRequirementsRoutes);
+app.use('/api/public', publicPortalRoutes);
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` }));

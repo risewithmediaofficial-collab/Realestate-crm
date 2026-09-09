@@ -43,7 +43,7 @@ export default function LoginPage() {
         const dest = location.state?.from?.pathname || '/superadmin';
         navigate(dest, { replace: true });
       } else {
-        const dest = location.state?.from?.pathname || '/';
+        const dest = location.state?.from?.pathname || '/dashboard';
         navigate(dest, { replace: true });
       }
     }
@@ -68,7 +68,7 @@ export default function LoginPage() {
       if (res.user?.role === 'super_admin') {
         navigate('/superadmin', { replace: true });
       } else {
-        navigate('/', { replace: true });
+        navigate('/dashboard', { replace: true });
       }
     } else {
       if (res.pendingApproval) {

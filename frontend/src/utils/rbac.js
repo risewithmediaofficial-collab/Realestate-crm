@@ -189,6 +189,7 @@ export const resetToDefaultPermissions = () => {
  * Path prefix to module ID mapping for route guard checks
  */
 const PATH_TO_MODULE_MAP = [
+  { prefix: '/dashboard', moduleId: 'dashboard' },
   { prefix: '/marketing', moduleId: 'marketing' },
   { prefix: '/leads', moduleId: 'leads' },
   { prefix: '/communication', moduleId: 'communication' },
@@ -267,7 +268,7 @@ export const hasPathAccess = (userOrRole, pathname) => {
 
   if (role === 'super_admin') return true;
   if (pathname.startsWith('/superadmin')) return role === 'super_admin';
-  if (pathname === '/' || pathname === '/login') return true;
+  if (pathname === '/' || pathname === '/login' || pathname.startsWith('/project/') || pathname.startsWith('/explore') || pathname.startsWith('/self-booking') || pathname.startsWith('/site-visit-booking')) return true;
 
   // Find matching module from path prefix
   const matched = PATH_TO_MODULE_MAP.find(m => pathname.startsWith(m.prefix));
@@ -286,7 +287,7 @@ export const getAccessibleNavConfig = (userOrRole, navConfig) => {
 
   return navConfig
     .map(section => {
-      const allowedItems = section.items.filter(item => hasModuleAccess(userOrRole, item.id));
+      const allowedItems = section.items.filter(item => item.id === 'public-site' || hasModuleAccess(userOrRole, item.id));
       if (allowedItems.length === 0) return null;
       return {
         ...section,

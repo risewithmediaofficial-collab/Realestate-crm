@@ -56,6 +56,22 @@ const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
 const MetaIntegrationPage = lazy(() => import('./pages/settings/MetaIntegrationPage'));
 const BuyerRequirementsPage = lazy(() => import('./pages/requirements/BuyerRequirementsPage'));
 
+// Public Portal Pages (End-User / Customer Facing)
+import PublicLayout from './components/public/PublicLayout';
+const PublicHomePage = lazy(() => import('./pages/public/PublicHomePage'));
+const PublicProjectsPage = lazy(() => import('./pages/public/PublicProjectsPage'));
+const PublicProjectDetailPage = lazy(() => import('./pages/public/PublicProjectDetailPage'));
+const PublicSelfBookingPage = lazy(() => import('./pages/public/PublicSelfBookingPage'));
+const PublicSiteVisitPage = lazy(() => import('./pages/public/PublicSiteVisitPage'));
+
+const WithPublicLayout = ({ children }) => (
+  <PublicLayout>
+    <Suspense fallback={<PageLoader />}>
+      {children}
+    </Suspense>
+  </PublicLayout>
+);
+
 const AppWithLayout = ({ children }) => (
   <ProtectedRoute>
     <AppLayout>
@@ -73,6 +89,14 @@ export default function App() {
         <UIProvider>
           <Suspense fallback={<PageLoader />}>
             <Routes>
+              {/* Public Real Estate Website & Self-Service Booking */}
+              <Route path="/" element={<WithPublicLayout><PublicHomePage /></WithPublicLayout>} />
+              <Route path="/portal" element={<WithPublicLayout><PublicHomePage /></WithPublicLayout>} />
+              <Route path="/explore" element={<WithPublicLayout><PublicProjectsPage /></WithPublicLayout>} />
+              <Route path="/project/:id" element={<WithPublicLayout><PublicProjectDetailPage /></WithPublicLayout>} />
+              <Route path="/self-booking" element={<WithPublicLayout><PublicSelfBookingPage /></WithPublicLayout>} />
+              <Route path="/site-visit-booking" element={<WithPublicLayout><PublicSiteVisitPage /></WithPublicLayout>} />
+
               {/* Public Auth */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/superadmin/login" element={<SuperAdminLoginPage />} />
@@ -81,8 +105,9 @@ export default function App() {
               <Route path="/superadmin" element={<SuperAdminRoute><SuperAdminDashboardPage /></SuperAdminRoute>} />
               <Route path="/superadmin/*" element={<SuperAdminRoute><SuperAdminDashboardPage /></SuperAdminRoute>} />
 
-              {/* 1. Dashboard */}
-              <Route path="/" element={<AppWithLayout><DashboardPage /></AppWithLayout>} />
+              {/* CRM Executive Dashboard */}
+              <Route path="/dashboard" element={<AppWithLayout><DashboardPage /></AppWithLayout>} />
+              <Route path="/dashboard/*" element={<AppWithLayout><DashboardPage /></AppWithLayout>} />
 
               {/* 2. Marketing */}
               <Route path="/marketing" element={<AppWithLayout><MarketingPage /></AppWithLayout>} />

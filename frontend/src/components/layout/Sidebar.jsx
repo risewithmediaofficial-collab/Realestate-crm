@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, TrendingUp, MessageSquare, CheckSquare,
   GitBranch, Building2, Warehouse, DollarSign, Scale, MapPin,
   FileText, CreditCard, Handshake, User, Zap, BarChart3,
-  Settings, ChevronRight, LogOut, Building, X, Bell, Sparkles
+  Settings, ChevronRight, LogOut, Building, X, Bell, Sparkles, Globe
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
@@ -17,7 +17,8 @@ const navConfig = [
   {
     section: 'MAIN',
     items: [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/' },
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+      { id: 'public-site', label: 'Customer Website ↗', icon: Globe, path: '/', external: true },
     ],
   },
   {
@@ -238,6 +239,7 @@ export default function Sidebar() {
   if (!user) return null;
 
   const isActive = (path) => {
+    if (path === '/dashboard') return location.pathname === '/dashboard';
     if (path === '/') return location.pathname === '/';
     return location.pathname.startsWith(path);
   };
@@ -247,6 +249,10 @@ export default function Sidebar() {
   };
 
   const handleItemClick = (item) => {
+    if (item.external) {
+      window.open(item.path, '_blank');
+      return;
+    }
     navigate(item.path);
     if (item.children?.length) {
       setOpenMenus(prev => ({ ...prev, [item.id]: !prev[item.id] }));
