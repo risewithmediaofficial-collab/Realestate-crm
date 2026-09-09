@@ -451,7 +451,7 @@ export default function DashboardPage() {
 
         <div className="page-actions" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {(user?.role === 'admin' || user?.role === 'super_admin') && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f8fafc', padding: '4px 10px', borderRadius: 8, border: '1px solid #e2e8f0', minWidth: 260 }}>
+            <div className="dashboard-view-as-box">
               <Eye size={13} color="var(--primary)" />
               <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>View as:</span>
               <div style={{ flex: 1 }}>
@@ -529,24 +529,12 @@ export default function DashboardPage() {
       )}
 
       {/* Role-Specific Quick Action Toolbars */}
-      <div style={{
-        background: '#ffffff',
-        border: '1px solid #e2e8f0',
-        borderRadius: 12,
-        padding: '12px 16px',
-        marginBottom: 20,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 10,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <div className="dashboard-quick-actions-bar">
+        <div className="dashboard-quick-actions-title">
           <Sparkles size={14} color="var(--primary)" /> Quick Workflows & Actions:
         </div>
 
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div className="dashboard-quick-actions-list">
           {isTelecallerRole && (
             <>
               <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/communication')}>

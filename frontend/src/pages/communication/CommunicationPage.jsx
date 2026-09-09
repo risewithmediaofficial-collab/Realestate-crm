@@ -139,7 +139,7 @@ export default function CommunicationPage() {
 
       {/* TAB 1: Cloud Calling */}
       {tab === 'calling' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 20 }}>
+        <div className="comm-calling-grid">
           {/* Virtual Dialer Box */}
           <div className="card" style={{ padding: 24, height: 'fit-content' }}>
             <div style={{ textAlign: 'center', marginBottom: 16 }}>
@@ -294,7 +294,7 @@ export default function CommunicationPage() {
 
       {/* TAB 2: WhatsApp Live Chat */}
       {tab === 'whatsapp' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 0, height: 600, border: '1px solid var(--card-border)', borderRadius: 'var(--radius-lg)', background: 'white', overflow: 'hidden' }}>
+        <div className="comm-whatsapp-grid">
           {/* Contact List */}
           <div style={{ borderRight: '1px solid var(--card-border)', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--card-border)', background: '#f8fafc' }}>

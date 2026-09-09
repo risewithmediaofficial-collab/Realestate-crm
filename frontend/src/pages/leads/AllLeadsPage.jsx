@@ -107,7 +107,14 @@ const KanbanView = ({
     if (boardRef.current) {
       const colEl = document.getElementById(`kanban-col-${stageKey}`);
       if (colEl) {
-        colEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        const board = boardRef.current;
+        const colRect = colEl.getBoundingClientRect();
+        const boardRect = board.getBoundingClientRect();
+        const targetScrollLeft = board.scrollLeft + (colRect.left - boardRect.left) - (board.clientWidth / 2) + (colEl.clientWidth / 2);
+        board.scrollTo({
+          left: Math.max(0, targetScrollLeft),
+          behavior: 'smooth'
+        });
       }
     }
   };
@@ -1665,7 +1672,7 @@ export default function AllLeadsPage() {
             <div className="leads-board-tab-icon">🗂️</div>
             <div className="leads-board-tab-content">
               <div className="leads-board-tab-title">
-                All Leads Board
+                <span className="leads-board-tab-title-text">All Leads Board</span>
                 <span className="leads-board-tab-badge total">{totalCount} Total</span>
               </div>
               <div className="leads-board-tab-desc">Full lifecycle · All changes stay visible</div>
@@ -1679,7 +1686,7 @@ export default function AllLeadsPage() {
             <div className="leads-board-tab-icon">⚡</div>
             <div className="leads-board-tab-content">
               <div className="leads-board-tab-title">
-                New Leads Board
+                <span className="leads-board-tab-title-text">New Leads Board</span>
                 <span className="leads-board-tab-badge new">{newLeadsCount} Fresh</span>
               </div>
               <div className="leads-board-tab-desc">Incoming queue · Fast triage &amp; SV schedule</div>
@@ -1693,7 +1700,7 @@ export default function AllLeadsPage() {
             <div className="leads-board-tab-icon">📅</div>
             <div className="leads-board-tab-content">
               <div className="leads-board-tab-title">
-                SV Scheduled &amp; Changed
+                <span className="leads-board-tab-title-text">SV Scheduled &amp; Changed</span>
                 <span className="leads-board-tab-badge actioned">{scheduledCount} Scheduled</span>
               </div>
               <div className="leads-board-tab-desc">Leads moved/scheduled for site visits</div>
@@ -1707,7 +1714,7 @@ export default function AllLeadsPage() {
             <div className="leads-board-tab-icon">🔥</div>
             <div className="leads-board-tab-content">
               <div className="leads-board-tab-title">
-                Hot Priority Deals
+                <span className="leads-board-tab-title-text">Hot Priority Deals</span>
                 <span className="leads-board-tab-badge hot">{hotCount} Hot</span>
               </div>
               <div className="leads-board-tab-desc">High score prospects &amp; immediate buyers</div>
@@ -1721,7 +1728,7 @@ export default function AllLeadsPage() {
             <div className="leads-board-tab-icon">🎯</div>
             <div className="leads-board-tab-content">
               <div className="leads-board-tab-title">
-                Qualified Deals
+                <span className="leads-board-tab-title-text">Qualified Deals</span>
                 <span className="leads-board-tab-badge actioned">{qualifiedCount} Qualified</span>
               </div>
               <div className="leads-board-tab-desc">Handed over to field sales closers</div>

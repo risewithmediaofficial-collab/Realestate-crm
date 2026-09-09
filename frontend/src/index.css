@@ -1970,9 +1970,37 @@ body.no-scroll {
 /* Mobile Screens (< 768px) */
 @media (max-width: 767px) {
   html, body, #root {
-    font-size: 14px;
+    font-size: 13.5px;
     overflow-x: hidden;
     width: 100vw;
+  }
+
+  /* Mobile Typography Scale */
+  h1 { font-size: 18px !important; line-height: 1.3 !important; }
+  h2 { font-size: 15.5px !important; line-height: 1.3 !important; }
+  h3 { font-size: 13.5px !important; line-height: 1.35 !important; }
+  h4, h5, h6 { font-size: 12px !important; line-height: 1.4 !important; }
+
+  .page-title {
+    font-size: 16px !important;
+    line-height: 1.3 !important;
+    word-break: break-word !important;
+  }
+
+  .page-subtitle {
+    font-size: 11px !important;
+    line-height: 1.45 !important;
+    color: var(--text-muted) !important;
+    margin-top: 3px !important;
+  }
+
+  .card-title {
+    font-size: 13px !important;
+    line-height: 1.3 !important;
+  }
+
+  .card-subtitle {
+    font-size: 10.5px !important;
   }
 
   .sidebar {
@@ -2033,7 +2061,7 @@ body.no-scroll {
 
   #topbar-add-lead-btn {
     padding: 5px 8px !important;
-    font-size: 11.5px !important;
+    font-size: 11px !important;
     height: 32px !important;
     white-space: nowrap !important;
     gap: 3px !important;
@@ -2069,6 +2097,76 @@ body.no-scroll {
     white-space: nowrap !important;
   }
 
+  /* Mobile Breadcrumbs & Swipeable Recents */
+  .breadcrumbs {
+    padding: 6px 8px !important;
+    margin-bottom: 10px !important;
+    overflow-x: hidden !important;
+  }
+
+  .breadcrumbs-container {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 5px !important;
+    width: 100% !important;
+  }
+
+  .breadcrumbs-list {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 2px !important;
+    width: 100% !important;
+  }
+
+  .breadcrumbs-list::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .breadcrumbs-recents-group {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+    border-left: none !important;
+    border-top: 1px dashed #e2e8f0 !important;
+    padding-top: 5px !important;
+    width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .breadcrumbs-recents-label {
+    flex-shrink: 0 !important;
+    font-size: 10px !important;
+    white-space: nowrap !important;
+  }
+
+  .breadcrumbs-recents-list {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    gap: 4px !important;
+    width: 100% !important;
+  }
+
+  .breadcrumbs-recents-list::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .breadcrumbs-recent-chip {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    padding: 2px 7px !important;
+    font-size: 10.5px !important;
+  }
+
+  /* Page Header & Actions */
   .page-header {
     flex-direction: column !important;
     align-items: stretch !important;
@@ -2078,15 +2176,6 @@ body.no-scroll {
 
   .page-header-left {
     width: 100% !important;
-  }
-
-  .page-title {
-    font-size: 17px !important;
-    line-height: 1.25 !important;
-  }
-
-  .page-subtitle {
-    font-size: 11px !important;
   }
 
   .page-actions {
@@ -2101,6 +2190,84 @@ body.no-scroll {
     justify-content: center !important;
     font-size: 11.5px !important;
     padding: 6px 10px !important;
+    min-height: 34px !important;
+  }
+
+  /* Dashboard View-As Selector and Quick Actions on Mobile */
+  .dashboard-view-as-box {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .dashboard-quick-actions-bar {
+    padding: 10px 12px !important;
+    gap: 8px !important;
+    margin-bottom: 14px !important;
+    border-radius: 10px !important;
+  }
+
+  .dashboard-quick-actions-title {
+    font-size: 11px !important;
+    width: 100% !important;
+  }
+
+  .dashboard-quick-actions-list {
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .dashboard-quick-actions-list .btn {
+    width: 100% !important;
+    justify-content: center !important;
+    font-size: 11px !important;
+    padding: 7px 8px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Leads Board Switcher on Mobile */
+  .leads-board-tabs-wrapper {
+    padding: 4px !important;
+    margin-bottom: 10px !important;
+    border-radius: 10px !important;
+  }
+
+  .leads-board-tabs {
+    gap: 6px !important;
+    padding: 2px !important;
+  }
+
+  .leads-board-tab {
+    padding: 7px 10px !important;
+    gap: 8px !important;
+    border-radius: 8px !important;
+    min-width: max-content !important;
+    flex: 1 0 auto !important;
+  }
+
+  .leads-board-tab-icon {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 14px !important;
+    border-radius: 7px !important;
+  }
+
+  .leads-board-tab-title {
+    font-size: 11.5px !important;
+    gap: 6px !important;
+  }
+
+  .leads-board-tab-desc {
+    font-size: 10px !important;
+  }
+
+  .leads-board-tab-badge {
+    font-size: 9.5px !important;
+    padding: 1px 6px !important;
   }
 
   .stat-grid {
@@ -2116,14 +2283,15 @@ body.no-scroll {
   }
 
   .stat-value {
-    font-size: 16px !important;
+    font-size: 15px !important;
+    font-weight: 800 !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
   }
 
   .stat-label {
-    font-size: 10.5px !important;
+    font-size: 10px !important;
   }
 
   .project-grid {
@@ -2133,7 +2301,7 @@ body.no-scroll {
 
   .card {
     border-radius: 10px !important;
-    padding: 14px !important;
+    padding: 12px !important;
     margin-bottom: 12px !important;
     overflow: hidden !important;
   }
@@ -2142,7 +2310,7 @@ body.no-scroll {
     flex-direction: column !important;
     align-items: flex-start !important;
     gap: 8px !important;
-    padding: 12px !important;
+    padding: 10px 12px !important;
   }
 
   .card-header > div {
@@ -2159,7 +2327,8 @@ body.no-scroll {
   }
 
   .table-wrapper table {
-    min-width: 540px !important;
+    min-width: 520px !important;
+    font-size: 12px !important;
   }
 
   .filter-bar {
@@ -2251,6 +2420,27 @@ body.no-scroll {
     flex-shrink: 0 !important;
     scroll-snap-align: start !important;
   }
+
+  /* Communication Page Responsive Grids */
+  .comm-calling-grid,
+  .comm-whatsapp-grid {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+  }
+
+  /* General Grid Stacking on Mobile for Any Page */
+  div[style*="grid-template-columns: 1fr 1fr"],
+  div[style*="gridTemplateColumns: '1fr 1fr'"],
+  div[style*="gridTemplateColumns: '320px 1fr'"],
+  div[style*="gridTemplateColumns: '360px 1fr'"],
+  div[style*="gridTemplateColumns: 'repeat(3, 1fr)'"],
+  div[style*="gridTemplateColumns: 'repeat(4, 1fr)'"],
+  div[style*="grid-template-columns: repeat(3, 1fr)"],
+  div[style*="grid-template-columns: repeat(4, 1fr)"],
+  div[style*="gridTemplateColumns: '1.2fr 1fr 1fr'"],
+  div[style*="gridTemplateColumns: '2fr 1fr 1fr'"] {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 /* Small Handset Screens (< 480px) */
@@ -2260,7 +2450,20 @@ body.no-scroll {
   }
 
   .page-title {
-    font-size: 15px !important;
+    font-size: 14.5px !important;
+  }
+
+  .page-subtitle {
+    font-size: 10px !important;
+  }
+
+  .dashboard-quick-actions-list {
+    grid-template-columns: 1fr !important;
+  }
+
+  .page-actions .btn {
+    width: 100% !important;
+    flex: 1 1 100% !important;
   }
 
   .sidebar-user .user-info {
@@ -2735,23 +2938,36 @@ body.no-scroll {
   gap: 8px;
   overflow-x: auto;
   scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px;
+}
+
+.leads-board-tabs::-webkit-scrollbar {
+  height: 5px;
+}
+
+.leads-board-tabs::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
 }
 
 .leads-board-tab {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 14px;
+  gap: 10px;
+  padding: 8px 12px;
   border-radius: 10px;
-  border: 1.5px solid transparent;
+  border: 1.5px solid #e2e8f0;
   background: #f8fafc;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
   text-align: left;
   user-select: none;
-  flex: 1 1 0;
-  min-width: 200px;
+  flex: 1 0 auto;
+  min-width: max-content;
+  position: relative;
+  overflow: visible;
 }
 
 .leads-board-tab:hover {
@@ -2767,13 +2983,13 @@ body.no-scroll {
 }
 
 .leads-board-tab-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 16px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   flex-shrink: 0;
@@ -2792,13 +3008,19 @@ body.no-scroll {
 }
 
 .leads-board-tab-title {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 700;
   color: var(--text-primary);
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 8px;
   line-height: 1.2;
+}
+
+.leads-board-tab-title-text {
+  white-space: nowrap;
+  font-weight: 700;
 }
 
 .leads-board-tab.active .leads-board-tab-title {
@@ -2812,15 +3034,20 @@ body.no-scroll {
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .leads-board-tab-badge {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 800;
-  padding: 3px 9px;
+  padding: 2px 7px;
   border-radius: 20px;
-  line-height: 1;
+  line-height: 1.2;
   flex-shrink: 0;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
 }
 
 .leads-board-tab-badge.total {
