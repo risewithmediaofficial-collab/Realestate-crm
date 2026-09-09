@@ -38,10 +38,32 @@ export default function Topbar() {
         <div
           className="topbar-mobile-logo"
           onClick={() => navigate('/dashboard')}
-          style={{ display: 'none', alignItems: 'center', gap: 6, cursor: 'pointer' }}
+          style={{ display: 'none', alignItems: 'center', gap: 8, cursor: 'pointer' }}
         >
-          <img src="/mrp-logo.jpeg" alt="MRP" style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 6, border: '1px solid #dbead4', background: '#ffffff', padding: 1 }} />
-          <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>MRP CRM</span>
+          <div style={{
+            width: 44,
+            height: 44,
+            borderRadius: 10,
+            border: '1.5px solid #d4e8cb',
+            background: '#ffffff',
+            padding: 2,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            boxShadow: '0 1px 6px rgba(69, 133, 34, 0.12)'
+          }}>
+            <img
+              src="/mrp-logo-trimmed.png"
+              alt="MRP"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain'
+              }}
+            />
+          </div>
+          <span style={{ fontWeight: 800, fontSize: 13.5, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>MRP CRM</span>
         </div>
 
         {/* Search Bar */}

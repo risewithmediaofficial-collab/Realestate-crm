@@ -27,21 +27,32 @@ export default function PublicNavbar() {
       <div className="pub-nav-container">
         {/* Brand Logo */}
         <Link to="/" className="pub-brand" onClick={() => setMobileOpen(false)}>
-          <img
-            src="/mrp-logo.jpeg"
-            alt="MRP Real Estate"
-            className="pub-brand-logo-img"
+          <div
             style={{
-              height: 44,
-              width: 44,
-              objectFit: 'contain',
-              borderRadius: 8,
-              border: '1px solid #dbead4',
+              width: 64,
+              height: 64,
+              borderRadius: 14,
+              border: '1.5px solid #d4e8cb',
               background: '#ffffff',
-              padding: 2,
-              flexShrink: 0
+              padding: 4,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              boxShadow: '0 3px 12px rgba(69, 133, 34, 0.14)'
             }}
-          />
+          >
+            <img
+              src="/mrp-logo-trimmed.png"
+              alt="MRP Real Estate"
+              className="pub-brand-logo-img"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain'
+              }}
+            />
+          </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontWeight: 800, fontSize: 17, color: 'var(--pub-primary)', letterSpacing: '-0.01em' }}>

@@ -195,20 +195,30 @@ export default function LoginPage() {
 
       <div className="auth-card" style={{ maxWidth: mode === 'register' ? 520 : 420, width: '100%', padding: '24px 24px', background: '#ffffff', borderRadius: 16, boxShadow: '0 20px 40px rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.1)', margin: 'auto', boxSizing: 'border-box' }}>
         {/* Logo */}
-        <div className="auth-logo" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-          <img
-            src="/mrp-logo.jpeg"
-            alt="MRP Real Estate"
-            style={{
-              width: 44,
-              height: 44,
-              objectFit: 'contain',
-              borderRadius: 10,
-              border: '1px solid #dbead4',
-              background: '#ffffff',
-              padding: 2
-            }}
-          />
+        <div className="auth-logo" style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+          <div style={{
+            width: 72,
+            height: 72,
+            borderRadius: 16,
+            border: '1.5px solid #d4e8cb',
+            background: '#ffffff',
+            padding: 5,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 16px rgba(69, 133, 34, 0.14)',
+            flexShrink: 0
+          }}>
+            <img
+              src="/mrp-logo-trimmed.png"
+              alt="MRP Real Estate"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain'
+              }}
+            />
+          </div>
           <div>
             <div className="auth-logo-text" style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>MRP Real Estate CRM</div>
             <div className="auth-logo-sub" style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>Real Estate Operations Platform</div>

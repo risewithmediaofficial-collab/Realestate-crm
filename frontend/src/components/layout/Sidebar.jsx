@@ -155,28 +155,39 @@ export default function Sidebar() {
 
       <aside className={`sidebar ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header">
-          <img
-            src="/mrp-logo.jpeg"
-            alt="MRP Real Estate"
+          <div
             onClick={() => { navigate('/dashboard'); closeMobileMenu(); }}
             style={{
-              width: 38,
-              height: 38,
-              objectFit: 'contain',
-              borderRadius: 8,
-              border: '1px solid #dbead4',
+              width: 58,
+              height: 58,
+              borderRadius: 12,
+              border: '1.5px solid #d4e8cb',
               background: '#ffffff',
-              padding: 2,
+              padding: 3,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
               cursor: 'pointer',
-              flexShrink: 0
+              boxShadow: '0 2px 10px rgba(69, 133, 34, 0.14)'
             }}
-          />
+          >
+            <img
+              src="/mrp-logo-trimmed.png"
+              alt="MRP Real Estate"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain'
+              }}
+            />
+          </div>
           <div className="sidebar-brand" onClick={() => { navigate('/dashboard'); closeMobileMenu(); }} style={{ cursor: 'pointer', flex: 1, minWidth: 0 }}>
-            <div className="sidebar-brand-name" style={{ lineHeight: 1.25, fontWeight: 800, fontSize: '12.5px', color: 'var(--text-primary)', letterSpacing: '-0.01em' }} title="MRP REAL ESTATE CRM">
-              MRP REAL ESTATE CRM
+            <div className="sidebar-brand-name" style={{ lineHeight: 1.2, fontWeight: 800, fontSize: '13px', color: '#172a11', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title="MRP REAL ESTATE CRM">
+              MRP REAL ESTATE
             </div>
-            <div className="sidebar-brand-sub" style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>
-              {user?.organization || 'Revenue OS'}
+            <div className="sidebar-brand-sub" style={{ fontSize: 10.5, color: '#458522', fontWeight: 700, letterSpacing: '0.04em' }}>
+              CRM &bull; {user?.organization || 'REVENUE OS'}
             </div>
           </div>
           <button 
