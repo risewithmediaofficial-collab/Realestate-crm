@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Search, Filter, Plus, List, Columns, Phone, MessageSquare,
-  CheckSquare, MoreHorizontal, Star, ChevronDown, Download, Upload,
+  CheckSquare, MoreHorizontal, Star, ChevronDown, ChevronLeft, ChevronRight, Download, Upload,
   TrendingUp, Eye, RefreshCw, X, CheckCircle, FileText, Edit, UserCheck, Trash2
 } from 'lucide-react';
 import api from '../../services/api';
@@ -74,8 +74,10 @@ const KanbanView = ({
   boardType = 'all',
   onSwitchBoard
 }) => {
+  const boardRef = useRef(null);
   const [draggedId, setDraggedId] = useState(null);
   const [dragOverStage, setDragOverStage] = useState(null);
+  const [showOnlyActive, setShowOnlyActive] = useState(false);
 
   const activeStages = stagesList || PIPELINE_STAGES;
 
@@ -88,6 +90,38 @@ const KanbanView = ({
       leads: leads.filter(l => l.stage === stageKey),
     };
   });
+
+  const activeColsWithLeads = useMemo(() => columns.filter(c => c.leads.length > 0), [columns]);
+
+  const displayedColumns = showOnlyActive && activeColsWithLeads.length > 0
+    ? columns.filter(c => c.leads.length > 0 || c.stage === 'new')
+    : columns;
+
+  const scrollBoard = (direction) => {
+    if (boardRef.current) {
+      boardRef.current.scrollBy({ left: direction * 300, behavior: 'smooth' });
+    }
+  };
+
+  const scrollToStage = (stageKey) => {
+    if (boardRef.current) {
+      const colEl = document.getElementById(`kanban-col-${stageKey}`);
+      if (colEl) {
+        colEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }
+  };
+
+  // Auto-scroll to first column with leads if it is beyond the first 2 columns
+  useEffect(() => {
+    const firstColWithLeads = columns.find(c => c.leads.length > 0);
+    if (firstColWithLeads && !['new', 'contacted'].includes(firstColWithLeads.stage)) {
+      const timer = setTimeout(() => {
+        scrollToStage(firstColWithLeads.stage);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [columns.map(c => `${c.stage}:${c.leads.length}`).join(',')]);
 
   const handleDragStart = (e, lead) => {
     e.dataTransfer.setData('text/plain', lead._id);
@@ -125,19 +159,131 @@ const KanbanView = ({
   };
 
   return (
-    <div className="kanban-board">
-      {columns.map(col => {
-        const isOver = dragOverStage === col.stage;
-        const isSvStage = col.stage === 'site_visit_scheduled';
-        return (
-          <div
-            key={col.stage}
-            className={`kanban-column ${isOver ? 'drag-over' : ''}`}
-            onDragOver={(e) => handleDragOver(e, col.stage)}
-            onDragEnter={(e) => handleDragOver(e, col.stage)}
-            onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, col.stage)}
-          >
+    <div>
+      {/* Active Leads Direct Jump Banner if off-screen active leads exist */}
+      {activeColsWithLeads.length > 0 && activeColsWithLeads.some(c => !['new', 'contacted'].includes(c.stage)) && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10,
+          padding: '8px 14px', marginBottom: 10, fontSize: 12.5, color: '#1e40af',
+          animation: 'fadeIn 0.2s ease', gap: 10
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 16 }}>🎯</span>
+            <span>
+              <strong>Active leads in stages:</strong>{' '}
+              {activeColsWithLeads.map(c => `${c.label} (${c.leads.length})`).join(', ')}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            {activeColsWithLeads.map(c => (
+              <button
+                key={c.stage}
+                type="button"
+                className="btn btn-primary btn-sm"
+                style={{ fontSize: 11, padding: '3px 10px', height: 26, fontWeight: 700 }}
+                onClick={() => scrollToStage(c.stage)}
+              >
+                Jump to {c.label} ({c.leads.length}) →
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Stage Jump Pills & Scroll Controls */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        gap: 8, marginBottom: 10,
+        background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '6px 12px',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', flex: 1, scrollbarWidth: 'none' }}>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap', marginRight: 4 }}>
+            Jump Stage:
+          </span>
+          {columns.map(col => {
+            const hasLeads = col.leads.length > 0;
+            return (
+              <button
+                key={col.stage}
+                type="button"
+                onClick={() => scrollToStage(col.stage)}
+                className={`btn btn-sm ${hasLeads ? 'btn-primary' : 'btn-ghost'}`}
+                style={{
+                  fontSize: 11, padding: '3px 10px', height: 26, gap: 5, borderRadius: 14,
+                  border: hasLeads ? '1.5px solid var(--primary)' : '1px solid #e2e8f0',
+                  fontWeight: hasLeads ? 800 : 500,
+                  background: hasLeads ? '#eff6ff' : '#f8fafc',
+                  color: hasLeads ? '#1d4ed8' : 'var(--text-secondary)',
+                  whiteSpace: 'nowrap',
+                  boxShadow: hasLeads ? '0 1px 4px rgba(37, 99, 235, 0.25)' : 'none',
+                  cursor: 'pointer'
+                }}
+                title={`Click to scroll to ${col.label}`}
+              >
+                <span>{col.label}</span>
+                <span style={{
+                  background: hasLeads ? '#2563eb' : '#e2e8f0',
+                  color: hasLeads ? '#ffffff' : 'var(--text-muted)',
+                  borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 800
+                }}>
+                  {col.leads.length}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          {activeColsWithLeads.length > 0 && (
+            <button
+              type="button"
+              className={`btn btn-sm ${showOnlyActive ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ fontSize: 11, padding: '3px 9px', height: 26, fontWeight: 600 }}
+              onClick={() => setShowOnlyActive(p => !p)}
+              title="Toggle showing only columns with leads"
+            >
+              {showOnlyActive ? 'Show All Stages' : `Filter: Only Active (${activeColsWithLeads.length})`}
+            </button>
+          )}
+          <div style={{ display: 'flex', gap: 3 }}>
+            <button
+              type="button"
+              className="btn btn-secondary btn-icon btn-sm"
+              style={{ width: 26, height: 26, padding: 0 }}
+              onClick={() => scrollBoard(-1)}
+              title="Scroll Board Left"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-icon btn-sm"
+              style={{ width: 26, height: 26, padding: 0 }}
+              onClick={() => scrollBoard(1)}
+              title="Scroll Board Right"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="kanban-board" ref={boardRef}>
+        {displayedColumns.map(col => {
+          const isOver = dragOverStage === col.stage;
+          const isSvStage = col.stage === 'site_visit_scheduled' || col.stage === 'site_visit_done';
+          const hasLeads = col.leads.length > 0;
+          return (
+            <div
+              key={col.stage}
+              id={`kanban-col-${col.stage}`}
+              className={`kanban-column ${isOver ? 'drag-over' : ''} ${hasLeads ? 'has-leads' : ''}`}
+              onDragOver={(e) => handleDragOver(e, col.stage)}
+              onDragEnter={(e) => handleDragOver(e, col.stage)}
+              onDragLeave={handleDragLeave}
+            >
             <div className="kanban-col-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div className="kanban-col-title">
                 <div style={{
@@ -314,6 +460,7 @@ const KanbanView = ({
           </div>
         );
       })}
+      </div>
     </div>
   );
 };
@@ -1415,6 +1562,7 @@ export default function AllLeadsPage() {
           { key: 'contacted', label: '📞 Contacted' },
           { key: 'connected', label: '💬 Connected' },
           { key: 'site_visit_scheduled', label: '📅 SV Scheduled (Converted!)' },
+          { key: 'site_visit_done', label: '🏠 SV Done (Completed)' },
           { key: 'qualified', label: '🎯 Qualified' },
           { key: 'follow_up', label: '⏰ Follow Up' }
         ],

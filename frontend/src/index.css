@@ -1264,10 +1264,41 @@ select option:checked {
   display: flex;
   gap: var(--space-4);
   overflow-x: auto;
-  padding-bottom: var(--space-2);
-  height: calc(100vh - 215px);
-  max-height: calc(100vh - 215px);
-  min-height: 0;
+  overflow-y: hidden;
+  padding-bottom: 10px;
+  height: calc(100vh - 340px);
+  min-height: 380px;
+  max-height: calc(100vh - 340px);
+  scrollbar-width: auto;
+  scrollbar-color: #60a5fa #f1f5f9;
+}
+
+.kanban-board::-webkit-scrollbar {
+  height: 10px;
+}
+
+.kanban-board::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 8px;
+}
+
+.kanban-board::-webkit-scrollbar-thumb {
+  background: #60a5fa;
+  border-radius: 8px;
+  border: 2px solid #f1f5f9;
+}
+
+.kanban-board::-webkit-scrollbar-thumb:hover {
+  background: #2563eb;
+}
+
+.kanban-column.has-leads {
+  border-color: #93c5fd;
+}
+
+.kanban-column.has-leads .kanban-col-header {
+  background: #eff6ff;
+  border-bottom-color: #bfdbfe;
 }
 
 .kanban-column {
