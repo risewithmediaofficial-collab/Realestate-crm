@@ -3,6 +3,7 @@ import { X, Sparkles, Plus, Image as ImageIcon, ChevronDown, ChevronUp, Layers, 
 import api from '../../services/api';
 import { useUI } from '../../context/UIContext';
 import { formatCurrency } from '../../utils/formatters';
+import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 
 const FACING_OPTIONS = [
   { value: 'east', label: '🌅 East Facing' },
@@ -23,6 +24,7 @@ const STATUS_OPTIONS = [
 ];
 
 export default function AddInventoryModal({ project, onClose, onUnitAdded }) {
+  useBodyScrollLock(true);
   const { showNotification } = useUI();
   const [activeTab, setActiveTab] = useState('single'); // 'single' | 'bulk'
   const [saving, setSaving] = useState(false);

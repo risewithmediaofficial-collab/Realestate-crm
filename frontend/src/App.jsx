@@ -83,6 +83,24 @@ const AppWithLayout = ({ children }) => (
 );
 
 export default function App() {
+  // Universal Modal Scroll Lock Observer: automatically restricts background scroll when ANY popup or modal is open
+  React.useEffect(() => {
+    const handleScrollLock = () => {
+      const activeModal = document.querySelector('.modal-overlay, .pub-modal-overlay, [role="dialog"], .lightbox-overlay');
+      if (activeModal) {
+        document.body.classList.add('no-scroll', 'modal-open');
+        document.documentElement.classList.add('no-scroll', 'modal-open');
+      } else {
+        document.body.classList.remove('no-scroll', 'modal-open');
+        document.documentElement.classList.remove('no-scroll', 'modal-open');
+      }
+    };
+
+    const observer = new MutationObserver(handleScrollLock);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <BrowserRouter>
       <AuthProvider>

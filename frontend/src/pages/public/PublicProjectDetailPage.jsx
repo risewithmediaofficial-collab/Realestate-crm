@@ -6,6 +6,7 @@ import {
   Share2, Heart, ExternalLink, ChevronRight, Layers, Home
 } from 'lucide-react';
 import api from '../../services/api';
+import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 
 export default function PublicProjectDetailPage() {
   const { id } = useParams();
@@ -34,6 +35,9 @@ export default function PublicProjectDetailPage() {
   const [visitSubmitting, setVisitSubmitting] = useState(false);
   const [activeHeroImg, setActiveHeroImg] = useState(null);
   const [viewingPlotPhoto, setViewingPlotPhoto] = useState(null);
+
+  // Lock background scroll when site visit popup or photo lightbox is open
+  useBodyScrollLock(showVisitModal || !!viewingPlotPhoto);
 
   useEffect(() => {
     fetchProjectDetails();
@@ -618,26 +622,15 @@ export default function PublicProjectDetailPage() {
 
       {/* ── SITE VISIT SCHEDULER POPUP MODAL ── */}
       {showVisitModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(15, 23, 42, 0.65)',
-          backdropFilter: 'blur(6px)',
-          zIndex: 9999,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 16
-        }}>
-          <div style={{
-            background: '#ffffff',
-            borderRadius: 20,
-            maxWidth: 480,
-            width: '100%',
-            padding: 30,
-            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-            position: 'relative'
-          }}>
+        <div
+          className="pub-modal-overlay modal-overlay"
+          onClick={() => setShowVisitModal(false)}
+        >
+          <div
+            className="pub-modal-card"
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: 480, padding: 30 }}
+          >
             <button
               onClick={() => setShowVisitModal(false)}
               style={{ position: 'absolute', top: 18, right: 18, background: '#f1f5f9', border: 'none', width: 32, height: 32, borderRadius: 16, cursor: 'pointer', fontSize: 16 }}

@@ -903,4 +903,348 @@
   .pub-stepper-line {
     display: none;
   }
+  .pub-why-grid {
+    grid-template-columns: 1fr;
+  }
+  .pub-reviews-grid {
+    grid-template-columns: 1fr;
+  }
+  .pub-cab-banner {
+    flex-direction: column;
+    padding: 24px 20px;
+    text-align: center;
+  }
+  .pub-cab-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MODAL SCROLL RESTRICTION & POPUP OVERLAY
+═══════════════════════════════════════════════════════════════════════════ */
+html:has(.pub-modal-overlay),
+body:has(.pub-modal-overlay),
+html:has(.modal-overlay),
+body:has(.modal-overlay),
+html.no-scroll,
+body.no-scroll,
+html.modal-open,
+body.modal-open {
+  overflow: hidden !important;
+  touch-action: none !important;
+  height: 100% !important;
+}
+
+.pub-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  animation: pubFadeIn 0.22s ease-out;
+}
+
+.pub-modal-card {
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  max-width: 520px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  position: relative;
+  border: 1.5px solid #e2e8f0;
+  animation: pubModalScale 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pubFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pubModalScale {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ─── CATEGORY FILTER PILLS ──────────────────────────────────────────────── */
+.pub-cat-filters {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 2px 14px;
+  margin-bottom: 24px;
+  scrollbar-width: none;
+}
+.pub-cat-filters::-webkit-scrollbar { display: none; }
+
+.pub-cat-pill {
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 700;
+  border: 1.5px solid #dbead4;
+  background: #ffffff;
+  color: #172a11;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.pub-cat-pill:hover {
+  background: #edf7e8;
+  border-color: #458522;
+  transform: translateY(-1px);
+}
+.pub-cat-pill.active {
+  background: #458522;
+  border-color: #326518;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(69, 133, 34, 0.25);
+}
+
+/* ─── WHY BUY 4-PILLAR GRID ──────────────────────────────────────────────── */
+.pub-why-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-top: 28px;
+}
+.pub-why-card {
+  background: #ffffff;
+  border: 1.5px solid #e2ece0;
+  border-radius: 16px;
+  padding: 24px 20px;
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+.pub-why-card:hover {
+  transform: translateY(-4px);
+  border-color: #458522;
+  box-shadow: 0 12px 28px rgba(69, 133, 34, 0.12);
+}
+.pub-why-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #edf7e8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  font-size: 22px;
+  color: #458522;
+}
+.pub-why-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #172a11;
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+.pub-why-desc {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #536b4e;
+  margin: 0;
+}
+
+/* ─── VIP CAB BANNER ─────────────────────────────────────────────────────── */
+.pub-cab-banner {
+  background: linear-gradient(135deg, #172a11 0%, #24431a 100%);
+  border-radius: 20px;
+  padding: 36px 40px;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  box-shadow: 0 16px 36px rgba(23, 42, 17, 0.22);
+  margin-top: 48px;
+  position: relative;
+  overflow: hidden;
+}
+.pub-cab-banner::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(69, 133, 34, 0.35) 0%, transparent 70%);
+  pointer-events: none;
+}
+.pub-cab-btn {
+  background: #458522;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 14.5px;
+  padding: 13px 26px;
+  border-radius: 12px;
+  border: 1px solid #529928;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+.pub-cab-btn:hover {
+  background: #529928;
+  transform: translateY(-2px);
+}
+
+/* ─── TESTIMONIALS & REVIEWS ─────────────────────────────────────────────── */
+.pub-reviews-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-top: 30px;
+}
+.pub-review-card {
+  background: #ffffff;
+  border: 1.5px solid #e2ece0;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+  transition: all 0.25s ease;
+}
+.pub-review-card:hover {
+  border-color: #458522;
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(69, 133, 34, 0.1);
+}
+.pub-review-stars {
+  display: flex;
+  gap: 4px;
+  color: #eab308;
+  margin-bottom: 12px;
+}
+.pub-review-text {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #334155;
+  margin-bottom: 18px;
+  font-style: italic;
+}
+.pub-review-author {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pub-review-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #edf7e8;
+  color: #326518;
+  font-weight: 800;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #d4e8cb;
+}
+.pub-review-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: #172a11;
+}
+.pub-review-prop {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+/* ─── FAQ ACCORDION ──────────────────────────────────────────────────────── */
+.pub-faq-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 820px;
+  margin: 30px auto 0;
+}
+.pub-faq-item {
+  background: #ffffff;
+  border: 1.5px solid #e2ece0;
+  border-radius: 14px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+.pub-faq-item.open {
+  border-color: #458522;
+  box-shadow: 0 4px 16px rgba(69, 133, 34, 0.08);
+}
+.pub-faq-question {
+  padding: 18px 22px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #172a11;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+.pub-faq-answer {
+  padding: 0 22px 18px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: #475569;
+}
+
+/* ─── FLOATING CONNECT BUTTONS ───────────────────────────────────────────── */
+.pub-floating-actions {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+}
+.pub-float-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  transition: all 0.22s ease;
+  border: none;
+}
+.pub-float-btn:hover {
+  transform: translateY(-2px) scale(1.03);
+}
+.pub-float-wa {
+  background: #25d366;
+  color: #ffffff;
+}
+.pub-float-visit {
+  background: #172a11;
+  color: #ffffff;
+  border: 1px solid #458522;
+}
+
