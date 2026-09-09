@@ -60,7 +60,7 @@ exports.getPublicProjects = async (req, res) => {
 
     const [projects, total] = await Promise.all([
       Project.find(query)
-        .select('name code description logo images brochure address city state pincode landmark type categoryDetails totalArea totalUnits reraNumber launchDate possessionDate status priceRange towers unitTypes amenities organization')
+        .select('name code description logo images brochure fmbSketch address city state pincode landmark type categoryDetails totalArea totalUnits reraNumber launchDate possessionDate status priceRange towers unitTypes amenities organization')
         .sort({ launchDate: -1, createdAt: -1 })
         .skip(skip)
         .limit(Number(limit))

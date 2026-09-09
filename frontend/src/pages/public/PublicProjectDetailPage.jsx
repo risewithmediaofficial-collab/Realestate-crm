@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Building2, MapPin, Calendar, CheckCircle2, ShieldCheck,
   Phone, Mail, ArrowLeft, Download, Sparkles, Filter,
-  Share2, Heart, ExternalLink, ChevronRight, Layers, Home
+  Share2, Heart, ExternalLink, ChevronRight, Layers, Home, X
 } from 'lucide-react';
 import api from '../../services/api';
 import useBodyScrollLock from '../../hooks/useBodyScrollLock';
@@ -35,9 +35,10 @@ export default function PublicProjectDetailPage() {
   const [visitSubmitting, setVisitSubmitting] = useState(false);
   const [activeHeroImg, setActiveHeroImg] = useState(null);
   const [viewingPlotPhoto, setViewingPlotPhoto] = useState(null);
+  const [showFmbModal, setShowFmbModal] = useState(false);
 
-  // Lock background scroll when site visit popup or photo lightbox is open
-  useBodyScrollLock(showVisitModal || !!viewingPlotPhoto);
+  // Lock background scroll when site visit popup, photo lightbox, or FMB sketch modal is open
+  useBodyScrollLock(showVisitModal || !!viewingPlotPhoto || showFmbModal);
 
   useEffect(() => {
     fetchProjectDetails();
@@ -365,6 +366,124 @@ export default function PublicProjectDetailPage() {
       {/* ── TAB 1: LIVE AVAILABLE UNITS MATRIX ── */}
       {activeTab === 'units' && (
         <div id="available-units">
+          {/* Official FMB Sketch & Sanctioned Plot Layout Plan */}
+          {project.fmbSketch && (
+            <div style={{
+              background: 'linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%)',
+              border: '1.5px solid #86efac',
+              borderRadius: 16,
+              padding: '20px 24px',
+              marginBottom: 24,
+              boxShadow: '0 4px 15px rgba(22, 101, 52, 0.05)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 22 }}>📐</span>
+                    <h3 style={{ fontSize: 17, fontWeight: 800, color: '#14532d', margin: 0 }}>
+                      Official FMB Sketch &amp; Sanctioned Layout Map
+                    </h3>
+                    <span style={{ fontSize: 11, background: '#dcfce7', color: '#15803d', fontWeight: 700, padding: '2px 10px', borderRadius: 12, border: '1px solid #bbf7d0' }}>
+                      Verified Survey Document
+                    </span>
+                  </div>
+                  <p style={{ fontSize: 13, color: '#475569', margin: '4px 0 0 0' }}>
+                    Inspect the official field measurement book (FMB) survey sketch and sanctioned plot layout plan below to verify unit boundaries, road frontage, and demarcations before reserving.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <button
+                    onClick={() => setShowFmbModal(true)}
+                    className="pub-btn-book"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: 13,
+                      padding: '8px 16px',
+                      background: 'var(--pub-primary)',
+                      borderRadius: 8,
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontWeight: 700
+                    }}
+                  >
+                    🔍 Zoom &amp; Inspect Full Sketch
+                  </button>
+                  <a
+                    href={project.fmbSketch}
+                    download={`FMB_Sketch_${project.name.replace(/\s+/g, '_')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="pub-btn-secondary"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: 13,
+                      padding: '8px 14px',
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: 8,
+                      textDecoration: 'none',
+                      color: '#334155',
+                      fontWeight: 600
+                    }}
+                  >
+                    <Download size={14} /> Open Original
+                  </a>
+                </div>
+              </div>
+
+              {/* Interactive Preview Frame */}
+              <div
+                onClick={() => setShowFmbModal(true)}
+                style={{
+                  position: 'relative',
+                  height: 240,
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  border: '1px solid #bbf7d0',
+                  cursor: 'pointer',
+                  background: '#0f172a',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title="Click to zoom and inspect full FMB sketch"
+              >
+                <img
+                  src={project.fmbSketch}
+                  alt={`${project.name} FMB Survey Sketch`}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain'
+                  }}
+                />
+                <div style={{
+                  position: 'absolute',
+                  bottom: 12,
+                  right: 12,
+                  background: 'rgba(15, 23, 42, 0.85)',
+                  color: '#ffffff',
+                  padding: '6px 14px',
+                  borderRadius: 20,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  backdropFilter: 'blur(4px)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                }}>
+                  <span>🔍</span> Click to Expand Full Screen
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Unit Filter Strip */}
           <div style={{
             display: 'flex',
@@ -769,6 +888,113 @@ export default function PublicProjectDetailPage() {
                 src={viewingPlotPhoto.url}
                 alt={viewingPlotPhoto.title}
                 style={{ maxWidth: '100%', maxHeight: '72vh', objectFit: 'contain' }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Full-Screen FMB Sketch Inspection Lightbox */}
+      {showFmbModal && project.fmbSketch && (
+        <div className="pub-modal-overlay" style={{ zIndex: 9999 }} onClick={() => setShowFmbModal(false)}>
+          <div
+            className="pub-modal-card"
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxWidth: 1100,
+              width: '95%',
+              maxHeight: '92vh',
+              padding: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: 16,
+              overflow: 'hidden'
+            }}
+          >
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 22px',
+              borderBottom: '1px solid #e2e8f0',
+              background: '#ffffff'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 22 }}>📐</span>
+                <div>
+                  <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: '#0f172a' }}>
+                    {project.name} — Official FMB Survey Sketch &amp; Sanctioned Layout Map
+                  </h3>
+                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                    Verified survey blueprint. Use this layout to locate plot numbers and boundaries before reserving.
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <a
+                  href={project.fmbSketch}
+                  download={`FMB_Sketch_${project.name.replace(/\s+/g, '_')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="pub-btn-secondary"
+                  style={{
+                    fontSize: 12,
+                    padding: '6px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    textDecoration: 'none',
+                    background: '#f1f5f9',
+                    borderRadius: 6,
+                    color: '#334155'
+                  }}
+                >
+                  <Download size={13} /> Download
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowFmbModal(false)}
+                  style={{
+                    background: '#f1f5f9',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: 32,
+                    height: 32,
+                    cursor: 'pointer',
+                    fontSize: 16,
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#475569'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* High-Res Image Viewport */}
+            <div style={{
+              padding: 16,
+              background: '#0f172a',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'auto',
+              maxHeight: 'calc(92vh - 72px)'
+            }}>
+              <img
+                src={project.fmbSketch}
+                alt={`${project.name} FMB Sketch Full`}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '78vh',
+                  objectFit: 'contain',
+                  borderRadius: 8,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
+                }}
               />
             </div>
           </div>

@@ -100,6 +100,8 @@ export default function ProjectsPage() {
   const [showAddUnitModal, setShowAddUnitModal] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [projectImgUrlInput, setProjectImgUrlInput] = useState('');
+  const [fmbSketchUrlInput, setFmbSketchUrlInput] = useState('');
+  const [viewingFmbInModal, setViewingFmbInModal] = useState(null);
   const { user } = useAuth();
   const { simulatedRole, showNotification } = useUI();
   const effectiveRole = simulatedRole || user?.role || 'admin';
@@ -172,7 +174,8 @@ export default function ProjectsPage() {
     totalAcres: '',
     extentUnit: 'Acres',
     images: [],
-    coverImage: ''
+    coverImage: '',
+    fmbSketch: ''
   });
 
   // Dynamic Unit Form for Active Project
@@ -218,11 +221,11 @@ export default function ProjectsPage() {
 
   // Lock body scroll when modal is open
   useEffect(() => {
-    if (showProjectModal || showAddUnitModal || holdingUnit || bookingUnit || viewingHoldDetails || viewingBookingDetails) {
+    if (showProjectModal || showAddUnitModal || holdingUnit || bookingUnit || viewingHoldDetails || viewingBookingDetails || viewingFmbInModal) {
       document.body.classList.add('no-scroll');
       return () => document.body.classList.remove('no-scroll');
     }
-  }, [showProjectModal, showAddUnitModal, holdingUnit, bookingUnit, viewingHoldDetails, viewingBookingDetails]);
+  }, [showProjectModal, showAddUnitModal, holdingUnit, bookingUnit, viewingHoldDetails, viewingBookingDetails, viewingFmbInModal]);
 
   const handleTypeChange = (type) => {
     setTypeFilter(type);
@@ -355,7 +358,8 @@ export default function ProjectsPage() {
         extentUnit: form.extentUnit || 'Acres'
       },
       images: Array.isArray(form.images) && form.images.length > 0 ? form.images : (form.coverImage ? [form.coverImage] : []),
-      logo: form.coverImage || form.images?.[0] || ''
+      logo: form.coverImage || form.images?.[0] || '',
+      fmbSketch: form.fmbSketch || ''
     };
 
     if (editingProject) {
@@ -846,9 +850,11 @@ export default function ProjectsPage() {
       totalAcres: proj.categoryDetails?.totalAcres || '10',
       extentUnit: proj.categoryDetails?.extentUnit || 'Acres',
       images: Array.isArray(proj.images) && proj.images.length > 0 ? proj.images : (proj.logo ? [proj.logo] : []),
-      coverImage: proj.images?.[0] || proj.logo || ''
+      coverImage: proj.images?.[0] || proj.logo || '',
+      fmbSketch: proj.fmbSketch || ''
     });
     setProjectImgUrlInput('');
+    setFmbSketchUrlInput('');
     setShowProjectModal(true);
   };
 
@@ -989,9 +995,11 @@ export default function ProjectsPage() {
                       totalAcres: '',
                       extentUnit: 'Acres',
                       images: [],
-                      coverImage: ''
+                      coverImage: '',
+                      fmbSketch: ''
                     });
                     setProjectImgUrlInput('');
+                    setFmbSketchUrlInput('');
                     setShowProjectModal(true);
                   }}
                 >
@@ -1126,8 +1134,13 @@ export default function ProjectsPage() {
                         customCategoryName: '',
                         customUnitTerm: '',
                         isCustomCategory: false,
-                        customApprovalBody: ''
+                        customApprovalBody: '',
+                        images: [],
+                        coverImage: '',
+                        fmbSketch: ''
                       });
+                      setProjectImgUrlInput('');
+                      setFmbSketchUrlInput('');
                       setShowProjectModal(true);
                     }}
                   >
@@ -1370,6 +1383,16 @@ export default function ProjectsPage() {
                 </button>
                 {isAdmin && (
                   <>
+                    {activeProjectView.fmbSketch && (
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setViewingFmbInModal(activeProjectView.fmbSketch)}
+                        style={{ gap: 6, borderColor: '#86efac', color: '#166534', background: '#f0fdf4' }}
+                        title="View official FMB survey sketch"
+                      >
+                        <span>📐</span> View FMB Sketch
+                      </button>
+                    )}
                     <button className="btn btn-primary btn-sm" onClick={openAddUnitModal} style={{ gap: 6 }}>
                       <Plus size={14} /> Add {activeCategoryConf?.unitTerm}
                     </button>
@@ -3014,6 +3037,117 @@ export default function ProjectsPage() {
                     </div>
                   )}
                 </div>
+
+                {/* ── OFFICIAL FMB SKETCH / PLOT LAYOUT MAP UPLOAD ── */}
+                <div style={{ background: '#f0fdf4', padding: 16, borderRadius: 10, margin: '14px 0', border: '1.5px solid #86efac' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
+                    <label className="form-label" style={{ fontWeight: 800, marginBottom: 0, display: 'flex', alignItems: 'center', gap: 8, color: '#166534' }}>
+                      <span style={{ fontSize: 18 }}>📐</span> Official FMB Sketch / Plot Layout Map
+                    </label>
+                    <span style={{ fontSize: 11, background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: 12, fontWeight: 700, border: '1px solid #bbf7d0' }}>
+                      ⭐ Showcased on Customer Website Units Page
+                    </span>
+                  </div>
+                  <p style={{ fontSize: 12, color: '#475569', margin: '0 0 12px 0', lineHeight: 1.4 }}>
+                    Upload the official Survey FMB sketch, DTCP/HMDA/RERA sanctioned plot blueprint, or master layout plan. When buyers browse units online to book, they will inspect this sketch to verify plot boundaries, road widths, and dimensions.
+                  </p>
+
+                  {/* Upload Controls */}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+                    <label className="btn btn-sm" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0, fontSize: 12, padding: '7px 14px', background: '#166534', color: '#ffffff', border: 'none', borderRadius: 6, fontWeight: 600 }}>
+                      📁 Upload FMB Sketch Image
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          if (file.size > 15 * 1024 * 1024) {
+                            showNotification('FMB Sketch exceeds 15MB limit', 'warning');
+                            return;
+                          }
+                          const reader = new FileReader();
+                          reader.onload = (loadEvt) => {
+                            const base64 = loadEvt.target.result;
+                            setForm(prev => ({
+                              ...prev,
+                              fmbSketch: base64
+                            }));
+                            showNotification('Official FMB sketch attached!');
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                    </label>
+
+                    <div style={{ display: 'flex', gap: 6, flex: 1, minWidth: 220 }}>
+                      <input
+                        className="form-input"
+                        placeholder="Or paste FMB Sketch Image URL (https://...)"
+                        value={fmbSketchUrlInput}
+                        onChange={e => setFmbSketchUrlInput(e.target.value)}
+                        style={{ fontSize: 12, padding: '6px 10px', background: '#ffffff' }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{ whiteSpace: 'nowrap', fontSize: 12 }}
+                        onClick={() => {
+                          if (fmbSketchUrlInput.trim()) {
+                            setForm(prev => ({
+                              ...prev,
+                              fmbSketch: fmbSketchUrlInput.trim()
+                            }));
+                            setFmbSketchUrlInput('');
+                            showNotification('FMB Sketch URL set!');
+                          }
+                        }}
+                      >
+                        Set URL
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* FMB Sketch Preview */}
+                  {form.fmbSketch ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#ffffff', padding: 12, borderRadius: 8, border: '1px solid #bbf7d0' }}>
+                      <div style={{ width: 120, height: 80, borderRadius: 6, overflow: 'hidden', border: '1px solid #cbd5e1', flexShrink: 0, position: 'relative', background: '#f8fafc' }}>
+                        <img src={form.fmbSketch} alt="FMB Sketch Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#166534', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <CheckCircle size={14} color="#16a34a" /> Official FMB Sketch Attached
+                        </div>
+                        <div style={{ fontSize: 11.5, color: '#64748b', marginTop: 3 }}>
+                          Ready to save. This sketch will appear directly in the public customer units page.
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: 11, padding: '3px 8px', gap: 4 }}
+                            onClick={() => setViewingFmbInModal(form.fmbSketch)}
+                          >
+                            <Eye size={12} /> Inspect Full Size
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            style={{ fontSize: 11, padding: '3px 8px', color: '#dc2626' }}
+                            onClick={() => setForm(prev => ({ ...prev, fmbSketch: '' }))}
+                          >
+                            <Trash2 size={12} /> Remove Sketch
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 11.5, color: '#64748b', fontStyle: 'italic', background: '#ffffff', padding: '10px 12px', borderRadius: 6, border: '1px dashed #86efac', textAlign: 'center' }}>
+                      No FMB sketch uploaded yet. Upload an image so buyers can view the exact plot boundaries and survey demarcations while reserving.
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowProjectModal(false)}>Cancel</button>
@@ -3074,6 +3208,96 @@ export default function ProjectsPage() {
             }).catch(() => {});
           }}
         />
+      )}
+
+      {/* Modal: Full-Screen FMB Sketch Inspection */}
+      {viewingFmbInModal && (
+        <div className="modal-overlay" style={{ zIndex: 9999 }} onClick={() => setViewingFmbInModal(null)}>
+          <div
+            className="modal"
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxWidth: 1080,
+              width: '95%',
+              maxHeight: '92vh',
+              padding: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: 16,
+              overflow: 'hidden'
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 20px',
+              borderBottom: '1px solid #e2e8f0',
+              background: '#ffffff'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 20 }}>📐</span>
+                <div>
+                  <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: '#0f172a' }}>
+                    Official FMB Survey Sketch &amp; Master Layout Map
+                  </h3>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>
+                    Verified survey blueprint as displayed to customers on the public units page
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <a
+                  href={viewingFmbInModal}
+                  download="FMB_Survey_Sketch"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-secondary btn-sm"
+                  style={{ gap: 4 }}
+                >
+                  <Download size={13} /> Download
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setViewingFmbInModal(null)}
+                  style={{
+                    background: '#f1f5f9',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: 32,
+                    height: 32,
+                    cursor: 'pointer',
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: '#475569'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div style={{
+              padding: 16,
+              background: '#0f172a',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'auto',
+              maxHeight: 'calc(92vh - 70px)'
+            }}>
+              <img
+                src={viewingFmbInModal}
+                alt="FMB Sketch Inspection"
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '78vh',
+                  objectFit: 'contain',
+                  borderRadius: 8
+                }}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

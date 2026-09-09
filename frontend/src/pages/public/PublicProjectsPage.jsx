@@ -266,6 +266,11 @@ export default function PublicProjectsPage() {
                         📦 Inventory Available
                       </span>
                     )}
+                    {proj.fmbSketch && (
+                      <span className="pub-card-chip" style={{ background: '#f0fdf4', color: '#166534', borderColor: '#86efac', fontWeight: 600 }}>
+                        📐 FMB Sketch Available
+                      </span>
+                    )}
                     {proj.totalArea && (
                       <span className="pub-card-chip">
                         📐 {proj.totalArea} Acres

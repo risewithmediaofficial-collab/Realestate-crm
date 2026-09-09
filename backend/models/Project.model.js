@@ -46,6 +46,7 @@ const projectSchema = new mongoose.Schema({
   logo: { type: String },
   images: [String],
   brochure: { type: String },
+  fmbSketch: { type: String }, // FMB survey sketch / master layout map image
 
   // Location
   address: { type: String },

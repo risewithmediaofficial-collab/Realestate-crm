@@ -90,6 +90,7 @@ export default function DashboardPage() {
   const [activities, setActivities] = useState([]);
   const [teamUsers, setTeamUsers] = useState([]);
   const [upcomingReminders, setUpcomingReminders] = useState([]);
+  const [inventoryList, setInventoryList] = useState([]);
   const [loading, setLoading] = useState(true);
   const activeRoleView = simulatedRole || user?.role || 'admin';
   const setActiveRoleView = (role) => {
@@ -114,13 +115,14 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetch = async () => {
       try {
-        const [dashRes, payRes, leadRes, actRes, userRes, remindersRes] = await Promise.allSettled([
+        const [dashRes, payRes, leadRes, actRes, userRes, remindersRes, invRes] = await Promise.allSettled([
           api.get('/dashboard/stats'),
           api.get('/payments'),
           api.get('/leads?limit=1000'),
           api.get('/activities?limit=10'),
           api.get('/users'),
-          api.get('/bookings/upcoming-reminders')
+          api.get('/bookings/upcoming-reminders'),
+          api.get('/inventory?limit=1000')
         ]);
         if (dashRes.status === 'fulfilled' && dashRes.value.data) {
           setStats(dashRes.value.data.data);
@@ -140,8 +142,12 @@ export default function DashboardPage() {
         if (remindersRes.status === 'fulfilled' && remindersRes.value.data?.data) {
           setUpcomingReminders(remindersRes.value.data.data);
         }
+        if (invRes.status === 'fulfilled' && invRes.value.data?.data) {
+          setInventoryList(invRes.value.data.data);
+        }
       } catch (err) {
         console.error('Failed to fetch dashboard stats:', err);
+        setInventoryList([]);
         setStats({
           kpis: { totalLeads: 0, todayLeads: 0, newLeads: 0, pendingTasks: 0, todaySiteVisits: 0, todayBookings: 0 },
           finance: { totalDemandRaised: 0, totalPaidCollected: 0, totalOutstanding: 0, grossBookingValue: 0, totalBookingsCount: 0, realizationRate: 0 },
@@ -347,6 +353,20 @@ export default function DashboardPage() {
     };
   }, [payments, stats?.finance]);
 
+  const unitsOnHold = useMemo(() => {
+    if (inventoryList && inventoryList.length > 0) {
+      return inventoryList.filter(u => u.status === 'on_hold').length;
+    }
+    return (stats?.inventoryStats || []).find(i => i._id === 'on_hold')?.count || 0;
+  }, [inventoryList, stats?.inventoryStats]);
+
+  const totalInventoryCount = useMemo(() => {
+    if (inventoryList && inventoryList.length > 0) {
+      return inventoryList.length;
+    }
+    return (stats?.inventoryStats || []).reduce((acc, i) => acc + (i.count || 0), 0) || (stats?.kpis?.availableUnits || 0);
+  }, [inventoryList, stats]);
+
   const handleExportDashboard = () => {
     const totalRev = stats?.kpis?.totalRevenue || (stats?.kpis?.revenue ? Number(stats.kpis.revenue) : 0);
     const totalTok = stats?.kpis?.totalTokens || (stats?.kpis?.tokenAdvances ? Number(stats.kpis.tokenAdvances) : 0);
@@ -360,7 +380,7 @@ export default function DashboardPage() {
       },
       leadsCount: leadsList.length,
       bookingsCount: stats?.kpis?.totalBookings || stats?.kpis?.bookingsCount || 0,
-      inventoryCount: inventory.length || (stats?.kpis?.availableUnits || 0),
+      inventoryCount: totalInventoryCount,
       visitsCount: stats?.kpis?.siteVisits || stats?.kpis?.completedVisits || 0,
       topAgents: teamData.map(t => ({
         name: t.name,
@@ -595,7 +615,7 @@ export default function DashboardPage() {
               <div className="stat-icon-wrap" style={{ background: '#f8fafc' }}><Warehouse size={20} color="#475569" /></div>
               <div className="stat-info">
                 <div className="stat-label">Units on Hold</div>
-                <div className="stat-value">{inventory.filter(u => u.status === 'on_hold').length || 0} Units</div>
+                <div className="stat-value">{unitsOnHold} Units</div>
                 <div className="stat-change down"><Clock size={11} /> 48h Holds</div>
               </div>
             </div>
@@ -917,7 +937,7 @@ export default function DashboardPage() {
           </div>
           <div className="card-body" style={{ paddingTop: 8 }}>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={stats?.funnel.map(f => ({ name: funnelLabels[f.stage] || f.stage, count: f.count }))} barSize={32}>
+              <BarChart data={(stats?.funnel || []).map(f => ({ name: funnelLabels[f.stage] || f.stage, count: f.count }))} barSize={32}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8' }} />
                 <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} />
@@ -925,7 +945,7 @@ export default function DashboardPage() {
                   contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', boxShadow: '0 4px 6px rgba(0,0,0,0.07)' }}
                 />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                  {stats?.funnel.map((_, idx) => (
+                  {(stats?.funnel || []).map((_, idx) => (
                     <Cell key={idx} fill={FUNNEL_COLORS[idx % FUNNEL_COLORS.length]} />
                   ))}
                 </Bar>
@@ -947,12 +967,12 @@ export default function DashboardPage() {
             <ResponsiveContainer width="100%" height={160}>
               <PieChart>
                 <Pie
-                  data={stats?.inventoryStats.map(i => ({ name: i._id, value: i.count }))}
+                  data={(stats?.inventoryStats || []).map(i => ({ name: i._id, value: i.count }))}
                   cx="50%" cy="50%"
                   innerRadius={45} outerRadius={70}
                   paddingAngle={3} dataKey="value"
                 >
-                  {stats?.inventoryStats.map((entry, idx) => (
+                  {(stats?.inventoryStats || []).map((entry, idx) => (
                     <Cell key={idx} fill={pieColors[entry._id] || '#94a3b8'} />
                   ))}
                 </Pie>
@@ -961,7 +981,7 @@ export default function DashboardPage() {
             </ResponsiveContainer>
             {/* Legend */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 12px', marginTop: 4 }}>
-              {stats?.inventoryStats.map((s, i) => (
+              {(stats?.inventoryStats || []).map((s, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}>
                   <div style={{ width: 8, height: 8, borderRadius: 2, background: pieColors[s._id] || '#94a3b8', flexShrink: 0 }} />
                   <span style={{ color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{s._id.replace('_', ' ')}</span>
@@ -982,8 +1002,8 @@ export default function DashboardPage() {
             <span style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 600 }}>Campaigns →</span>
           </div>
           <div className="card-body" style={{ paddingTop: 8 }}>
-            {stats?.sourceStats.slice(0, 5).map((s, i) => {
-              const total = stats.sourceStats.reduce((acc, x) => acc + x.count, 0);
+            {(stats?.sourceStats || []).slice(0, 5).map((s, i) => {
+              const total = (stats?.sourceStats || []).reduce((acc, x) => acc + x.count, 0);
               const pct = total ? Math.round((s.count / total) * 100) : 0;
               const colors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
               return (

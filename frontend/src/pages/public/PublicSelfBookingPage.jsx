@@ -3,9 +3,10 @@ import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import {
   Building2, CheckCircle2, ShieldCheck, ArrowRight, ArrowLeft,
   CreditCard, Sparkles, Printer, Download, MapPin, User,
-  FileText, Lock, QrCode, AlertCircle
+  FileText, Lock, QrCode, AlertCircle, X
 } from 'lucide-react';
 import api from '../../services/api';
+import useBodyScrollLock from '../../hooks/useBodyScrollLock';
 
 export default function PublicSelfBookingPage() {
   const [searchParams] = useSearchParams();
@@ -23,6 +24,10 @@ export default function PublicSelfBookingPage() {
   const [availableUnits, setAvailableUnits] = useState([]);
   const [selectedUnit, setSelectedUnit] = useState(null);
   const [loadingUnits, setLoadingUnits] = useState(false);
+  const [showFmbModal, setShowFmbModal] = useState(false);
+
+  // Lock background scroll when FMB sketch modal is open
+  useBodyScrollLock(showFmbModal);
 
   // Step 2: Buyer KYC Form
   const [kycForm, setKycForm] = useState({
@@ -267,6 +272,57 @@ export default function PublicSelfBookingPage() {
             </select>
           </div>
 
+          {/* Official FMB Sketch Quick Reference */}
+          {(() => {
+            const currentProj = selectedUnit?.project || projects.find(p => p._id === selectedProjectId);
+            if (!currentProj?.fmbSketch) return null;
+            return (
+              <div style={{
+                background: '#f0fdf4',
+                border: '1.5px solid #86efac',
+                borderRadius: 12,
+                padding: '12px 18px',
+                marginBottom: 20,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 10
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 20 }}>📐</span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>
+                      Official Project FMB Sketch &amp; Layout Plan Available
+                    </div>
+                    <div style={{ fontSize: 12, color: '#475569' }}>
+                      Inspect unit boundaries, boundary dimensions &amp; road widths before selecting.
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowFmbModal(true)}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    padding: '7px 14px',
+                    background: '#ffffff',
+                    border: '1px solid #86efac',
+                    color: '#166534',
+                    borderRadius: 8,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <span>🔍</span> View FMB Sketch
+                </button>
+              </div>
+            );
+          })()}
+
           <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', marginBottom: 12 }}>
             Available Units in Selected Project:
           </div>
@@ -358,13 +414,36 @@ export default function PublicSelfBookingPage() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-            >
-              Change Unit
-            </button>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {(selectedUnit?.project?.fmbSketch || projects.find(p => p._id === selectedProjectId)?.fmbSketch) && (
+                <button
+                  type="button"
+                  onClick={() => setShowFmbModal(true)}
+                  style={{
+                    background: '#f0fdf4',
+                    border: '1px solid #86efac',
+                    color: '#166534',
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}
+                >
+                  <span>📐</span> View FMB Sketch
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Change Unit
+              </button>
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
@@ -791,6 +870,127 @@ export default function PublicSelfBookingPage() {
             >
               Explore More Properties
             </Link>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Full-Screen FMB Sketch Inspection Lightbox */}
+      {showFmbModal && (
+        <div className="pub-modal-overlay" style={{ zIndex: 9999 }} onClick={() => setShowFmbModal(false)}>
+          <div
+            className="pub-modal-card"
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxWidth: 1100,
+              width: '95%',
+              maxHeight: '92vh',
+              padding: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: 16,
+              overflow: 'hidden'
+            }}
+          >
+            {/* Header */}
+            {(() => {
+              const currentProj = selectedUnit?.project || projects.find(p => p._id === selectedProjectId);
+              const sketchUrl = currentProj?.fmbSketch;
+              return (
+                <>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '16px 22px',
+                    borderBottom: '1px solid #e2e8f0',
+                    background: '#ffffff'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 22 }}>📐</span>
+                      <div>
+                        <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: '#0f172a' }}>
+                          {currentProj?.name || 'Project'} — Official FMB Survey Sketch &amp; Layout Map
+                        </h3>
+                        <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                          Cross-verify your unit orientation, survey demarcations, and boundary lines.
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {sketchUrl && (
+                        <a
+                          href={sketchUrl}
+                          download={`FMB_Sketch_${(currentProj?.name || 'Project').replace(/\s+/g, '_')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            fontSize: 12,
+                            padding: '6px 12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            textDecoration: 'none',
+                            background: '#f1f5f9',
+                            borderRadius: 6,
+                            color: '#334155',
+                            fontWeight: 600
+                          }}
+                        >
+                          <Download size={13} /> Download
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowFmbModal(false)}
+                        style={{
+                          background: '#f1f5f9',
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: 32,
+                          height: 32,
+                          cursor: 'pointer',
+                          fontSize: 16,
+                          fontWeight: 700,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#475569'
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* High-Res Viewport */}
+                  <div style={{
+                    padding: 16,
+                    background: '#0f172a',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'auto',
+                    maxHeight: 'calc(92vh - 72px)'
+                  }}>
+                    {sketchUrl ? (
+                      <img
+                        src={sketchUrl}
+                        alt={`${currentProj?.name || 'Project'} FMB Sketch Full`}
+                        style={{
+                          maxWidth: '100%',
+                          maxHeight: '78vh',
+                          objectFit: 'contain',
+                          borderRadius: 8,
+                          boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
+                        }}
+                      />
+                    ) : (
+                      <div style={{ color: '#ffffff', padding: 40 }}>No FMB sketch image found.</div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
