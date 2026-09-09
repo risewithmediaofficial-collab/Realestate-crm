@@ -1,310 +1,258 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { X, Sparkles, Building, MapPin, Compass, IndianRupee, Shield, CheckCircle2, AlertCircle, Info, Layers, Trees, Zap, Droplets } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { X, Sparkles, Plus, Image as ImageIcon, ChevronDown, ChevronUp, Layers, Check, AlertCircle } from 'lucide-react';
 import api from '../../services/api';
 import { useUI } from '../../context/UIContext';
-import {
-  AREA_UNITS,
-  RATE_TYPES,
-  FACING_OPTIONS,
-  WATER_SOURCES,
-  ELECTRICITY_OPTIONS,
-  IRRIGATION_SYSTEMS,
-  FENCING_OPTIONS,
-  LAND_TYPES,
-  UNIT_STATUSES,
-  REAL_ESTATE_CATEGORIES,
-  CATEGORY_TYPOLOGIES
-} from '../../utils/constants';
-import { calculateTotalAreaSqFt, calculatePackagePrice, formatIndianCurrency } from '../../utils/inventoryCalculations';
-import CustomSelect from '../ui/CustomSelect';
+import { formatCurrency } from '../../utils/formatters';
+
+const FACING_OPTIONS = [
+  { value: 'east', label: '🌅 East Facing' },
+  { value: 'north', label: '🧭 North Facing' },
+  { value: 'west', label: '🌇 West Facing' },
+  { value: 'south', label: '☀️ South Facing' },
+  { value: 'north-east', label: '✨ North-East (Ishan)' },
+  { value: 'north-west', label: '🌬️ North-West' },
+  { value: 'south-east', label: '🔥 South-East (Agni)' },
+  { value: 'south-west', label: '⛰️ South-West' },
+];
+
+const STATUS_OPTIONS = [
+  { value: 'available', label: '🟢 Available' },
+  { value: 'on_hold', label: '🟡 On Hold (48h)' },
+  { value: 'booked', label: '🟣 Booked' },
+  { value: 'blocked', label: '🔴 Blocked' },
+];
 
 export default function AddInventoryModal({ project, onClose, onUnitAdded }) {
   const { showNotification } = useUI();
+  const [activeTab, setActiveTab] = useState('single'); // 'single' | 'bulk'
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Determine property category
+  // Property categorization
   const projectType = project?.type || 'plots';
   const isAgriOrFarm = ['agricultural_land', 'farmland', 'resort_plots'].includes(projectType);
   const isPlot = ['plots', 'layouts'].includes(projectType);
   const isApartment = ['residential_apartment', 'commercial_office', 'retail_shop', 'industrial_warehouse'].includes(projectType);
   const isVilla = projectType === 'villa';
-  const isCommercial = ['commercial_office', 'retail_shop', 'industrial_warehouse'].includes(projectType);
 
-  const categoryConf = REAL_ESTATE_CATEGORIES[projectType] || REAL_ESTATE_CATEGORIES.plots;
+  const unitNoun = isApartment ? 'Flat / Unit' : isVilla ? 'Villa' : isAgriOrFarm ? 'Farm Plot' : 'Plot';
 
-  // Title determination based on property type
-  const modalTitle = isAgriOrFarm
-    ? 'Add Land / Plot Inventory'
-    : isPlot
-    ? 'Add Plot Inventory'
-    : isApartment
-    ? 'Add Apartment / Flat Inventory'
-    : isVilla
-    ? 'Add Villa Inventory'
-    : isCommercial
-    ? 'Add Commercial Unit Inventory'
-    : `Add ${categoryConf?.unitTerm || 'Inventory'}`;
-
-  // Form State
-  const [form, setForm] = useState({
-    // Section 1: Basic Information
-    block: '',
+  // ----------------------------------------------------
+  // SINGLE UNIT FORM STATE (Simple & Intuitive)
+  // ----------------------------------------------------
+  const [singleForm, setSingleForm] = useState({
     unitNumber: '',
-    landType: isAgriOrFarm ? 'Agricultural Land' : isPlot ? 'Residential Plot' : '',
-    customLandType: '',
-    isCustomLandType: false,
-    tower: project?.towers?.[0]?.name || 'Main Tower',
-    floor: '1',
-    typology: '',
-    customTypology: '',
-    isCustomTypology: false,
-
-    // Section 2: Land Area
-    extent: '',
-    unit: isAgriOrFarm ? 'acre' : isPlot ? 'sqft' : 'sqft',
-    customUnitName: '',
-    customSqFtPerUnit: '',
-    carpetArea: '',
-    builtUpArea: '',
-    superBuiltUp: '',
-    dimensions: '',
-
-    // Section 3: Physical Features
+    block: '',
+    extent: '1200',
+    unit: 'sqft',
     facing: 'east',
-    customFacing: '',
-    isCustomFacing: false,
-    roadWidth: '30',
-    isCorner: false,
-    electricity: 'available',
-    waterSource: 'borewell',
-    customWaterSource: '',
-    frontage: '',
-    ceilingHeight: '',
-    fitoutStatus: 'unspecified',
-    suitableFor: '',
-
-    // Section 4: Agricultural Specifications
-    plantation: '',
-    treesType: '',
-    treesCount: '',
-    treesAge: '',
-    soilType: 'red_soil',
-    irrigation: 'drip',
-    customIrrigation: '',
-    fencing: 'none',
-    customFencing: '',
-
-    // Section 5: Pricing
-    baseRate: '',
-    rateType: isAgriOrFarm ? 'per_acre' : isPlot ? 'per_sqft' : 'per_sqft',
-    developmentCharges: '',
-    registrationCharges: '',
-    otherCharges: '',
-    totalPackagePrice: '',
-    isManualPriceOverride: false,
-
-    // Section 6: Inventory Status
+    ratePerSqFt: '2000',
+    totalPrice: '2400000',
     status: 'available',
-
-    // Section 7: Plot / Unit Media
+    isCorner: false,
     image: '',
-    images: []
+    // Optional advanced fields
+    roadWidth: '30',
+    waterSource: 'borewell',
+    electricity: 'available',
+    soilType: 'red_soil',
+    treesCount: '',
+    otherCharges: '0',
+    remarks: ''
   });
 
-  const [plotUrlInput, setPlotUrlInput] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState({});
-  const [generalError, setGeneralError] = useState('');
+  // Calculate Sq.Ft from extent & unit
+  const calculatedSqFt = useMemo(() => {
+    const num = parseFloat(singleForm.extent) || 0;
+    if (singleForm.unit === 'cent') return Math.round(num * 435.6);
+    if (singleForm.unit === 'acre') return Math.round(num * 43560);
+    if (singleForm.unit === 'sqyard') return Math.round(num * 9);
+    if (singleForm.unit === 'ground') return Math.round(num * 2400);
+    return num;
+  }, [singleForm.extent, singleForm.unit]);
 
-  // Lock background scroll
-  useEffect(() => {
-    document.body.classList.add('no-scroll');
-    return () => document.body.classList.remove('no-scroll');
-  }, []);
+  // Handle extent or rate change for auto price
+  const handleSingleFieldChange = (field, value) => {
+    setSingleForm(prev => {
+      const next = { ...prev, [field]: value };
+      if (field === 'extent' || field === 'unit' || field === 'ratePerSqFt') {
+        const ext = parseFloat(field === 'extent' ? value : next.extent) || 0;
+        const u = field === 'unit' ? value : next.unit;
+        let sqft = ext;
+        if (u === 'cent') sqft = ext * 435.6;
+        else if (u === 'acre') sqft = ext * 43560;
+        else if (u === 'sqyard') sqft = ext * 9;
+        else if (u === 'ground') sqft = ext * 2400;
 
-  // Live Auto-Calculation of Total Area (Sq.Ft)
-  const computedTotalSqFt = useMemo(() => {
-    if (isApartment || isCommercial) {
-      return parseFloat(form.superBuiltUp || form.carpetArea || 0);
-    }
-    return calculateTotalAreaSqFt(form.extent, form.unit, form.customSqFtPerUnit);
-  }, [form.extent, form.unit, form.customSqFtPerUnit, form.superBuiltUp, form.carpetArea, isApartment, isCommercial]);
-
-  // Live Auto-Calculation of Total Package Price
-  const computedPricing = useMemo(() => {
-    return calculatePackagePrice({
-      baseRate: form.baseRate,
-      rateType: form.rateType,
-      extent: form.extent,
-      unit: form.unit,
-      totalSqFt: computedTotalSqFt,
-      developmentCharges: form.developmentCharges,
-      registrationCharges: form.registrationCharges,
-      otherCharges: form.otherCharges,
-      customSqFtPerUnit: form.customSqFtPerUnit
+        const rate = parseFloat(field === 'ratePerSqFt' ? value : next.ratePerSqFt) || 0;
+        next.totalPrice = Math.round(sqft * rate).toString();
+      }
+      return next;
     });
-  }, [
-    form.baseRate,
-    form.rateType,
-    form.extent,
-    form.unit,
-    computedTotalSqFt,
-    form.developmentCharges,
-    form.registrationCharges,
-    form.otherCharges,
-    form.customSqFtPerUnit
-  ]);
-
-  // Sync auto-calculated package price when not manually overridden
-  useEffect(() => {
-    if (!form.isManualPriceOverride && computedPricing.totalPackagePrice > 0) {
-      setForm(p => ({ ...p, totalPackagePrice: computedPricing.totalPackagePrice }));
-    }
-  }, [computedPricing.totalPackagePrice, form.isManualPriceOverride]);
-
-  // Validate form fields
-  const validateForm = () => {
-    const errors = {};
-    if (!form.unitNumber || !form.unitNumber.trim()) {
-      errors.unitNumber = 'Plot / Unit Number is required.';
-    }
-
-    if (isAgriOrFarm || isPlot) {
-      if (!form.extent || parseFloat(form.extent) <= 0) {
-        errors.extent = 'Land Extent must be greater than 0.';
-      }
-      if (form.unit === 'custom' && (!form.customSqFtPerUnit || parseFloat(form.customSqFtPerUnit) <= 0)) {
-        errors.customSqFtPerUnit = 'Please enter valid Sq.Ft conversion multiplier.';
-      }
-    } else {
-      if (!form.superBuiltUp && !form.carpetArea) {
-        errors.superBuiltUp = 'Area (sq.ft) is required.';
-      }
-    }
-
-    if (!form.baseRate || parseFloat(form.baseRate) <= 0) {
-      errors.baseRate = 'Base Rate / Price must be greater than 0.';
-    }
-
-    if (form.developmentCharges && parseFloat(form.developmentCharges) < 0) {
-      errors.developmentCharges = 'Charges cannot be negative.';
-    }
-    if (form.registrationCharges && parseFloat(form.registrationCharges) < 0) {
-      errors.registrationCharges = 'Charges cannot be negative.';
-    }
-    if (form.otherCharges && parseFloat(form.otherCharges) < 0) {
-      errors.otherCharges = 'Charges cannot be negative.';
-    }
-
-    setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
+    if (error) setError('');
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setGeneralError('');
+  // ----------------------------------------------------
+  // BULK GENERATOR FORM STATE (1-Click Generation)
+  // ----------------------------------------------------
+  const [bulkForm, setBulkForm] = useState({
+    prefix: isApartment ? 'Flat-' : 'Plot-',
+    fromNum: '1',
+    toNum: '20',
+    block: 'Phase 1',
+    extent: '1200',
+    unit: 'sqft',
+    facing: 'east',
+    ratePerSqFt: '2000',
+    status: 'available'
+  });
 
-    if (!validateForm()) {
-      setGeneralError('Please resolve the highlighted fields.');
+  const bulkCount = useMemo(() => {
+    const from = parseInt(bulkForm.fromNum, 10) || 0;
+    const to = parseInt(bulkForm.toNum, 10) || 0;
+    return to >= from ? to - from + 1 : 0;
+  }, [bulkForm.fromNum, bulkForm.toNum]);
+
+  const bulkCalculatedSqFt = useMemo(() => {
+    const num = parseFloat(bulkForm.extent) || 0;
+    if (bulkForm.unit === 'cent') return Math.round(num * 435.6);
+    if (bulkForm.unit === 'acre') return Math.round(num * 43560);
+    return num;
+  }, [bulkForm.extent, bulkForm.unit]);
+
+  const bulkPricePerUnit = useMemo(() => {
+    const rate = parseFloat(bulkForm.ratePerSqFt) || 0;
+    return Math.round(bulkCalculatedSqFt * rate);
+  }, [bulkCalculatedSqFt, bulkForm.ratePerSqFt]);
+
+  // ----------------------------------------------------
+  // SUBMIT HANDLERS
+  // ----------------------------------------------------
+  const handleSingleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!singleForm.unitNumber.trim()) {
+      setError(`Please enter a ${unitNoun} number (e.g. Plot 101).`);
+      return;
+    }
+    if (!singleForm.extent || parseFloat(singleForm.extent) <= 0) {
+      setError('Please enter a valid area / size.');
       return;
     }
 
     setSaving(true);
     try {
-      // Determine final typology / land type
-      const finalLandType = form.isCustomLandType
-        ? form.customLandType.trim() || 'Custom Land'
-        : form.landType || categoryConf?.label || 'Residential Plot';
-
-      const finalTypology = form.isCustomTypology
-        ? form.customTypology.trim() || 'Custom Typology'
-        : form.typology || finalLandType;
-
-      const finalFacing = form.isCustomFacing
-        ? (form.customFacing.trim() || 'custom')
-        : form.facing;
-
-      const finalWater = form.waterSource === 'other' && form.customWaterSource
-        ? form.customWaterSource.trim()
-        : form.waterSource;
-
-      const finalIrrigation = form.irrigation === 'other' && form.customIrrigation
-        ? form.customIrrigation.trim()
-        : form.irrigation;
-
-      const finalFencing = form.fencing === 'other' && form.customFencing
-        ? form.customFencing.trim()
-        : form.fencing;
-
-      const finalTotalPackage = form.isManualPriceOverride
-        ? parseFloat(form.totalPackagePrice) || computedPricing.totalPackagePrice
-        : computedPricing.totalPackagePrice;
-
       const payload = {
         project: project._id,
-        unitNumber: form.unitNumber.trim(),
-        block: form.block.trim(),
-        tower: isApartment || isCommercial ? form.tower : (form.block.trim() || 'Main'),
-        floor: isApartment || isCommercial ? Number(form.floor) || 1 : 1,
+        unitNumber: singleForm.unitNumber.trim(),
+        block: singleForm.block.trim() || 'Main',
+        tower: singleForm.block.trim() || 'Main',
         propertyType: projectType,
-        type: isApartment || isCommercial || isVilla ? finalTypology : finalLandType,
-        landType: finalLandType,
-        facing: finalFacing,
-        customFacing: form.isCustomFacing ? form.customFacing.trim() : undefined,
+        type: isApartment ? 'Flat' : isVilla ? 'Villa' : 'Plot',
+        facing: singleForm.facing,
+        status: singleForm.status,
+        isCorner: singleForm.isCorner,
         area: {
-          extent: parseFloat(form.extent) || undefined,
-          unit: form.unit,
-          sqft: computedTotalSqFt,
-          customSqFtPerUnit: form.unit === 'custom' ? parseFloat(form.customSqFtPerUnit) : undefined,
-          superBuiltUp: computedTotalSqFt,
-          plotArea: isPlot || isAgriOrFarm ? computedTotalSqFt : undefined,
-          carpet: parseFloat(form.carpetArea) || undefined,
-          builtUp: parseFloat(form.builtUpArea) || undefined,
+          extent: parseFloat(singleForm.extent),
+          unit: singleForm.unit,
+          sqft: calculatedSqFt,
+          plotArea: calculatedSqFt,
+          superBuiltUp: calculatedSqFt
         },
+        pricing: {
+          baseRate: parseFloat(singleForm.ratePerSqFt) || 0,
+          rateType: 'per_sqft',
+          basePrice: parseFloat(singleForm.totalPrice) || 0,
+          totalPrice: parseFloat(singleForm.totalPrice) || 0,
+          totalPackagePrice: parseFloat(singleForm.totalPrice) || 0
+        },
+        image: singleForm.image || '',
+        images: singleForm.image ? [singleForm.image] : [],
         physicalDetails: {
-          facing: finalFacing,
-          roadWidth: parseFloat(form.roadWidth) || undefined,
-          isCorner: form.isCorner,
-          electricity: form.electricity,
-          waterSource: finalWater,
-          frontage: parseFloat(form.frontage) || undefined,
-          ceilingHeight: parseFloat(form.ceilingHeight) || undefined,
-          fitoutStatus: form.fitoutStatus,
-          suitableFor: form.suitableFor ? form.suitableFor.trim() : undefined
+          facing: singleForm.facing,
+          roadWidth: parseFloat(singleForm.roadWidth) || 30,
+          isCorner: singleForm.isCorner,
+          waterSource: singleForm.waterSource,
+          electricity: singleForm.electricity
         },
         agriculturalDetails: isAgriOrFarm ? {
-          plantation: form.plantation.trim(),
-          treesType: form.treesType ? form.treesType.trim() : (form.plantation.trim() || undefined),
-          treesCount: Number(form.treesCount) || 0,
-          treesAge: form.treesAge ? form.treesAge.trim() : undefined,
-          soilType: form.soilType,
-          irrigation: finalIrrigation,
-          fencing: finalFencing
-        } : undefined,
-        pricing: {
-          baseRate: parseFloat(form.baseRate) || 0,
-          rateType: form.rateType,
-          basePrice: computedPricing.baseAmount,
-          developmentCharges: parseFloat(form.developmentCharges) || 0,
-          registrationCharges: parseFloat(form.registrationCharges) || 0,
-          otherCharges: parseFloat(form.otherCharges) || 0,
-          totalPackagePrice: finalTotalPackage,
-          totalPrice: finalTotalPackage
-        },
-        status: form.status,
-        isCorner: form.isCorner,
-        image: form.image || '',
-        images: form.image ? [form.image] : [],
-        floorPlan: form.image || ''
+          soilType: singleForm.soilType,
+          treesCount: parseInt(singleForm.treesCount, 10) || 0
+        } : undefined
       };
 
       const { data } = await api.post('/inventory', payload);
-      showNotification(`✅ Inventory "${payload.unitNumber}" added successfully!`, 'success');
+      showNotification(`✅ ${unitNoun} "${payload.unitNumber}" added successfully!`, 'success');
       if (onUnitAdded) onUnitAdded(data.data || data);
       onClose();
     } catch (err) {
-      console.error('Failed to create inventory unit:', err);
-      const errMsg = err.response?.data?.message || err.message || 'Failed to add inventory unit. Please try again.';
-      setGeneralError(errMsg);
+      console.error('Failed to create unit:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to add inventory unit.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleBulkSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    const from = parseInt(bulkForm.fromNum, 10);
+    const to = parseInt(bulkForm.toNum, 10);
+
+    if (isNaN(from) || isNaN(to) || to < from) {
+      setError('Please enter a valid "From" and "To" range (e.g. 1 to 20).');
+      return;
+    }
+    if (bulkCount > 100) {
+      setError('Bulk creation is capped at 100 plots per batch for safety.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const units = [];
+      const prefix = bulkForm.prefix.trim();
+
+      for (let i = from; i <= to; i++) {
+        const uNum = `${prefix}${i}`;
+        units.push({
+          unitNumber: uNum,
+          block: bulkForm.block.trim() || 'Main',
+          tower: bulkForm.block.trim() || 'Main',
+          propertyType: projectType,
+          type: isApartment ? 'Flat' : isVilla ? 'Villa' : 'Plot',
+          facing: bulkForm.facing,
+          status: bulkForm.status,
+          area: {
+            extent: parseFloat(bulkForm.extent),
+            unit: bulkForm.unit,
+            sqft: bulkCalculatedSqFt,
+            plotArea: bulkCalculatedSqFt,
+            superBuiltUp: bulkCalculatedSqFt
+          },
+          pricing: {
+            baseRate: parseFloat(bulkForm.ratePerSqFt) || 0,
+            rateType: 'per_sqft',
+            totalPrice: bulkPricePerUnit,
+            totalPackagePrice: bulkPricePerUnit
+          }
+        });
+      }
+
+      const { data } = await api.post('/inventory/bulk', {
+        project: project._id,
+        units
+      });
+
+      showNotification(`🚀 ${data.message || `Created ${units.length} plots successfully!`}`, 'success');
+      if (onUnitAdded) onUnitAdded(data.data?.[0] || { project: project._id });
+      onClose();
+    } catch (err) {
+      console.error('Failed bulk unit creation:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to create bulk inventory.');
     } finally {
       setSaving(false);
     }
@@ -316,41 +264,49 @@ export default function AddInventoryModal({ project, onClose, onUnitAdded }) {
         className="modal"
         onClick={e => e.stopPropagation()}
         style={{
-          maxWidth: 760,
-          maxHeight: 'min(92vh, 860px)',
+          maxWidth: 680,
+          width: '95%',
+          maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
           borderRadius: 16,
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.18)',
           overflow: 'hidden',
-          background: 'white'
+          background: '#ffffff',
+          border: '1px solid #e2e8f0'
         }}
       >
         {/* Header */}
-        <div
-          className="modal-header"
-          style={{
-            padding: '18px 24px',
-            borderBottom: '1px solid #e2e8f0',
-            background: '#f8fafc',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 24 }}>{categoryConf?.icon || '🌾'}</span>
-            <div>
-              <div style={{ fontSize: 17, fontWeight: 800, color: '#0f172a' }}>{modalTitle}</div>
-              <div style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                <span>Project:</span>
-                <span style={{ fontWeight: 700, color: '#1e293b' }}>{project?.name}</span>
-                <span className="badge badge-gray" style={{ fontSize: 10, textTransform: 'capitalize' }}>
-                  {categoryConf?.shortLabel || projectType?.replace(/_/g, ' ')}
-                </span>
-              </div>
+        <div style={{
+          padding: '16px 22px',
+          borderBottom: '1px solid #edf2f7',
+          background: '#fcfdfa',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 18, fontWeight: 800, color: '#172a11', letterSpacing: '-0.01em' }}>
+                Add {unitNoun} Inventory
+              </span>
+              <span style={{
+                background: '#edf7e8',
+                color: '#326518',
+                fontSize: 11,
+                fontWeight: 700,
+                padding: '2px 8px',
+                borderRadius: 6,
+                border: '1px solid #d4e8cb'
+              }}>
+                {project?.name || 'Project'}
+              </span>
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+              Quick &amp; simple inventory setup for your project
             </div>
           </div>
+
           <button
             type="button"
             className="btn btn-ghost btn-icon btn-sm"
@@ -361,734 +317,616 @@ export default function AddInventoryModal({ project, onClose, onUnitAdded }) {
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-          <div className="modal-body" style={{ overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {/* Mode Tabs: Single vs Bulk */}
+        <div style={{
+          display: 'flex',
+          borderBottom: '1px solid #e2e8f0',
+          background: '#f8fafc',
+          padding: '4px 16px 0',
+          gap: 8
+        }}>
+          <button
+            type="button"
+            onClick={() => setActiveTab('single')}
+            style={{
+              padding: '10px 18px',
+              fontWeight: 700,
+              fontSize: 13,
+              border: 'none',
+              background: 'transparent',
+              color: activeTab === 'single' ? '#326518' : '#64748b',
+              borderBottom: activeTab === 'single' ? '2.5px solid #458522' : '2.5px solid transparent',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}
+          >
+            <Plus size={15} /> Single {unitNoun}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('bulk')}
+            style={{
+              padding: '10px 18px',
+              fontWeight: 700,
+              fontSize: 13,
+              border: 'none',
+              background: 'transparent',
+              color: activeTab === 'bulk' ? '#326518' : '#64748b',
+              borderBottom: activeTab === 'bulk' ? '2.5px solid #458522' : '2.5px solid transparent',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}
+          >
+            <Sparkles size={15} /> ⚡ Bulk Generate ({unitNoun}s 1 to 20+)
+          </button>
+        </div>
 
-            {generalError && (
-              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', padding: '10px 14px', borderRadius: 8, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <AlertCircle size={16} />
-                <span>{generalError}</span>
-              </div>
-            )}
+        {/* Error Notice */}
+        {error && (
+          <div style={{
+            margin: '12px 20px 0',
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#b91c1c',
+            padding: '10px 14px',
+            borderRadius: 8,
+            fontSize: 13,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8
+          }}>
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+        )}
 
-            {/* ================================================== */}
-            {/* SECTION 1 — BASIC INFORMATION */}
-            {/* ================================================== */}
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, background: '#ffffff' }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ background: '#e0e7ff', color: '#4338ca', width: 22, height: 22, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>1</span>
-                SECTION 1 — BASIC INFORMATION
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
-                {/* 1. Project (Read-only) */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>
-                    Project <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 400 }}>(Auto-populated)</span>
+        {/* Scrollable Form Body */}
+        <div style={{ padding: '20px 22px', overflowY: 'auto', flex: 1 }}>
+          {activeTab === 'single' ? (
+            /* ==================================================== */
+            /* SINGLE UNIT FORM (Simple & Fast)                     */
+            /* ==================================================== */
+            <form id="single-inventory-form" onSubmit={handleSingleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Row 1: Number & Block */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#1e293b', marginBottom: 5 }}>
+                    {unitNoun} Number <span style={{ color: '#dc2626' }}>*</span>
                   </label>
                   <input
                     className="form-input"
-                    value={`${project?.name || ''} (${project?.city || project?.code || 'Active'})`}
-                    disabled
-                    readOnly
-                    style={{ background: '#f8fafc', color: '#475569', fontWeight: 600, cursor: 'not-allowed' }}
-                  />
-                </div>
-
-                {/* 2. Block / Zone / Sector (Optional) */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>
-                    Block / Zone / Sector <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 400 }}>(Optional)</span>
-                  </label>
-                  <input
-                    className="form-input"
-                    value={form.block}
-                    onChange={e => setForm(p => ({ ...p, block: e.target.value }))}
-                    placeholder="e.g. Sector A, Block B, Zone 1, Phase 1"
-                  />
-                </div>
-
-                {/* 3. Plot / Unit Number * (Required) */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>
-                    Plot / Unit Number <span className="required">*</span>
-                  </label>
-                  <input
-                    className={`form-input ${fieldErrors.unitNumber ? 'input-error' : ''}`}
-                    value={form.unitNumber}
-                    onChange={e => {
-                      setForm(p => ({ ...p, unitNumber: e.target.value }));
-                      if (fieldErrors.unitNumber) setFieldErrors(p => ({ ...p, unitNumber: undefined }));
-                    }}
-                    placeholder={
-                      isAgriOrFarm ? 'e.g. A-05, Farm Plot 105, Parcel 12' :
-                      isPlot ? 'e.g. Plot 108, Site 204' :
-                      isVilla ? 'e.g. Villa 24, V-102' :
-                      'e.g. A-502, Flat 301, Unit G-12'
-                    }
+                    value={singleForm.unitNumber}
+                    onChange={e => handleSingleFieldChange('unitNumber', e.target.value)}
+                    placeholder={isApartment ? 'e.g. Flat 302, A-401' : 'e.g. Plot 12, Site 105'}
                     required
+                    autoFocus
+                    style={{ fontSize: 13.5, fontWeight: 600 }}
                   />
-                  {fieldErrors.unitNumber && (
-                    <div style={{ color: '#dc2626', fontSize: 11, marginTop: 4 }}>{fieldErrors.unitNumber}</div>
-                  )}
                 </div>
 
-                {/* 4. Land Type / Plot Type * */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 0 }}>
-                      {isApartment ? 'Apartment Typology' : isVilla ? 'Villa Configuration' : 'Land Type / Plot Type'} <span className="required">*</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setForm(p => ({ ...p, isCustomLandType: !p.isCustomLandType }))}
-                      style={{ fontSize: 11, color: '#2563eb', fontWeight: 600, border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}
-                    >
-                      {form.isCustomLandType ? 'Standard Dropdown' : '✏️ Custom Type'}
-                    </button>
-                  </div>
-
-                  {!form.isCustomLandType ? (
-                    <CustomSelect
-                      value={form.landType}
-                      onChange={val => {
-                        const actualVal = typeof val === 'object' && val.target ? val.target.value : val;
-                        if (actualVal === 'other') {
-                          setForm(p => ({ ...p, landType: actualVal, isCustomLandType: true }));
-                        } else {
-                          setForm(p => ({ ...p, landType: actualVal, isCustomLandType: false }));
-                        }
-                      }}
-                      options={
-                        isApartment ? (
-                          (CATEGORY_TYPOLOGIES.residential_apartment || ['1BHK', '2BHK', '3BHK', '4BHK', 'Penthouse']).map(t => ({ value: t, label: t }))
-                        ) : isVilla ? (
-                          (CATEGORY_TYPOLOGIES.villa || ['3 BHK Luxury Villa', '4 BHK Duplex Villa', '5 BHK Grand Villa']).map(t => ({ value: t, label: t }))
-                        ) : (
-                          LAND_TYPES.map(lt => ({ value: lt.value, label: lt.label }))
-                        )
-                      }
-                    />
-                  ) : (
-                    <input
-                      className="form-input"
-                      value={form.customLandType}
-                      onChange={e => setForm(p => ({ ...p, customLandType: e.target.value }))}
-                      placeholder="e.g. Organic Avocado Grove, Lakefront Plot, Resort Estate"
-                      required
-                    />
-                  )}
+                <div>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#1e293b', marginBottom: 5 }}>
+                    Block / Sector / Phase <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 400 }}>(Optional)</span>
+                  </label>
+                  <input
+                    className="form-input"
+                    value={singleForm.block}
+                    onChange={e => handleSingleFieldChange('block', e.target.value)}
+                    placeholder="e.g. Phase 1, Sector A, East Block"
+                    style={{ fontSize: 13.5 }}
+                  />
                 </div>
               </div>
-            </div>
 
-            {/* ================================================== */}
-            {/* SECTION 2 — LAND AREA */}
-            {/* ================================================== */}
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, background: '#ffffff' }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ background: '#e0e7ff', color: '#4338ca', width: 22, height: 22, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>2</span>
-                SECTION 2 — LAND AREA SPECIFICATIONS
-              </div>
-
-              {isAgriOrFarm || isPlot ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, alignItems: 'start' }}>
-                  {/* 5. Land Extent */}
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>
-                      Land Extent <span className="required">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      min="0.00001"
-                      className={`form-input ${fieldErrors.extent ? 'input-error' : ''}`}
-                      value={form.extent}
-                      onChange={e => {
-                        setForm(p => ({ ...p, extent: e.target.value }));
-                        if (fieldErrors.extent) setFieldErrors(p => ({ ...p, extent: undefined }));
-                      }}
-                      placeholder="e.g. 0.5, 1.25, 2400"
-                      required
-                    />
-                    {fieldErrors.extent && (
-                      <div style={{ color: '#dc2626', fontSize: 11, marginTop: 4 }}>{fieldErrors.extent}</div>
-                    )}
-                  </div>
-
-                  {/* 6. Area Unit Dropdown */}
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>
-                      Area Unit <span className="required">*</span>
-                    </label>
-                    <CustomSelect
-                      value={form.unit}
-                      onChange={val => setForm(p => ({ ...p, unit: typeof val === 'object' && val.target ? val.target.value : val }))}
-                      options={AREA_UNITS.map(u => ({ value: u.id, label: u.label }))}
-                    />
-                  </div>
-
-                  {/* Custom Multiplier if Custom Unit */}
-                  {form.unit === 'custom' && (
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#7c3aed' }}>
-                        1 Unit = ? Sq.Ft <span className="required">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        step="1"
-                        min="1"
-                        className={`form-input ${fieldErrors.customSqFtPerUnit ? 'input-error' : ''}`}
-                        value={form.customSqFtPerUnit}
-                        onChange={e => setForm(p => ({ ...p, customSqFtPerUnit: e.target.value }))}
-                        placeholder="e.g. 14400"
-                        required
-                      />
-                    </div>
-                  )}
-
-                  {/* 7. Total Area (Sq.Ft) - Auto Calculated */}
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                      <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#15803d', marginBottom: 0 }}>
-                        Total Area (Sq.Ft)
-                      </label>
-                      <span className="badge badge-success" style={{ fontSize: 10, padding: '1px 6px' }}>⚡ Auto Calc</span>
-                    </div>
-                    <input
-                      className="form-input"
-                      value={computedTotalSqFt ? `${computedTotalSqFt.toLocaleString('en-IN')} sq.ft` : '0 sq.ft'}
-                      readOnly
-                      disabled
-                      style={{ background: '#f0fdf4', color: '#15803d', fontWeight: 800, border: '1px solid #bbf7d0', cursor: 'not-allowed' }}
-                    />
-                  </div>
-                </div>
-              ) : (
-                /* Apartment / Villa / Commercial Built-Up Areas */
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label" style={{ fontSize: 12, fontWeight: 700 }}>Super Built-Up Area (sq.ft) <span className="required">*</span></label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      value={form.superBuiltUp}
-                      onChange={e => setForm(p => ({ ...p, superBuiltUp: e.target.value }))}
-                      placeholder="e.g. 1650"
-                      required
-                    />
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label" style={{ fontSize: 12, fontWeight: 700 }}>Carpet Area (sq.ft)</label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      value={form.carpetArea}
-                      onChange={e => setForm(p => ({ ...p, carpetArea: e.target.value }))}
-                      placeholder="e.g. 1250"
-                    />
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label" style={{ fontSize: 12, fontWeight: 700 }}>Built-Up Area (sq.ft)</label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      value={form.builtUpArea}
-                      onChange={e => setForm(p => ({ ...p, builtUpArea: e.target.value }))}
-                      placeholder="e.g. 1400"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* ================================================== */}
-            {/* SECTION 3 — PHYSICAL / LOCATION FEATURES */}
-            {/* ================================================== */}
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, background: '#ffffff' }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ background: '#e0e7ff', color: '#4338ca', width: 22, height: 22, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>3</span>
-                SECTION 3 — LOCATION & PHYSICAL FEATURES
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-                {/* 8. Facing */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ fontSize: 12, fontWeight: 700 }}>Facing Orientation</label>
-                  {!form.isCustomFacing ? (
-                    <CustomSelect
-                      value={form.facing}
-                      onChange={val => {
-                        const actualVal = typeof val === 'object' && val.target ? val.target.value : val;
-                        if (actualVal === 'custom') {
-                          setForm(p => ({ ...p, isCustomFacing: true }));
-                        } else {
-                          setForm(p => ({ ...p, facing: actualVal, isCustomFacing: false }));
-                        }
-                      }}
-                      options={FACING_OPTIONS.map(f => ({ value: f.value, label: f.label }))}
-                    />
-                  ) : (
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <input
-                        className="form-input"
-                        value={form.customFacing}
-                        onChange={e => setForm(p => ({ ...p, customFacing: e.target.value }))}
-                        placeholder="e.g. Valley / Lake Facing"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setForm(p => ({ ...p, isCustomFacing: false }))}
-                        className="btn btn-secondary btn-sm"
-                        style={{ padding: '0 8px' }}
-                      >
-                        Reset
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* 9. Road Width */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ fontSize: 12, fontWeight: 700 }}>Road Width (ft)</label>
+              {/* Row 2: Area Size, Unit, Facing */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.2fr', gap: 14 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#1e293b', marginBottom: 5 }}>
+                    Area Size <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
                   <input
                     type="number"
+                    step="any"
+                    min="1"
                     className="form-input"
-                    value={form.roadWidth}
-                    onChange={e => setForm(p => ({ ...p, roadWidth: e.target.value }))}
-                    placeholder="e.g. 30, 40, 60"
+                    value={singleForm.extent}
+                    onChange={e => handleSingleFieldChange('extent', e.target.value)}
+                    placeholder="e.g. 1200"
+                    required
+                    style={{ fontSize: 13.5, fontWeight: 600 }}
                   />
                 </div>
 
-                {/* 10. Corner Plot Toggle */}
-                <div className="form-group" style={{ marginBottom: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                  <label className="form-label" style={{ fontSize: 12, fontWeight: 700 }}>Corner Plot / Dual Frontage</label>
-                  <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="isCorner"
-                        checked={form.isCorner === true}
-                        onChange={() => setForm(p => ({ ...p, isCorner: true }))}
-                        style={{ accentColor: '#2563eb' }}
-                      />
-                      <span>Yes</span>
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="isCorner"
-                        checked={form.isCorner === false}
-                        onChange={() => setForm(p => ({ ...p, isCorner: false }))}
-                        style={{ accentColor: '#2563eb' }}
-                      />
-                      <span>No</span>
-                    </label>
-                  </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#1e293b', marginBottom: 5 }}>
+                    Unit
+                  </label>
+                  <select
+                    className="form-input"
+                    value={singleForm.unit}
+                    onChange={e => handleSingleFieldChange('unit', e.target.value)}
+                    style={{ fontSize: 13, cursor: 'pointer', background: '#ffffff' }}
+                  >
+                    <option value="sqft">Sq.Ft</option>
+                    <option value="cent">Cents (435.6 sq.ft)</option>
+                    <option value="acre">Acres (43,560 sq.ft)</option>
+                    <option value="sqyard">Sq.Yards</option>
+                    <option value="ground">Grounds (2,400 sq.ft)</option>
+                  </select>
                 </div>
 
-                {/* 11. Electricity */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ fontSize: 12, fontWeight: 700 }}>Electricity Connection</label>
-                  <CustomSelect
-                    value={form.electricity}
-                    onChange={val => setForm(p => ({ ...p, electricity: typeof val === 'object' && val.target ? val.target.value : val }))}
-                    options={ELECTRICITY_OPTIONS.map(opt => ({ value: opt.value, label: opt.label }))}
-                  />
-                </div>
-
-                {/* 12. Water Source */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ fontSize: 12, fontWeight: 700 }}>Water Source</label>
-                  <CustomSelect
-                    value={form.waterSource}
-                    onChange={val => setForm(p => ({ ...p, waterSource: typeof val === 'object' && val.target ? val.target.value : val }))}
-                    options={WATER_SOURCES.map(w => ({ value: w.value, label: w.label }))}
-                  />
+                <div>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#1e293b', marginBottom: 5 }}>
+                    Facing Direction
+                  </label>
+                  <select
+                    className="form-input"
+                    value={singleForm.facing}
+                    onChange={e => handleSingleFieldChange('facing', e.target.value)}
+                    style={{ fontSize: 13, cursor: 'pointer', background: '#ffffff' }}
+                  >
+                    {FACING_OPTIONS.map(f => (
+                      <option key={f.value} value={f.value}>{f.label}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
-            </div>
 
-            {/* ================================================== */}
-            {/* SECTION 4 — AGRICULTURAL SPECIFICATIONS */}
-            {/* Show when project is Agricultural / Farm Land */}
-            {/* ================================================== */}
-            {isAgriOrFarm && (
-              <div style={{ border: '1px solid #bbf7d0', borderRadius: 12, padding: 16, background: '#f0fdf4' }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: '#166534', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ background: '#dcfce7', color: '#15803d', width: 22, height: 22, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>4</span>
-                  SECTION 4 — AGRICULTURAL & FARM SPECIFICATIONS
+              {/* Helper badge for total sq.ft */}
+              {singleForm.unit !== 'sqft' && (
+                <div style={{ fontSize: 12, color: '#458522', fontWeight: 600, background: '#f2f9ed', padding: '5px 10px', borderRadius: 6 }}>
+                  📐 Equivalent Total Area: <strong>{calculatedSqFt.toLocaleString('en-IN')} Sq.Ft</strong>
                 </div>
+              )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-                  {/* 13. Trees Count */}
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#166534' }}>
-                      🌳 Trees Count (Total Trees)
-                    </label>
-                    <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      className="form-input"
-                      value={form.treesCount}
-                      onChange={e => setForm(p => ({ ...p, treesCount: e.target.value }))}
-                      placeholder="e.g. 150, 250 Trees"
-                      style={{ background: 'white' }}
-                    />
-                  </div>
-
-                  {/* 14. Trees Type / Species */}
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#166534' }}>
-                      🌲 Trees Type / Species
-                    </label>
-                    <input
-                      className="form-input"
-                      value={form.treesType || form.plantation}
-                      onChange={e => setForm(p => ({ ...p, treesType: e.target.value, plantation: e.target.value }))}
-                      placeholder="e.g. Teak, Sandalwood, Alphonso Mango, Coconut, Mahogany"
-                      style={{ background: 'white' }}
-                    />
-                  </div>
-
-                  {/* 15. Soil Type */}
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#166534' }}>
-                      🌱 Soil Type
-                    </label>
-                    <CustomSelect
-                      value={form.soilType}
-                      onChange={val => setForm(p => ({ ...p, soilType: typeof val === 'object' && val.target ? val.target.value : val }))}
-                      options={[
-                        { value: 'red_soil', label: '🔴 Fertile Red Soil' },
-                        { value: 'black_cotton', label: '⚫ Black Cotton Soil' },
-                        { value: 'alluvial_loam', label: '🌾 Rich Alluvial Loam' },
-                        { value: 'sandy_loam', label: '🏖️ Sandy Loam' },
-                        { value: 'gravelly', label: '🪨 Gravelly / Mixed Soil' }
-                      ]}
-                    />
-                  </div>
-
-                  {/* 16. Plantation Age / Yield Status */}
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#166534' }}>
-                      ⏳ Age of Trees / Yield Status
-                    </label>
-                    <input
-                      className="form-input"
-                      value={form.treesAge}
-                      onChange={e => setForm(p => ({ ...p, treesAge: e.target.value }))}
-                      placeholder="e.g. 3 Years Old, Ready Yielding"
-                      style={{ background: 'white' }}
-                    />
-                  </div>
-
-                  {/* 17. Irrigation System */}
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#166534' }}>
-                      💧 Irrigation System
-                    </label>
-                    <CustomSelect
-                      value={form.irrigation}
-                      onChange={val => setForm(p => ({ ...p, irrigation: typeof val === 'object' && val.target ? val.target.value : val }))}
-                      options={IRRIGATION_SYSTEMS.map(ir => ({ value: ir.value, label: ir.label }))}
-                    />
-                  </div>
-
-                  {/* 18. Fencing */}
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#166534' }}>
-                      🛡️ Fencing & Boundary
-                    </label>
-                    <CustomSelect
-                      value={form.fencing}
-                      onChange={val => setForm(p => ({ ...p, fencing: typeof val === 'object' && val.target ? val.target.value : val }))}
-                      options={FENCING_OPTIONS.map(fe => ({ value: fe.value, label: fe.label }))}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ================================================== */}
-            {/* SECTION 5 — PRICING */}
-            {/* ================================================== */}
-            <div style={{ border: '1px solid #fed7aa', borderRadius: 12, padding: 16, background: '#fffaf5' }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#9a3412', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ background: '#ffedd5', color: '#c2410c', width: 22, height: 22, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>5</span>
-                SECTION 5 — PRICING & COMMERCIAL STRUCTURE
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-                {/* 16. Base Rate / BSP * */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>
-                    Base Rate / BSP (₹) <span className="required">*</span>
+              {/* Row 3: Pricing (Rate & Total) */}
+              <div style={{
+                background: '#f9fbf8',
+                border: '1px solid #dcebda',
+                borderRadius: 10,
+                padding: '14px 16px',
+                display: 'grid',
+                gridTemplateColumns: '1fr 1.3fr',
+                gap: 14,
+                alignItems: 'center'
+              }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#172a11', marginBottom: 5 }}>
+                    Base Rate (₹ / sq.ft) <span style={{ color: '#dc2626' }}>*</span>
                   </label>
                   <input
                     type="number"
                     step="1"
                     min="0"
-                    className={`form-input ${fieldErrors.baseRate ? 'input-error' : ''}`}
-                    value={form.baseRate}
-                    onChange={e => {
-                      setForm(p => ({ ...p, baseRate: e.target.value }));
-                      if (fieldErrors.baseRate) setFieldErrors(p => ({ ...p, baseRate: undefined }));
-                    }}
-                    placeholder={
-                      form.rateType === 'per_acre' ? 'e.g. 4500000' :
-                      form.rateType === 'per_guntha' ? 'e.g. 120000' :
-                      'e.g. 2500'
-                    }
+                    className="form-input"
+                    value={singleForm.ratePerSqFt}
+                    onChange={e => handleSingleFieldChange('ratePerSqFt', e.target.value)}
+                    placeholder="e.g. 2000"
                     required
-                    style={{ background: 'white' }}
-                  />
-                  {fieldErrors.baseRate && (
-                    <div style={{ color: '#dc2626', fontSize: 11, marginTop: 4 }}>{fieldErrors.baseRate}</div>
-                  )}
-                </div>
-
-                {/* 17. Rate Type * */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>
-                    Rate Calculation Unit <span className="required">*</span>
-                  </label>
-                  <CustomSelect
-                    value={form.rateType}
-                    onChange={val => setForm(p => ({ ...p, rateType: typeof val === 'object' && val.target ? val.target.value : val }))}
-                    options={RATE_TYPES.map(rt => ({ value: rt.id, label: rt.label }))}
+                    style={{ fontSize: 14, fontWeight: 700, background: '#ffffff' }}
                   />
                 </div>
 
-                {/* 18. Development Charges */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ fontSize: 12, fontWeight: 700 }}>Development Charges (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="form-input"
-                    value={form.developmentCharges}
-                    onChange={e => setForm(p => ({ ...p, developmentCharges: e.target.value }))}
-                    placeholder="0"
-                    style={{ background: 'white' }}
-                  />
-                </div>
-
-                {/* 19. Registration Charges */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ fontSize: 12, fontWeight: 700 }}>Registration Charges (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="form-input"
-                    value={form.registrationCharges}
-                    onChange={e => setForm(p => ({ ...p, registrationCharges: e.target.value }))}
-                    placeholder="0"
-                    style={{ background: 'white' }}
-                  />
-                </div>
-
-                {/* 20. Other Charges */}
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ fontSize: 12, fontWeight: 700 }}>Other / Legal Charges (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="form-input"
-                    value={form.otherCharges}
-                    onChange={e => setForm(p => ({ ...p, otherCharges: e.target.value }))}
-                    placeholder="0"
-                    style={{ background: 'white' }}
-                  />
-                </div>
-
-                {/* 21. Total Package Price * (Auto Calculated with Manual Override Option) */}
-                <div className="form-group" style={{ marginBottom: 0, gridColumn: 'span 2' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <label className="form-label" style={{ fontSize: 12, fontWeight: 800, color: '#15803d', marginBottom: 0 }}>
-                      Total All-Inclusive Package Price (₹) <span className="required">*</span>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                    <label style={{ fontSize: 12.5, fontWeight: 800, color: '#15803d' }}>
+                      Total Price (₹)
                     </label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {!form.isManualPriceOverride ? (
-                        <span className="badge badge-success" style={{ fontSize: 10, padding: '2px 8px' }}>⚡ Auto Calculated (Base + Dev + Reg + Other)</span>
-                      ) : (
-                        <span className="badge badge-warning" style={{ fontSize: 10, padding: '2px 8px' }}>✏️ Manual Override Active</span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setForm(p => ({ ...p, isManualPriceOverride: !p.isManualPriceOverride }))}
-                        style={{ fontSize: 11, color: '#2563eb', fontWeight: 600, border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}
-                      >
-                        {form.isManualPriceOverride ? 'Restore Auto Calculation' : 'Override Manually'}
-                      </button>
-                    </div>
+                    <span style={{ fontSize: 11, color: '#64748b' }}>⚡ Auto-calculated</span>
                   </div>
                   <input
                     type="number"
                     className="form-input"
-                    value={form.totalPackagePrice || computedPricing.totalPackagePrice || ''}
-                    onChange={e => setForm(p => ({ ...p, totalPackagePrice: e.target.value, isManualPriceOverride: true }))}
-                    readOnly={!form.isManualPriceOverride}
+                    value={singleForm.totalPrice}
+                    onChange={e => handleSingleFieldChange('totalPrice', e.target.value)}
+                    placeholder="Total price"
                     required
                     style={{
-                      background: form.isManualPriceOverride ? 'white' : '#f0fdf4',
-                      color: '#15803d',
+                      fontSize: 15,
                       fontWeight: 800,
-                      fontSize: 16,
-                      border: '2px solid #86efac'
+                      color: '#15803d',
+                      background: '#ffffff',
+                      border: '1.5px solid #86efac'
                     }}
                   />
-                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
-                    Breakdown: Base Price ({formatIndianCurrency(computedPricing.baseAmount)}) + Charges ({formatIndianCurrency(computedPricing.developmentCharges + computedPricing.registrationCharges + computedPricing.otherCharges)}) = <strong style={{ color: '#15803d' }}>{formatIndianCurrency(form.totalPackagePrice || computedPricing.totalPackagePrice)}</strong>
+                  <div style={{ fontSize: 11.5, color: '#64748b', marginTop: 3 }}>
+                    In words: <strong>{formatCurrency(parseFloat(singleForm.totalPrice) || 0)}</strong>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* ================================================== */}
-            {/* SECTION 6 — INVENTORY STATUS */}
-            {/* ================================================== */}
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, background: '#ffffff' }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ background: '#e0e7ff', color: '#4338ca', width: 22, height: 22, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>6</span>
-                SECTION 6 — INVENTORY STATUS
-              </div>
+              {/* Row 4: Status & Corner Plot */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 180 }}>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#1e293b', marginBottom: 5 }}>
+                    Status
+                  </label>
+                  <select
+                    className="form-input"
+                    value={singleForm.status}
+                    onChange={e => handleSingleFieldChange('status', e.target.value)}
+                    style={{ fontSize: 13, background: '#ffffff', cursor: 'pointer' }}
+                  >
+                    {STATUS_OPTIONS.map(s => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
 
-              <div style={{ maxWidth: 360 }}>
-                <label className="form-label" style={{ fontSize: 12, fontWeight: 700 }}>
-                  Inventory Status <span className="required">*</span>
-                </label>
-                <CustomSelect
-                  value={form.status}
-                  onChange={val => setForm(p => ({ ...p, status: typeof val === 'object' && val.target ? val.target.value : val }))}
-                  options={[
-                    { value: 'available', label: 'Available', icon: '🟢', subtext: 'Open for Sale' },
-                    { value: 'reserved', label: 'Reserved', icon: '🔵', subtext: 'Expression of Interest' },
-                    { value: 'on_hold', label: 'On Hold', icon: '🟡', subtext: '48h Customer Reservation' },
-                    { value: 'booked', label: 'Booked', icon: '🟣', subtext: 'Booking Token Paid' },
-                    { value: 'sold', label: 'Sold', icon: '✅', subtext: 'Full Payment Completed' },
-                    { value: 'blocked', label: 'Blocked', icon: '🔴', subtext: 'Management Reserve' },
-                    { value: 'cancelled', label: 'Cancelled', icon: '⚪', subtext: 'Registration Cancelled' }
-                  ]}
-                />
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-                  Default is "Available" for newly added plots and units.
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 20 }}>
+                  <input
+                    type="checkbox"
+                    id="cornerPlotCheckbox"
+                    checked={singleForm.isCorner}
+                    onChange={e => handleSingleFieldChange('isCorner', e.target.checked)}
+                    style={{ width: 17, height: 17, accentColor: '#458522', cursor: 'pointer' }}
+                  />
+                  <label htmlFor="cornerPlotCheckbox" style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', cursor: 'pointer' }}>
+                    🚩 Corner Plot / Dual Road Frontage
+                  </label>
                 </div>
               </div>
-            </div>
 
-            {/* ================================================== */}
-            {/* SECTION 7 — PLOT / UNIT PHOTOS & SITE LAYOUT */}
-            {/* ================================================== */}
-            <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, background: '#f8fafc' }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ background: '#e0e7ff', color: '#4338ca', width: 22, height: 22, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>7</span>
-                SECTION 7 — PLOT / UNIT PHOTOS &amp; SITE LAYOUT
-              </div>
-
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
-                <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0, fontSize: 12 }}>
-                  📁 Upload Plot / Unit Photo
-                  <input
-                    type="file"
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      if (file.size > 12 * 1024 * 1024) {
-                        showNotification('File exceeds 12MB limit', 'warning');
-                        return;
-                      }
-                      const reader = new FileReader();
-                      reader.onload = (loadEvt) => {
-                        setForm(p => ({ ...p, image: loadEvt.target.result, images: [loadEvt.target.result] }));
-                      };
-                      reader.readAsDataURL(file);
-                    }}
-                  />
+              {/* Row 5: Plot Photo Upload / URL (Simple) */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#1e293b', marginBottom: 5 }}>
+                  Plot / Unit Photo <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 400 }}>(Optional)</span>
                 </label>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, margin: 0, fontSize: 12 }}>
+                    <ImageIcon size={14} /> Upload Photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = ev => handleSingleFieldChange('image', ev.target.result);
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
 
-                <div style={{ display: 'flex', gap: 6, flex: 1, minWidth: 200 }}>
                   <input
                     className="form-input"
-                    placeholder="Or paste plot image URL (https://...)"
-                    value={plotUrlInput}
-                    onChange={e => setPlotUrlInput(e.target.value)}
-                    style={{ fontSize: 12, padding: '6px 10px' }}
+                    value={singleForm.image}
+                    onChange={e => handleSingleFieldChange('image', e.target.value)}
+                    placeholder="Or paste image URL (https://...)"
+                    style={{ fontSize: 12, flex: 1 }}
                   />
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => {
-                      if (plotUrlInput.trim()) {
-                        setForm(p => ({ ...p, image: plotUrlInput.trim(), images: [plotUrlInput.trim()] }));
-                        setPlotUrlInput('');
-                      }
-                    }}
-                  >
-                    Set URL
-                  </button>
+
+                  {singleForm.image && (
+                    <div style={{ position: 'relative', width: 42, height: 38, borderRadius: 6, overflow: 'hidden', border: '1px solid #458522' }}>
+                      <img src={singleForm.image} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <button
+                        type="button"
+                        onClick={() => handleSingleFieldChange('image', '')}
+                        style={{ position: 'absolute', top: 0, right: 0, background: 'rgba(0,0,0,0.65)', color: 'white', border: 'none', width: 16, height: 16, fontSize: 10, cursor: 'pointer' }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {form.image ? (
-                <div style={{ position: 'relative', width: 140, height: 95, borderRadius: 8, overflow: 'hidden', border: '2px solid #2563eb', marginTop: 8 }}>
-                  <img src={form.image} alt="Plot / Unit preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  <button
-                    type="button"
-                    onClick={() => setForm(p => ({ ...p, image: '', images: [] }))}
-                    style={{ position: 'absolute', top: 3, right: 3, background: 'rgba(0,0,0,0.7)', color: 'white', border: 'none', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 11 }}
-                    title="Remove Image"
-                  >
-                    ×
-                  </button>
-                </div>
-              ) : (
-                <div style={{ fontSize: 11.5, color: '#94a3b8', fontStyle: 'italic' }}>
-                  Optional: Upload a photo of the plot, unit boundary, or layout floor plan to show on the public website.
-                </div>
-              )}
-            </div>
-          </div>
+              {/* Collapsible More Options */}
+              <div style={{ borderTop: '1px dashed #e2e8f0', paddingTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#458522',
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: 0
+                  }}
+                >
+                  {showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  {showAdvanced ? 'Hide Additional Details' : '+ More Details (Road width, soil, water - Optional)'}
+                </button>
 
-          {/* Modal Footer */}
-          <div
-            className="modal-footer"
-            style={{
-              padding: '16px 24px',
-              borderTop: '1px solid #e2e8f0',
-              background: '#f8fafc',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}
+                {showAdvanced && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginTop: 12, background: '#f8fafc', padding: 14, borderRadius: 10 }}>
+                    <div>
+                      <label style={{ fontSize: 11.5, fontWeight: 700, color: '#475569' }}>Road Width (ft)</label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        value={singleForm.roadWidth}
+                        onChange={e => handleSingleFieldChange('roadWidth', e.target.value)}
+                        placeholder="e.g. 30, 40"
+                        style={{ fontSize: 12 }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11.5, fontWeight: 700, color: '#475569' }}>Water Supply</label>
+                      <select
+                        className="form-input"
+                        value={singleForm.waterSource}
+                        onChange={e => handleSingleFieldChange('waterSource', e.target.value)}
+                        style={{ fontSize: 12 }}
+                      >
+                        <option value="borewell">Borewell</option>
+                        <option value="municipal">Municipal / Panchayat</option>
+                        <option value="none">None</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11.5, fontWeight: 700, color: '#475569' }}>Electricity</label>
+                      <select
+                        className="form-input"
+                        value={singleForm.electricity}
+                        onChange={e => handleSingleFieldChange('electricity', e.target.value)}
+                        style={{ fontSize: 12 }}
+                      >
+                        <option value="available">Available (EB)</option>
+                        <option value="underground">Underground Cabling</option>
+                        <option value="pending">Pending</option>
+                      </select>
+                    </div>
+                    {isAgriOrFarm && (
+                      <div>
+                        <label style={{ fontSize: 11.5, fontWeight: 700, color: '#475569' }}>Trees Count</label>
+                        <input
+                          type="number"
+                          className="form-input"
+                          value={singleForm.treesCount}
+                          onChange={e => handleSingleFieldChange('treesCount', e.target.value)}
+                          placeholder="e.g. 50"
+                          style={{ fontSize: 12 }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </form>
+          ) : (
+            /* ==================================================== */
+            /* BULK GENERATOR FORM (The 1-Click Gamechanger)        */
+            /* ==================================================== */
+            <form id="bulk-inventory-form" onSubmit={handleBulkSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{
+                background: '#f2f9ed',
+                border: '1px solid #d4e8cb',
+                borderRadius: 10,
+                padding: '12px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10
+              }}>
+                <Sparkles size={20} color="#458522" style={{ flexShrink: 0 }} />
+                <div style={{ fontSize: 12.5, color: '#275214', lineHeight: 1.4 }}>
+                  <strong>Bulk Plot Generator:</strong> Instantly create a batch of sequentially numbered plots (e.g. Plot-1 to Plot-20) with consistent sizing and pricing in 1 click!
+                </div>
+              </div>
+
+              {/* Row 1: Prefix & Number Range */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#1e293b', marginBottom: 5 }}>
+                    Plot Prefix
+                  </label>
+                  <input
+                    className="form-input"
+                    value={bulkForm.prefix}
+                    onChange={e => setBulkForm(p => ({ ...p, prefix: e.target.value }))}
+                    placeholder="e.g. Plot-, Site-, A-"
+                    required
+                    style={{ fontSize: 13.5, fontWeight: 600 }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#1e293b', marginBottom: 5 }}>
+                    From Number
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="form-input"
+                    value={bulkForm.fromNum}
+                    onChange={e => setBulkForm(p => ({ ...p, fromNum: e.target.value }))}
+                    required
+                    style={{ fontSize: 13.5, fontWeight: 600 }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#1e293b', marginBottom: 5 }}>
+                    To Number
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="form-input"
+                    value={bulkForm.toNum}
+                    onChange={e => setBulkForm(p => ({ ...p, toNum: e.target.value }))}
+                    required
+                    style={{ fontSize: 13.5, fontWeight: 600 }}
+                  />
+                </div>
+              </div>
+
+              {/* Row 2: Block & Sizing */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#1e293b', marginBottom: 5 }}>
+                    Phase / Sector
+                  </label>
+                  <input
+                    className="form-input"
+                    value={bulkForm.block}
+                    onChange={e => setBulkForm(p => ({ ...p, block: e.target.value }))}
+                    placeholder="e.g. Phase 1"
+                    style={{ fontSize: 13 }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#1e293b', marginBottom: 5 }}>
+                    Size / Extent
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="1"
+                    className="form-input"
+                    value={bulkForm.extent}
+                    onChange={e => setBulkForm(p => ({ ...p, extent: e.target.value }))}
+                    placeholder="1200"
+                    required
+                    style={{ fontSize: 13, fontWeight: 600 }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#1e293b', marginBottom: 5 }}>
+                    Unit
+                  </label>
+                  <select
+                    className="form-input"
+                    value={bulkForm.unit}
+                    onChange={e => setBulkForm(p => ({ ...p, unit: e.target.value }))}
+                    style={{ fontSize: 13 }}
+                  >
+                    <option value="sqft">Sq.Ft</option>
+                    <option value="cent">Cents (435.6 sq.ft)</option>
+                    <option value="acre">Acres</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 3: Rate & Facing */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#1e293b', marginBottom: 5 }}>
+                    Base Rate (₹ / sq.ft)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="form-input"
+                    value={bulkForm.ratePerSqFt}
+                    onChange={e => setBulkForm(p => ({ ...p, ratePerSqFt: e.target.value }))}
+                    placeholder="2000"
+                    required
+                    style={{ fontSize: 13.5, fontWeight: 700 }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#1e293b', marginBottom: 5 }}>
+                    Default Facing
+                  </label>
+                  <select
+                    className="form-input"
+                    value={bulkForm.facing}
+                    onChange={e => setBulkForm(p => ({ ...p, facing: e.target.value }))}
+                    style={{ fontSize: 13 }}
+                  >
+                    {FACING_OPTIONS.map(f => (
+                      <option key={f.value} value={f.value}>{f.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Summary Card */}
+              <div style={{
+                background: '#ffffff',
+                border: '1.5px solid #bbf7d0',
+                borderRadius: 10,
+                padding: '14px 16px'
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  ⚡ Generation Summary
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#172a11', marginTop: 4 }}>
+                  Will create {bulkCount} Plots ({bulkForm.prefix}{bulkForm.fromNum} to {bulkForm.prefix}{bulkForm.toNum})
+                </div>
+                <div style={{ fontSize: 12.5, color: '#475569', marginTop: 4, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                  <span>Size: <strong>{bulkCalculatedSqFt.toLocaleString('en-IN')} Sq.Ft</strong></span>
+                  <span>Price: <strong>{formatCurrency(bulkPricePerUnit)} each</strong></span>
+                  <span>Status: <strong>Available</strong></span>
+                </div>
+              </div>
+            </form>
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        <div style={{
+          padding: '14px 22px',
+          borderTop: '1px solid #e2e8f0',
+          background: '#fcfdfa',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={onClose}
+            disabled={saving}
           >
-            <div style={{ fontSize: 12, color: '#64748b' }}>
-              Adding inventory to <strong style={{ color: '#0f172a' }}>{project?.name}</strong>
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={onClose}
-                disabled={saving}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={saving}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', fontWeight: 700 }}
-              >
-                {saving ? 'Adding Inventory...' : 'Add Inventory'}
-              </button>
-            </div>
-          </div>
-        </form>
+            Cancel
+          </button>
+
+          {activeTab === 'single' ? (
+            <button
+              type="submit"
+              form="single-inventory-form"
+              className="btn btn-primary"
+              disabled={saving}
+              style={{
+                background: '#458522',
+                borderColor: '#326518',
+                color: 'white',
+                fontWeight: 700,
+                padding: '9px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6
+              }}
+            >
+              {saving ? 'Adding Plot...' : `✓ Add ${unitNoun}`}
+            </button>
+          ) : (
+            <button
+              type="submit"
+              form="bulk-inventory-form"
+              className="btn btn-primary"
+              disabled={saving || bulkCount <= 0}
+              style={{
+                background: '#458522',
+                borderColor: '#326518',
+                color: 'white',
+                fontWeight: 700,
+                padding: '9px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6
+              }}
+            >
+              {saving ? 'Generating Plots...' : `🚀 Generate ${bulkCount} Plots in 1-Click`}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

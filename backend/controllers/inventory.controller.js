@@ -201,6 +201,89 @@ const createUnit = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+const createUnitsBulk = async (req, res, next) => {
+  try {
+    const isSuperAdmin = req.user?.role === 'super_admin';
+    const userOrg = req.user?.organization;
+    const { project, units } = req.body;
+
+    if (!Array.isArray(units) || units.length === 0) {
+      return res.status(400).json({ success: false, message: 'Please provide an array of units.' });
+    }
+
+    const org = (isSuperAdmin && req.body.organization) ? req.body.organization : userOrg;
+    if (!org) {
+      return res.status(400).json({ success: false, message: 'User organization is required.' });
+    }
+
+    const createdUnits = [];
+    const skippedUnits = [];
+
+    for (const item of units) {
+      if (!item.unitNumber || !item.unitNumber.toString().trim()) continue;
+      const uNum = item.unitNumber.toString().trim();
+
+      const exists = await Unit.findOne({
+        project,
+        unitNumber: uNum,
+        organization: { $regex: new RegExp(`^${org.trim()}$`, 'i') },
+        ...(item.block ? { block: item.block } : {})
+      });
+
+      if (exists) {
+        skippedUnits.push(uNum);
+        continue;
+      }
+
+      const payload = {
+        ...item,
+        project,
+        organization: org,
+        createdBy: req.user?._id,
+        unitNumber: uNum,
+        status: item.status || 'available'
+      };
+
+      if (payload.area) {
+        if (payload.area.extent && payload.area.unit) {
+          payload.area.sqft = calculateCanonicalSqFt(payload.area.extent, payload.area.unit, payload.area.customSqFtPerUnit);
+        } else if (payload.area.sqft) {
+          payload.area.sqft = Number(payload.area.sqft);
+        }
+      }
+
+      if (payload.pricing) {
+        const calculatedTotal = calculateTotalPrice(
+          payload.pricing.baseRate || payload.pricing.basePrice,
+          payload.pricing.rateType || 'per_sqft',
+          payload.area?.extent || payload.area?.sqft || 0,
+          payload.area?.unit || 'sqft',
+          payload.area?.sqft || 0,
+          payload.pricing.developmentCharges || 0,
+          payload.pricing.registrationCharges || 0,
+          payload.pricing.otherCharges || 0
+        );
+        payload.pricing.totalPackagePrice = payload.pricing.totalPackagePrice || payload.pricing.totalPrice || calculatedTotal;
+        payload.pricing.totalPrice = payload.pricing.totalPrice || payload.pricing.totalPackagePrice || calculatedTotal;
+      }
+
+      if (payload.facing) {
+        payload.facing = payload.facing.toLowerCase().trim();
+      }
+
+      const newUnit = await Unit.create(payload);
+      createdUnits.push(newUnit);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: `Successfully created ${createdUnits.length} units.${skippedUnits.length ? ` (${skippedUnits.length} already existed)` : ''}`,
+      data: createdUnits,
+      skipped: skippedUnits
+    });
+  } catch (err) { next(err); }
+};
+
 const updateUnit = async (req, res, next) => {
   try {
     const isSuperAdmin = req.user?.role === 'super_admin';
@@ -347,4 +430,4 @@ const deleteUnit = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { getUnits, getUnit, createUnit, updateUnit, deleteUnit, updateUnitStatus, getInventoryMatrix };
+module.exports = { getUnits, getUnit, createUnit, createUnitsBulk, updateUnit, deleteUnit, updateUnitStatus, getInventoryMatrix };

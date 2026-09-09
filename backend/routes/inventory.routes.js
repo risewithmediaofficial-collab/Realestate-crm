@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { getUnits, getUnit, createUnit, updateUnit, deleteUnit, updateUnitStatus, getInventoryMatrix } = require('../controllers/inventory.controller');
+const { getUnits, getUnit, createUnit, createUnitsBulk, updateUnit, deleteUnit, updateUnitStatus, getInventoryMatrix } = require('../controllers/inventory.controller');
 const { protect, authorize } = require('../middleware/auth.middleware');
 
 router.use(protect);
 router.get('/matrix/:project?', getInventoryMatrix);
 router.get('/matrix', getInventoryMatrix);
+router.post('/bulk', authorize('admin', 'super_admin', 'director'), createUnitsBulk);
 router.route('/')
   .get(getUnits)
   .post(authorize('admin', 'super_admin', 'director'), createUnit);
