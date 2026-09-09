@@ -105,6 +105,10 @@ export default function App() {
               <Route path="/superadmin" element={<SuperAdminRoute><SuperAdminDashboardPage /></SuperAdminRoute>} />
               <Route path="/superadmin/*" element={<SuperAdminRoute><SuperAdminDashboardPage /></SuperAdminRoute>} />
 
+              {/* Direct /crm Entry: typing /crm in URL opens the CRM dashboard */}
+              <Route path="/crm" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/crm/*" element={<Navigate to="/dashboard" replace />} />
+
               {/* CRM Executive Dashboard */}
               <Route path="/dashboard" element={<AppWithLayout><DashboardPage /></AppWithLayout>} />
               <Route path="/dashboard/*" element={<AppWithLayout><DashboardPage /></AppWithLayout>} />

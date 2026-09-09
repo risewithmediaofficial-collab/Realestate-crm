@@ -2,14 +2,12 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Building2, Home, MapPin, Calendar, CheckCircle2,
-  Menu, X, Sparkles, LogIn, PhoneCall, ShieldCheck, LayoutDashboard
+  Menu, X, Sparkles, PhoneCall, ShieldCheck
 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
 
 export default function PublicNavbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
-  const { user } = useAuth();
 
   const navLinks = [
     { label: 'Home', path: '/' },
@@ -59,17 +57,6 @@ export default function PublicNavbar() {
 
         {/* Action Buttons */}
         <div className="pub-nav-actions">
-          {/* Staff CRM Portal Login or Dashboard Button */}
-          {user ? (
-            <Link to="/dashboard" className="pub-btn-crm" style={{ borderColor: '#93c5fd', color: '#1d4ed8', background: '#eff6ff' }}>
-              <LayoutDashboard size={14} /> CRM Dashboard
-            </Link>
-          ) : (
-            <Link to="/login" className="pub-btn-crm" title="Open CRM Employee Portal">
-              <LogIn size={14} /> Staff Login
-            </Link>
-          )}
-
           {/* Book Online Primary CTA */}
           <Link to="/explore" className="pub-btn-book">
             <Sparkles size={14} /> Book Online
@@ -123,14 +110,6 @@ export default function PublicNavbar() {
               style={{ justifyContent: 'center' }}
             >
               <Sparkles size={15} /> Browse &amp; Book Units
-            </Link>
-            <Link
-              to="/login"
-              className="pub-btn-crm"
-              onClick={() => setMobileOpen(false)}
-              style={{ justifyContent: 'center' }}
-            >
-              <LogIn size={15} /> CRM Staff Login
             </Link>
           </div>
         </div>

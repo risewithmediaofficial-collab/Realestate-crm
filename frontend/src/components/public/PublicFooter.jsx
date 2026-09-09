@@ -44,7 +44,6 @@ export default function PublicFooter() {
             <li><Link to="/self-booking">Direct Online Booking</Link></li>
             <li><Link to="/site-visit-booking">Schedule Free VIP Site Visit</Link></li>
             <li><Link to="/explore">Cost Sheet &amp; EMI Breakdown</Link></li>
-            <li><Link to="/login">Employee / Staff CRM Login</Link></li>
           </ul>
         </div>
 
@@ -77,7 +76,6 @@ export default function PublicFooter() {
           <Link to="/explore">Privacy Policy</Link>
           <Link to="/explore">Terms of Booking</Link>
           <Link to="/explore">RERA Disclosures</Link>
-          <Link to="/login" style={{ color: '#38bdf8', fontWeight: 600 }}>Staff Portal</Link>
         </div>
       </div>
     </footer>
