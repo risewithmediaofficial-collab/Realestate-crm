@@ -167,116 +167,6 @@ const KanbanView = ({
 
   return (
     <div>
-      {/* Active Leads Direct Jump Banner if off-screen active leads exist */}
-      {activeColsWithLeads.length > 0 && activeColsWithLeads.some(c => !['new', 'contacted'].includes(c.stage)) && (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10,
-          padding: '8px 14px', marginBottom: 10, fontSize: 12.5, color: '#1e40af',
-          animation: 'fadeIn 0.2s ease', gap: 10
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 16 }}>🎯</span>
-            <span>
-              <strong>Active leads in stages:</strong>{' '}
-              {activeColsWithLeads.map(c => `${c.label} (${c.leads.length})`).join(', ')}
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-            {activeColsWithLeads.map(c => (
-              <button
-                key={c.stage}
-                type="button"
-                className="btn btn-primary btn-sm"
-                style={{ fontSize: 11, padding: '3px 10px', height: 26, fontWeight: 700 }}
-                onClick={() => scrollToStage(c.stage)}
-              >
-                Jump to {c.label} ({c.leads.length}) →
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Stage Jump Pills & Scroll Controls */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        gap: 8, marginBottom: 10,
-        background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '6px 12px',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', flex: 1, scrollbarWidth: 'none' }}>
-          <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap', marginRight: 4 }}>
-            Jump Stage:
-          </span>
-          {columns.map(col => {
-            const hasLeads = col.leads.length > 0;
-            return (
-              <button
-                key={col.stage}
-                type="button"
-                onClick={() => scrollToStage(col.stage)}
-                className={`btn btn-sm ${hasLeads ? 'btn-primary' : 'btn-ghost'}`}
-                style={{
-                  fontSize: 11, padding: '3px 10px', height: 26, gap: 5, borderRadius: 14,
-                  border: hasLeads ? '1.5px solid var(--primary)' : '1px solid #e2e8f0',
-                  fontWeight: hasLeads ? 800 : 500,
-                  background: hasLeads ? '#eff6ff' : '#f8fafc',
-                  color: hasLeads ? '#1d4ed8' : 'var(--text-secondary)',
-                  whiteSpace: 'nowrap',
-                  boxShadow: hasLeads ? '0 1px 4px rgba(37, 99, 235, 0.25)' : 'none',
-                  cursor: 'pointer'
-                }}
-                title={`Click to scroll to ${col.label}`}
-              >
-                <span>{col.label}</span>
-                <span style={{
-                  background: hasLeads ? '#2563eb' : '#e2e8f0',
-                  color: hasLeads ? '#ffffff' : 'var(--text-muted)',
-                  borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 800
-                }}>
-                  {col.leads.length}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          {activeColsWithLeads.length > 0 && (
-            <button
-              type="button"
-              className={`btn btn-sm ${showOnlyActive ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ fontSize: 11, padding: '3px 9px', height: 26, fontWeight: 600 }}
-              onClick={() => setShowOnlyActive(p => !p)}
-              title="Toggle showing only columns with leads"
-            >
-              {showOnlyActive ? 'Show All Stages' : `Filter: Only Active (${activeColsWithLeads.length})`}
-            </button>
-          )}
-          <div style={{ display: 'flex', gap: 3 }}>
-            <button
-              type="button"
-              className="btn btn-secondary btn-icon btn-sm"
-              style={{ width: 26, height: 26, padding: 0 }}
-              onClick={() => scrollBoard(-1)}
-              title="Scroll Board Left"
-            >
-              <ChevronLeft size={14} />
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary btn-icon btn-sm"
-              style={{ width: 26, height: 26, padding: 0 }}
-              onClick={() => scrollBoard(1)}
-              title="Scroll Board Right"
-            >
-              <ChevronRight size={14} />
-            </button>
-          </div>
-        </div>
-      </div>
-
       <div className="kanban-board" ref={boardRef}>
         {displayedColumns.map(col => {
           const isOver = dragOverStage === col.stage;
@@ -1622,35 +1512,10 @@ export default function AllLeadsPage() {
     <div>
       <div className="page-header">
         <div className="page-header-left">
-          <div className="breadcrumb">
-            <span>Leads</span>
-            <span className="breadcrumb-sep">/</span>
-            <span className="breadcrumb-current">
-              {activeBoard === 'all' ? 'All Leads Board (Total)' :
-               activeBoard === 'new' ? 'New Leads Board' :
-               activeBoard === 'scheduled' ? 'SV Scheduled & Changed' :
-               activeBoard === 'hot' ? 'My Hot Leads' : 'Qualified Deals'}
-            </span>
-          </div>
-          <h1 className="page-title">
-            {activeBoard === 'all' ? '🗂️ All Leads Board (Total CRM Leads)' :
-             activeBoard === 'new' ? '⚡ New Inbound Leads Board' :
-             activeBoard === 'scheduled' ? '📅 SV Scheduled & Changed Leads Board' :
-             activeBoard === 'hot' ? '🔥 Hot Priority Leads' : '🎯 Qualified Opportunities'}
-          </h1>
-          <p className="page-subtitle">
-            {activeBoard === 'all' ? `${totalCount} total leads across all stages · changes stay visible across boards` :
-             activeBoard === 'new' ? `${newLeadsCount} fresh inbound leads ready to be contacted & scheduled` :
-             activeBoard === 'scheduled' ? `${scheduledCount} site visits scheduled · ${actionedCount} active deals in progress` :
-             `${filteredTableLeads.length} leads matching current board`}
-          </p>
+          <h1 className="page-title">Leads</h1>
+          <p className="page-subtitle">{filteredTableLeads.length} leads</p>
         </div>
         <div className="page-actions">
-          {leads.length > 0 && (
-            <button className="btn btn-secondary btn-sm" onClick={handleClearAllLeads} style={{ color: 'var(--danger)', borderColor: '#fca5a5', background: '#fef2f2', gap: 4 }}>
-              <Trash2 size={13} /> Clear All Leads
-            </button>
-          )}
           <button className="btn btn-secondary btn-sm" onClick={() => setShowImportModal(true)}>
             <Upload size={14} /> Import
           </button>
@@ -1660,132 +1525,51 @@ export default function AllLeadsPage() {
           <button id="leads-add-lead-btn" className="btn btn-primary btn-sm" onClick={openCreateLead}>
             <Plus size={14} /> Add Lead
           </button>
+          {leads.length > 0 && (
+            <button className="btn btn-ghost btn-icon btn-sm" onClick={handleClearAllLeads} title="Clear All Leads" style={{ color: 'var(--text-muted)' }}>
+              <Trash2 size={13} />
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="leads-board-tabs-wrapper">
-        <div className="leads-board-tabs">
-          <div
-            className={`leads-board-tab ${activeBoard === 'all' ? 'active' : ''}`}
-            onClick={() => handleSwitchBoard('all')}
-          >
-            <div className="leads-board-tab-icon">🗂️</div>
-            <div className="leads-board-tab-content">
-              <div className="leads-board-tab-title">
-                <span className="leads-board-tab-title-text">All Leads Board</span>
-                <span className="leads-board-tab-badge total">{totalCount} Total</span>
-              </div>
-              <div className="leads-board-tab-desc">Full lifecycle · All changes stay visible</div>
-            </div>
-          </div>
-
-          <div
-            className={`leads-board-tab ${activeBoard === 'new' ? 'active' : ''}`}
-            onClick={() => handleSwitchBoard('new')}
-          >
-            <div className="leads-board-tab-icon">⚡</div>
-            <div className="leads-board-tab-content">
-              <div className="leads-board-tab-title">
-                <span className="leads-board-tab-title-text">New Leads Board</span>
-                <span className="leads-board-tab-badge new">{newLeadsCount} Fresh</span>
-              </div>
-              <div className="leads-board-tab-desc">Incoming queue · Fast triage &amp; SV schedule</div>
-            </div>
-          </div>
-
-          <div
-            className={`leads-board-tab ${activeBoard === 'scheduled' ? 'active' : ''}`}
-            onClick={() => handleSwitchBoard('scheduled')}
-          >
-            <div className="leads-board-tab-icon">📅</div>
-            <div className="leads-board-tab-content">
-              <div className="leads-board-tab-title">
-                <span className="leads-board-tab-title-text">SV Scheduled &amp; Changed</span>
-                <span className="leads-board-tab-badge actioned">{scheduledCount} Scheduled</span>
-              </div>
-              <div className="leads-board-tab-desc">Leads moved/scheduled for site visits</div>
-            </div>
-          </div>
-
-          <div
-            className={`leads-board-tab ${activeBoard === 'hot' ? 'active' : ''}`}
-            onClick={() => handleSwitchBoard('hot')}
-          >
-            <div className="leads-board-tab-icon">🔥</div>
-            <div className="leads-board-tab-content">
-              <div className="leads-board-tab-title">
-                <span className="leads-board-tab-title-text">Hot Priority Deals</span>
-                <span className="leads-board-tab-badge hot">{hotCount} Hot</span>
-              </div>
-              <div className="leads-board-tab-desc">High score prospects &amp; immediate buyers</div>
-            </div>
-          </div>
-
-          <div
-            className={`leads-board-tab ${activeBoard === 'qualified' ? 'active' : ''}`}
-            onClick={() => handleSwitchBoard('qualified')}
-          >
-            <div className="leads-board-tab-icon">🎯</div>
-            <div className="leads-board-tab-content">
-              <div className="leads-board-tab-title">
-                <span className="leads-board-tab-title-text">Qualified Deals</span>
-                <span className="leads-board-tab-badge actioned">{qualifiedCount} Qualified</span>
-              </div>
-              <div className="leads-board-tab-desc">Handed over to field sales closers</div>
-            </div>
-          </div>
-        </div>
+      <div className="leads-pill-tabs">
+        <button
+          type="button"
+          className={`leads-pill-tab ${activeBoard === 'all' ? 'active' : ''}`}
+          onClick={() => handleSwitchBoard('all')}
+        >
+          All Leads <span className="pill-badge">{totalCount}</span>
+        </button>
+        <button
+          type="button"
+          className={`leads-pill-tab ${activeBoard === 'new' ? 'active' : ''}`}
+          onClick={() => handleSwitchBoard('new')}
+        >
+          New Leads <span className="pill-badge">{newLeadsCount}</span>
+        </button>
+        <button
+          type="button"
+          className={`leads-pill-tab ${activeBoard === 'scheduled' ? 'active' : ''}`}
+          onClick={() => handleSwitchBoard('scheduled')}
+        >
+          SV Scheduled <span className="pill-badge">{scheduledCount}</span>
+        </button>
+        <button
+          type="button"
+          className={`leads-pill-tab ${activeBoard === 'hot' ? 'active' : ''}`}
+          onClick={() => handleSwitchBoard('hot')}
+        >
+          Hot Deals <span className="pill-badge">{hotCount}</span>
+        </button>
+        <button
+          type="button"
+          className={`leads-pill-tab ${activeBoard === 'qualified' ? 'active' : ''}`}
+          onClick={() => handleSwitchBoard('qualified')}
+        >
+          Qualified <span className="pill-badge">{qualifiedCount}</span>
+        </button>
       </div>
-
-      {activeBoard === 'all' && (
-        <div className="board-info-banner all">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>🗂️</span>
-            <span>
-              <strong>All Leads Board (Total Leads):</strong> Viewing all {totalCount} leads across all stages. Moving or updating any lead to SV Scheduled or any other stage stays visible right here.
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <span className="badge badge-primary">{leads.length} in CRM</span>
-          </div>
-        </div>
-      )}
-
-      {activeBoard === 'new' && (
-        <div className="board-info-banner new">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>⚡</span>
-            <span>
-              <strong>New Inbound Leads Board:</strong> {newLeadsCount} fresh leads awaiting first contact. When you advance a lead to <strong>SV Scheduled</strong>, it remains in the <em>📅 SV Scheduled</em> column on this board and syncs with the All Leads Board.
-            </span>
-          </div>
-          <button
-            className="btn btn-ghost btn-sm"
-            style={{ fontSize: 11.5, color: '#166534', fontWeight: 700 }}
-            onClick={() => handleSwitchBoard('all')}
-          >
-            Switch to All Leads Board ({totalCount}) →
-          </button>
-        </div>
-      )}
-
-      {activeBoard === 'scheduled' && (
-        <div className="board-info-banner actioned">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>📅</span>
-            <span>
-              <strong>SV Scheduled &amp; Changed Leads Board:</strong> Showing all leads advanced from New (Site Visits, Negotiations, Bookings). Leads changed to SV Scheduled appear here immediately.
-            </span>
-          </div>
-          <button
-            className="btn btn-ghost btn-sm"
-            style={{ fontSize: 11.5, color: '#92400e', fontWeight: 700 }}
-            onClick={() => handleSwitchBoard('all')}
-          >
-            View Total Leads ({totalCount}) →
-          </button>
-        </div>
-      )}
 
       <div className="filter-bar">
         <div className="filter-search">

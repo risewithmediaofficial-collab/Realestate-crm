@@ -403,20 +403,15 @@ export default function DashboardPage() {
       {/* Page Header */}
       <div className="page-header" style={{ alignItems: 'flex-start' }}>
         <div className="page-header-left">
-          <div className="breadcrumb">
-            <span>Home</span>
-            <span className="breadcrumb-sep">/</span>
-            <span className="breadcrumb-current">Dashboard</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <h1 className="page-title" style={{ margin: 0 }}>
-              {isTelecallerRole && '📞 Telecaller & Pre-Sales Command Center'}
-              {isSalesManagerRole && '👔 Sales Leadership & Revenue Dashboard'}
-              {isSalesExecRole && '🎯 Closer & Field Sales Dashboard'}
-              {isMarketingRole && '📣 Marketing ROI & Lead Acquisition Dashboard'}
-              {isFinanceRole && '💳 Finance, Milestone Demands & Escrow Collections'}
-              {isCPRole && '🤝 Channel Partner & Broker Hub'}
-              {(!isTelecallerRole && !isSalesManagerRole && !isSalesExecRole && !isMarketingRole && !isFinanceRole && !isCPRole) && '👑 Executive 360° Real Estate Dashboard'}
+              {isTelecallerRole && 'Telecaller Dashboard'}
+              {isSalesManagerRole && 'Sales Leadership Dashboard'}
+              {isSalesExecRole && 'Sales Closer Dashboard'}
+              {isMarketingRole && 'Marketing Dashboard'}
+              {isFinanceRole && 'Finance Dashboard'}
+              {isCPRole && 'Channel Partner Hub'}
+              {(!isTelecallerRole && !isSalesManagerRole && !isSalesExecRole && !isMarketingRole && !isFinanceRole && !isCPRole) && 'Executive Dashboard'}
             </h1>
             <span className="badge badge-primary" style={{ textTransform: 'capitalize', fontSize: 11 }}>
               {currentRole.replace(/_/g, ' ')}

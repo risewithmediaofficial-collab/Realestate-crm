@@ -1,6 +1,5 @@
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
-import Breadcrumbs from './Breadcrumbs';
 
 export default function AppLayout({ children }) {
   return (
@@ -9,7 +8,6 @@ export default function AppLayout({ children }) {
       <div className="app-main">
         <Topbar />
         <main className="app-content">
-          <Breadcrumbs />
           {children}
         </main>
       </div>

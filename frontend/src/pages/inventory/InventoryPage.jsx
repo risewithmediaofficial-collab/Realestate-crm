@@ -965,17 +965,10 @@ export default function InventoryPage() {
     <div>
       <div className="page-header">
         <div className="page-header-left">
-          <div className="breadcrumb">
-            <span>Inventory Management</span>
-            <span className="breadcrumb-sep">/</span>
-            <span className="breadcrumb-current">
-              {selectedTower ? `Tower ${selectedTower} Stacking Matrix` : 'Inventory Matrix'}
-            </span>
-          </div>
           <h1 className="page-title">
-            {selectedTower ? `Tower ${selectedTower} Interactive Stacking Matrix` : 'Interactive Stacking Matrix'}
+            {selectedTower ? `Inventory — Tower ${selectedTower}` : 'Inventory'}
           </h1>
-          <p className="page-subtitle">Real-time unit locking, 48h executive hold countdown, floor rise matrix and unit comparisons</p>
+          <p className="page-subtitle">{allUnits.length} units</p>
         </div>
         <div className="page-actions" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button

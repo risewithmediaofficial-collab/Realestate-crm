@@ -850,15 +850,8 @@ export default function SiteVisitsPage() {
     <div>
       <div className="page-header">
         <div className="page-header-left">
-          <div className="breadcrumb">
-            <span>Sales</span>
-            <span className="breadcrumb-sep">/</span>
-            <span className="breadcrumb-current">
-              {activeTab === 'today' ? "Today's Visits" : activeTab === 'confirmed' ? 'Confirmed Visits' : activeTab === 'completed' ? 'Completed Tours' : 'All Visits'}
-            </span>
-          </div>
-          <h1 className="page-title">Site Visits & Property Tours</h1>
-          <p className="page-subtitle">Schedule, verify check-ins, record visitor ratings and feedback</p>
+          <h1 className="page-title">Site Visits</h1>
+          <p className="page-subtitle">{filtered.length} visits</p>
         </div>
         <div className="page-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button

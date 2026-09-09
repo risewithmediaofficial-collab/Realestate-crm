@@ -99,7 +99,6 @@ export default function ProjectsPage() {
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [showAddUnitModal, setShowAddUnitModal] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
-  const [showWorkflowGuide, setShowWorkflowGuide] = useState(false);
   const [projectImgUrlInput, setProjectImgUrlInput] = useState('');
   const { user } = useAuth();
   const { simulatedRole, showNotification } = useUI();
@@ -949,65 +948,15 @@ export default function ProjectsPage() {
 
   return (
     <div>
-      {/* Guided Tour Banner */}
-      {showWorkflowGuide && (
-        <div style={{
-          background: 'linear-gradient(135deg, #1e3a5f, #0f172a)',
-          borderRadius: 12, padding: '16px 20px', color: 'white',
-          marginBottom: 16, border: '1px solid rgba(255,255,255,0.1)',
-          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: 14 }}>
-              <Sparkles size={16} color="#38bdf8" /> Real Estate CRM: Leads Auto-Population & Official Booking Flow
-            </div>
-            <button
-              onClick={() => setShowWorkflowGuide(false)}
-              className="btn btn-ghost btn-icon btn-sm"
-              style={{ color: 'rgba(255,255,255,0.6)', padding: 4 }}
-              title="Dismiss Guide"
-            >
-              <X size={14} />
-            </button>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, fontSize: 12 }}>
-            <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', borderLeft: '3px solid #38bdf8' }}>
-              <div style={{ fontWeight: 700, color: '#38bdf8' }}>1. Select from Added Leads</div>
-              <div style={{ opacity: 0.85, marginTop: 2 }}>Choose any added CRM Lead from the dropdown to instantly fill Name, Phone, Email & KYC.</div>
-            </div>
-            <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', borderLeft: '3px solid #fbbf24' }}>
-              <div style={{ fontWeight: 700, color: '#fbbf24' }}>2. Customer Hold (24h-72h)</div>
-              <div style={{ opacity: 0.85, marginTop: 2 }}>Click "Hold" to reserve unit for a lead with duration window and sales reasons.</div>
-            </div>
-            <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', borderLeft: '3px solid #34d399' }}>
-              <div style={{ fontWeight: 700, color: '#34d399' }}>3. Co-Applicant Relationships</div>
-              <div style={{ opacity: 0.85, marginTop: 2 }}>Full support for Spouse, Parents, Children, Siblings, Partners & Co-Investors with KYC.</div>
-            </div>
-            <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', borderLeft: '3px solid #a78bfa' }}>
-              <div style={{ fontWeight: 700, color: '#a78bfa' }}>4. Multi-Category Sorting</div>
-              <div style={{ opacity: 0.85, marginTop: 2 }}>Live sorting by Unit/Plot #, Price range, Area & Facing direction with customer search.</div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* VIEW 1: Master Projects Grid */}
       {!activeProjectView ? (
         <div>
           <div className="page-header">
             <div className="page-header-left">
-              <div className="breadcrumb">
-                <span>Portfolio</span>
-                <span className="breadcrumb-sep">/</span>
-                <span className="breadcrumb-current">
-                  {typeFilter ? REAL_ESTATE_CATEGORIES[typeFilter]?.label : 'All Real Estate Projects'}
-                </span>
-              </div>
               <h1 className="page-title">
-                {typeFilter ? REAL_ESTATE_CATEGORIES[typeFilter]?.label : 'Real Estate Projects & Development Portfolio'}
+                {typeFilter ? REAL_ESTATE_CATEGORIES[typeFilter]?.label : 'Projects'}
               </h1>
-              <p className="page-subtitle">{filtered.length} active developments across residential, plotted layouts, commercial, villas & farmlands</p>
+              <p className="page-subtitle">{filtered.length} projects</p>
             </div>
             <div className="page-actions" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <button
@@ -1018,10 +967,7 @@ export default function ProjectsPage() {
                 }}
                 title="Download projects portfolio register"
               >
-                <Download size={14} /> Export Projects CSV
-              </button>
-              <button className="btn btn-secondary btn-sm" onClick={() => setShowWorkflowGuide(p => !p)}>
-                <HelpCircle size={14} /> {showWorkflowGuide ? 'Hide Help' : 'Workflow Guide'}
+                <Download size={14} /> Export CSV
               </button>
               {isAdmin && (
                 <button

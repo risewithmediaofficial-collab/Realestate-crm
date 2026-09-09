@@ -1631,15 +1631,8 @@ export default function BookingPage() {
     <div>
       <div className="page-header">
         <div className="page-header-left">
-          <div className="breadcrumb">
-            <span>Bookings</span>
-            <span className="breadcrumb-sep">/</span>
-            <span className="breadcrumb-current">
-              {activeTab === 'pending_approval' ? 'Pending Approval' : activeTab === 'approved' ? 'Approved Bookings' : activeTab === 'agreement_signed' ? 'Signed Agreements' : 'All Bookings'}
-            </span>
-          </div>
-          <h1 className="page-title">Booking Management & Approvals</h1>
-          <p className="page-subtitle">Track applications, approvals, digital agreement deeds and unit allocations</p>
+          <h1 className="page-title">Bookings</h1>
+          <p className="page-subtitle">{filtered.length} bookings</p>
         </div>
         <div className="page-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button
