@@ -36,10 +36,11 @@ const navConfig = [
       {
         id: 'leads', label: 'Leads / Pre-Sales', icon: Users, path: '/leads',
         children: [
-          { label: 'All Leads', path: '/leads' },
-          { label: 'My Hot Leads', path: '/leads/hot' },
-          { label: 'New / Unassigned', path: '/leads/new' },
-          { label: 'Qualified Deals', path: '/leads/qualified' },
+          { label: '🗂️ All Leads Board (Total)', path: '/leads' },
+          { label: '⚡ New Leads Board', path: '/leads/new' },
+          { label: '📅 SV Scheduled & Changed', path: '/leads/scheduled' },
+          { label: '🔥 My Hot Leads', path: '/leads/hot' },
+          { label: '🎯 Qualified Deals', path: '/leads/qualified' },
         ],
       },
       {

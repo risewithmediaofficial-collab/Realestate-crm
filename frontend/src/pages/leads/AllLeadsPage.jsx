@@ -64,15 +64,30 @@ const LeadScoreBar = ({ score, type }) => {
 };
 
 // ── Kanban Board
-const KanbanView = ({ leads, onLeadClick, onEditLead, onStageChange, onAddLead }) => {
+const KanbanView = ({
+  leads,
+  onLeadClick,
+  onEditLead,
+  onStageChange,
+  onAddLead,
+  stagesList,
+  boardType = 'all',
+  onSwitchBoard
+}) => {
   const [draggedId, setDraggedId] = useState(null);
   const [dragOverStage, setDragOverStage] = useState(null);
 
-  const columns = PIPELINE_STAGES.map(stage => ({
-    stage,
-    label: LEAD_STAGES[stage]?.label || stage,
-    leads: leads.filter(l => l.stage === stage),
-  }));
+  const activeStages = stagesList || PIPELINE_STAGES;
+
+  const columns = activeStages.map(stageItem => {
+    const stageKey = typeof stageItem === 'string' ? stageItem : stageItem.key;
+    const stageCustomLabel = typeof stageItem === 'object' ? stageItem.label : null;
+    return {
+      stage: stageKey,
+      label: stageCustomLabel || LEAD_STAGES[stageKey]?.label || stageKey,
+      leads: leads.filter(l => l.stage === stageKey),
+    };
+  });
 
   const handleDragStart = (e, lead) => {
     e.dataTransfer.setData('text/plain', lead._id);
@@ -113,6 +128,7 @@ const KanbanView = ({ leads, onLeadClick, onEditLead, onStageChange, onAddLead }
     <div className="kanban-board">
       {columns.map(col => {
         const isOver = dragOverStage === col.stage;
+        const isSvStage = col.stage === 'site_visit_scheduled';
         return (
           <div
             key={col.stage}
@@ -124,11 +140,29 @@ const KanbanView = ({ leads, onLeadClick, onEditLead, onStageChange, onAddLead }
           >
             <div className="kanban-col-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div className="kanban-col-title">
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0 }} />
+                <div style={{
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: isSvStage ? '#d97706' : col.stage === 'new' ? '#16a34a' : 'var(--primary)',
+                  flexShrink: 0
+                }} />
                 {col.label}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span className="kanban-col-count">{col.leads.length}</span>
+                {isSvStage && boardType === 'new' && onSwitchBoard && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-xs"
+                    style={{ fontSize: 10, padding: '2px 6px', height: 20, color: '#b45309', background: '#fef3c7', borderRadius: 4, fontWeight: 700 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSwitchBoard('scheduled');
+                    }}
+                    title="Open SV Scheduled Board"
+                  >
+                    Board →
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn btn-ghost btn-icon btn-sm"
@@ -162,7 +196,11 @@ const KanbanView = ({ leads, onLeadClick, onEditLead, onStageChange, onAddLead }
                   margin: '8px 0',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
                 }}>
-                  <span>{isOver ? '🎯 Drop lead here to advance' : `No leads in ${col.label}`}</span>
+                  <span>
+                    {isOver ? '🎯 Drop lead here to advance' :
+                     (isSvStage && boardType === 'new') ? '📅 Drag here to schedule SV' :
+                     `No leads in ${col.label}`}
+                  </span>
                   <button
                     type="button"
                     className="btn btn-secondary btn-sm"
@@ -189,6 +227,7 @@ const KanbanView = ({ leads, onLeadClick, onEditLead, onStageChange, onAddLead }
                 <>
                   {col.leads.map(lead => {
                     const isDragging = draggedId === lead._id;
+                    const isLeadSv = lead.stage === 'site_visit_scheduled';
                     return (
                       <div
                         key={lead._id}
@@ -228,6 +267,17 @@ const KanbanView = ({ leads, onLeadClick, onEditLead, onStageChange, onAddLead }
                         <div style={{ marginTop: 6 }}>
                           <LeadScoreBar score={lead.leadScore || 50} type={lead.leadType} />
                         </div>
+                        {isLeadSv && (
+                          <div style={{
+                            fontSize: 10, fontWeight: 700, color: '#b45309',
+                            background: '#fffbeb', border: '1px solid #fde68a',
+                            borderRadius: 6, padding: '2px 6px', marginTop: 6,
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                          }}>
+                            <span>📅 SV Scheduled</span>
+                            <span style={{ fontSize: 9, color: '#d97706' }}>Synced All Boards</span>
+                          </div>
+                        )}
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTop: '1px solid #f1f5f9' }}>
                           <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
                             {lead.assignedTo ? `👤 ${lead.assignedTo.name?.split(' ')[0]}` : 'Unassigned'}
@@ -280,7 +330,17 @@ const CALL_OUTCOMES = {
   other: { label: 'Other Note', color: '#475569', bg: '#f1f5f9', icon: '📝' }
 };
 
-const LeadDrawer = ({ lead, usersList = [], onReassign, onClose, onUpdateLead, onEditLead, onDeleteLead }) => {
+const LeadDrawer = ({
+  lead,
+  usersList = [],
+  onReassign,
+  onClose,
+  onUpdateLead,
+  onEditLead,
+  onDeleteLead,
+  onStageChange,
+  onSwitchBoard
+}) => {
   const navigate = useNavigate();
   const [drawerTab, setDrawerTab] = useState('call_logs'); // 'call_logs' | 'activities' | 'info'
   const [callNote, setCallNote] = useState('');
@@ -521,7 +581,7 @@ const LeadDrawer = ({ lead, usersList = [], onReassign, onClose, onUpdateLead, o
             border: '1px solid #e2e8f0',
             borderRadius: 8,
             padding: '8px 12px',
-            marginBottom: 14,
+            marginBottom: 10,
             gap: 10
           }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -545,6 +605,66 @@ const LeadDrawer = ({ lead, usersList = [], onReassign, onClose, onUpdateLead, o
               />
             </div>
           </div>
+
+          {/* Quick Stage / Disposition Bar */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: 8,
+            padding: '8px 12px',
+            marginBottom: 12,
+            gap: 10
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <TrendingUp size={14} color="var(--primary)" />
+              <span>Lead Stage / Status:</span>
+            </div>
+            <div style={{ flex: 1, maxWidth: 220 }}>
+              <CustomSelect
+                value={lead.stage || 'new'}
+                onChange={val => onStageChange && onStageChange(lead._id, val)}
+                searchable={true}
+                placeholder="-- Select Stage --"
+                options={Object.entries(LEAD_STAGES).map(([k, v]) => ({
+                  value: k,
+                  label: v.label,
+                  icon: k === 'site_visit_scheduled' ? '📅' : k === 'new' ? '⚡' : k === 'qualified' ? '🎯' : '📌'
+                }))}
+              />
+            </div>
+          </div>
+
+          {/* Multi-board notification banner if in SV Scheduled stage */}
+          {lead.stage === 'site_visit_scheduled' && (
+            <div style={{
+              background: '#fffbeb',
+              border: '1px solid #fde68a',
+              borderRadius: 8,
+              padding: '8px 12px',
+              marginBottom: 14,
+              fontSize: 12,
+              color: '#92400e',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8
+            }}>
+              <span>📅 <strong>Site Visit Scheduled!</strong> Synced across <strong>All Leads Board</strong> &amp; <strong>SV Scheduled Board</strong>.</span>
+              {onSwitchBoard && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  style={{ padding: '2px 8px', fontSize: 11, color: '#b45309', fontWeight: 700, whiteSpace: 'nowrap' }}
+                  onClick={() => { onClose(); onSwitchBoard('scheduled'); }}
+                >
+                  View Board →
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Quick Call & Comms Bar */}
           <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
@@ -946,7 +1066,7 @@ const ImportModal = ({ onClose, onImportDone }) => {
               onChange={() => setFileSelected(true)}
             />
           </div>
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
             💡 Need a template? <a href="#" onClick={(e) => { e.preventDefault(); downloadLeadsImportTemplateCSV(); }} style={{ color: 'var(--primary)', fontWeight: 600 }}>Download sample CSV template</a>
           </div>
         </div>
@@ -969,14 +1089,18 @@ export default function AllLeadsPage() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('kanban'); // 'kanban' (Board 1st default) | 'table'
   const [search, setSearch] = useState('');
-  
-  // Set initial filters based on URL subroute
-  const [stageFilter, setStageFilter] = useState(() => {
+
+  const getInitialBoard = () => {
     if (location.pathname.includes('/new')) return 'new';
+    if (location.pathname.includes('/scheduled') || location.pathname.includes('/changed')) return 'scheduled';
+    if (location.pathname.includes('/hot')) return 'hot';
     if (location.pathname.includes('/qualified')) return 'qualified';
-    return '';
-  });
-  
+    return 'all';
+  };
+
+  const [activeBoard, setActiveBoard] = useState(getInitialBoard);
+
+  const [stageFilter, setStageFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState(() => {
     if (location.pathname.includes('/hot')) return 'hot';
     return '';
@@ -994,34 +1118,44 @@ export default function AllLeadsPage() {
   const [selectedLead, setSelectedLead] = useState(null);
   const [editingLead, setEditingLead] = useState(null);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
 
   const { openCreateLead, showNotification } = useUI();
 
-  // Sync filters whenever location changes
+  // Sync active board & filters whenever location changes
   useEffect(() => {
-    if (location.pathname.includes('/hot')) {
-      setTypeFilter('hot');
-      setStageFilter('');
-    } else if (location.pathname.includes('/new')) {
-      setStageFilter('new');
+    if (location.pathname.includes('/new')) {
+      setActiveBoard('new');
       setTypeFilter('');
+    } else if (location.pathname.includes('/scheduled') || location.pathname.includes('/changed')) {
+      setActiveBoard('scheduled');
+      setTypeFilter('');
+    } else if (location.pathname.includes('/hot')) {
+      setActiveBoard('hot');
+      setTypeFilter('hot');
     } else if (location.pathname.includes('/qualified')) {
-      setStageFilter('qualified');
+      setActiveBoard('qualified');
       setTypeFilter('');
     } else {
+      setActiveBoard('all');
       setTypeFilter('');
-      setStageFilter('');
     }
   }, [location.pathname]);
+
+  const handleSwitchBoard = (boardKey) => {
+    setActiveBoard(boardKey);
+    if (boardKey === 'all') navigate('/leads');
+    else if (boardKey === 'new') navigate('/leads/new');
+    else if (boardKey === 'scheduled') navigate('/leads/scheduled');
+    else if (boardKey === 'hot') navigate('/leads/hot');
+    else if (boardKey === 'qualified') navigate('/leads/qualified');
+  };
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { page, limit: 50 };
+      const params = { limit: 1000 };
       if (search) params.search = search;
-      if (stageFilter) params.stage = stageFilter;
       if (sourceFilter) params.source = sourceFilter;
       const { data } = await api.get('/leads', { params });
       setLeads(data.data || []);
@@ -1031,7 +1165,7 @@ export default function AllLeadsPage() {
       setLeads([]);
       setTotal(0);
     } finally { setLoading(false); }
-  }, [page, search, stageFilter, sourceFilter]);
+  }, [search, sourceFilter]);
 
   useEffect(() => {
     fetchLeads();
@@ -1050,6 +1184,14 @@ export default function AllLeadsPage() {
     };
     loadData();
   }, []);
+
+  // Live real-time board counts
+  const totalCount = leads.length;
+  const newLeadsCount = useMemo(() => leads.filter(l => l.stage === 'new').length, [leads]);
+  const scheduledCount = useMemo(() => leads.filter(l => ['site_visit_scheduled', 'site_visit_done'].includes(l.stage)).length, [leads]);
+  const actionedCount = useMemo(() => leads.filter(l => l.stage !== 'new').length, [leads]);
+  const hotCount = useMemo(() => leads.filter(l => l.leadType === 'hot').length, [leads]);
+  const qualifiedCount = useMemo(() => leads.filter(l => l.stage === 'qualified').length, [leads]);
 
   const handleQuickAssign = async (leadId, newUserId) => {
     const targetUser = usersList.find(u => u._id === newUserId);
@@ -1072,7 +1214,6 @@ export default function AllLeadsPage() {
       activities: [...(lead.activities || []), newActivity]
     };
 
-    // Optimistic local state update
     setLeads(prev => prev.map(l => l._id === leadId ? updatedLead : l));
     if (selectedLead?._id === leadId) setSelectedLead(updatedLead);
 
@@ -1085,7 +1226,6 @@ export default function AllLeadsPage() {
     }
   };
 
-  // Listen for globally created leads
   useEffect(() => {
     const handleGlobalLead = (e) => {
       if (e.detail) {
@@ -1138,11 +1278,10 @@ export default function AllLeadsPage() {
     const newActivity = {
       type: 'stage_change',
       title: `Stage moved to ${newStageLabel}`,
-      description: `Dragged from ${oldStageLabel} to ${newStageLabel}`,
+      description: `Moved from ${oldStageLabel} to ${newStageLabel}`,
       performedAt: new Date()
     };
 
-    // Optimistic UI update
     setLeads(prev => prev.map(l => l._id === leadId ? {
       ...l,
       stage: newStage,
@@ -1170,7 +1309,11 @@ export default function AllLeadsPage() {
       }
     }
 
-    showNotification(`Lead "${lead.name}" moved to ${newStageLabel}!`);
+    if (newStage === 'site_visit_scheduled') {
+      showNotification(`🎉 Lead "${lead.name}" scheduled for Site Visit! Synced in All Leads & SV Scheduled Boards.`);
+    } else {
+      showNotification(`Lead "${lead.name}" moved to ${newStageLabel}!`);
+    }
   };
 
   const availableLocations = useMemo(() => {
@@ -1184,82 +1327,168 @@ export default function AllLeadsPage() {
     return Array.from(set).filter(Boolean);
   }, [leads]);
 
-  const filteredLeads = leads
-    .filter(l => {
-      if (search && !l.name?.toLowerCase().includes(search.toLowerCase()) && !l.phone?.includes(search) && !l.email?.toLowerCase().includes(search.toLowerCase())) return false;
-      if (stageFilter && l.stage !== stageFilter) return false;
-      if (typeFilter && l.leadType !== typeFilter) return false;
-      if (sourceFilter && l.source !== sourceFilter) return false;
-      if (projectFilter && (l.interestedProject?._id !== projectFilter && l.interestedProject !== projectFilter)) return false;
-      if (locationFilter) {
-        const term = locationFilter.toLowerCase();
-        const matchesLoc = (l.city && l.city.toLowerCase().includes(term)) ||
-                           (l.state && l.state.toLowerCase().includes(term)) ||
-                           (l.interestedProject?.city && l.interestedProject.city.toLowerCase().includes(term)) ||
-                           (l.interestedProject?.address && l.interestedProject.address.toLowerCase().includes(term)) ||
-                           (l.address && l.address.toLowerCase().includes(term));
-        if (!matchesLoc) return false;
-      }
-      if (dateRangeFilter) {
-        const d = new Date(l.createdAt || Date.now());
-        const now = new Date();
-        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        if (dateRangeFilter === 'today' && d < startOfToday) return false;
-        if (dateRangeFilter === 'yesterday') {
-          const startOfYesterday = new Date(startOfToday.getTime() - 86400000);
-          if (d < startOfYesterday || d >= startOfToday) return false;
+  const filteredCommonLeads = useMemo(() => {
+    return leads
+      .filter(l => {
+        if (search && !l.name?.toLowerCase().includes(search.toLowerCase()) && !l.phone?.includes(search) && !l.email?.toLowerCase().includes(search.toLowerCase())) return false;
+        if (stageFilter && l.stage !== stageFilter) return false;
+        if (typeFilter && l.leadType !== typeFilter) return false;
+        if (sourceFilter && l.source !== sourceFilter) return false;
+        if (projectFilter && (l.interestedProject?._id !== projectFilter && l.interestedProject !== projectFilter)) return false;
+        if (locationFilter) {
+          const term = locationFilter.toLowerCase();
+          const matchesLoc = (l.city && l.city.toLowerCase().includes(term)) ||
+                             (l.state && l.state.toLowerCase().includes(term)) ||
+                             (l.interestedProject?.city && l.interestedProject.city.toLowerCase().includes(term)) ||
+                             (l.interestedProject?.address && l.interestedProject.address.toLowerCase().includes(term)) ||
+                             (l.address && l.address.toLowerCase().includes(term));
+          if (!matchesLoc) return false;
         }
-        if (dateRangeFilter === 'this_week') {
-          const startOfWeek = new Date(startOfToday.getTime() - 7 * 86400000);
-          if (d < startOfWeek) return false;
-        }
-        if (dateRangeFilter === 'this_month') {
-          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-          if (d < startOfMonth) return false;
-        }
-        if (dateRangeFilter === 'last_30_days') {
-          const startOf30 = new Date(startOfToday.getTime() - 30 * 86400000);
-          if (d < startOf30) return false;
-        }
-        if (dateRangeFilter === 'custom') {
-          if (customFrom) {
-            const fromTime = new Date(customFrom + 'T00:00:00').getTime();
-            if (d.getTime() < fromTime) return false;
+        if (dateRangeFilter) {
+          const d = new Date(l.createdAt || Date.now());
+          const now = new Date();
+          const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          if (dateRangeFilter === 'today' && d < startOfToday) return false;
+          if (dateRangeFilter === 'yesterday') {
+            const startOfYesterday = new Date(startOfToday.getTime() - 86400000);
+            if (d < startOfYesterday || d >= startOfToday) return false;
           }
-          if (customTo) {
-            const toTime = new Date(customTo + 'T23:59:59.999').getTime();
-            if (d.getTime() > toTime) return false;
+          if (dateRangeFilter === 'this_week') {
+            const startOfWeek = new Date(startOfToday.getTime() - 7 * 86400000);
+            if (d < startOfWeek) return false;
+          }
+          if (dateRangeFilter === 'this_month') {
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            if (d < startOfMonth) return false;
+          }
+          if (dateRangeFilter === 'last_30_days') {
+            const startOf30 = new Date(startOfToday.getTime() - 30 * 86400000);
+            if (d < startOf30) return false;
+          }
+          if (dateRangeFilter === 'custom') {
+            if (customFrom) {
+              const fromTime = new Date(customFrom + 'T00:00:00').getTime();
+              if (d.getTime() < fromTime) return false;
+            }
+            if (customTo) {
+              const toTime = new Date(customTo + 'T23:59:59.999').getTime();
+              if (d.getTime() > toTime) return false;
+            }
           }
         }
-      }
-      return true;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'date_desc') return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-      if (sortBy === 'date_asc') return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
-      if (sortBy === 'activity_desc') return new Date(b.lastActivityAt || b.createdAt || 0) - new Date(a.lastActivityAt || a.createdAt || 0);
-      if (sortBy === 'score_desc') return (b.leadScore || 50) - (a.leadScore || 50);
-      if (sortBy === 'budget_desc') return (b.budget?.max || b.budget?.min || 0) - (a.budget?.max || a.budget?.min || 0);
-      if (sortBy === 'name_asc') return (a.name || '').localeCompare(b.name || '');
-      return 0;
-    });
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortBy === 'date_desc') return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+        if (sortBy === 'date_asc') return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+        if (sortBy === 'activity_desc') return new Date(b.lastActivityAt || b.createdAt || 0) - new Date(a.lastActivityAt || a.createdAt || 0);
+        if (sortBy === 'score_desc') return (b.leadScore || 50) - (a.leadScore || 50);
+        if (sortBy === 'budget_desc') return (b.budget?.max || b.budget?.min || 0) - (a.budget?.max || a.budget?.min || 0);
+        if (sortBy === 'name_asc') return (a.name || '').localeCompare(b.name || '');
+        return 0;
+      });
+  }, [leads, search, stageFilter, typeFilter, sourceFilter, projectFilter, locationFilter, dateRangeFilter, customFrom, customTo, sortBy]);
+
+  const filteredTableLeads = useMemo(() => {
+    if (activeBoard === 'new') {
+      if (stageFilter) return filteredCommonLeads;
+      return filteredCommonLeads.filter(l => l.stage === 'new');
+    }
+    if (activeBoard === 'scheduled') {
+      if (stageFilter) return filteredCommonLeads;
+      return filteredCommonLeads.filter(l => ['site_visit_scheduled', 'site_visit_done', 'qualified', 'negotiation', 'booking_in_progress', 'booked'].includes(l.stage));
+    }
+    if (activeBoard === 'hot') {
+      return filteredCommonLeads.filter(l => l.leadType === 'hot');
+    }
+    if (activeBoard === 'qualified') {
+      return filteredCommonLeads.filter(l => l.stage === 'qualified');
+    }
+    return filteredCommonLeads;
+  }, [filteredCommonLeads, activeBoard, stageFilter]);
+
+  const { kanbanStages, kanbanLeads } = useMemo(() => {
+    if (activeBoard === 'new') {
+      return {
+        kanbanStages: [
+          { key: 'new', label: '⚡ Fresh Inbound' },
+          { key: 'contacted', label: '📞 Contacted' },
+          { key: 'connected', label: '💬 Connected' },
+          { key: 'site_visit_scheduled', label: '📅 SV Scheduled (Converted!)' },
+          { key: 'qualified', label: '🎯 Qualified' },
+          { key: 'follow_up', label: '⏰ Follow Up' }
+        ],
+        kanbanLeads: filteredCommonLeads
+      };
+    }
+    if (activeBoard === 'scheduled') {
+      return {
+        kanbanStages: [
+          { key: 'site_visit_scheduled', label: '📅 SV Scheduled' },
+          { key: 'site_visit_done', label: '🏠 SV Completed' },
+          { key: 'qualified', label: '🎯 Qualified' },
+          { key: 'negotiation', label: '🤝 Negotiation' },
+          { key: 'booking_in_progress', label: '📝 Booking' },
+          { key: 'booked', label: '✅ Closed / Booked' }
+        ],
+        kanbanLeads: filteredCommonLeads
+      };
+    }
+    if (activeBoard === 'hot') {
+      return {
+        kanbanStages: PIPELINE_STAGES.map(s => ({ key: s, label: LEAD_STAGES[s]?.label || s })),
+        kanbanLeads: filteredCommonLeads.filter(l => l.leadType === 'hot')
+      };
+    }
+    if (activeBoard === 'qualified') {
+      return {
+        kanbanStages: [
+          { key: 'qualified', label: '🎯 Qualified' },
+          { key: 'site_visit_scheduled', label: '📅 SV Scheduled' },
+          { key: 'site_visit_done', label: '🏠 SV Completed' },
+          { key: 'negotiation', label: '🤝 Negotiation' },
+          { key: 'booking_in_progress', label: '📝 Booking' },
+          { key: 'booked', label: '✅ Booked' }
+        ],
+        kanbanLeads: filteredCommonLeads.filter(l => ['qualified', 'site_visit_scheduled', 'site_visit_done', 'negotiation', 'booking_in_progress', 'booked'].includes(l.stage))
+      };
+    }
+    return {
+      kanbanStages: [
+        'new', 'contacted', 'connected', 'qualified',
+        'site_visit_scheduled', 'site_visit_done', 'negotiation',
+        'booking_in_progress', 'booked', 'follow_up'
+      ].map(s => ({ key: s, label: LEAD_STAGES[s]?.label || s })),
+      kanbanLeads: filteredCommonLeads
+    };
+  }, [activeBoard, filteredCommonLeads]);
 
   return (
     <div>
-      {/* Header */}
       <div className="page-header">
         <div className="page-header-left">
           <div className="breadcrumb">
             <span>Leads</span>
             <span className="breadcrumb-sep">/</span>
             <span className="breadcrumb-current">
-              {typeFilter === 'hot' ? 'My Hot Leads' : stageFilter === 'new' ? 'New / Unassigned' : stageFilter === 'qualified' ? 'Qualified Deals' : 'All Leads'}
+              {activeBoard === 'all' ? 'All Leads Board (Total)' :
+               activeBoard === 'new' ? 'New Leads Board' :
+               activeBoard === 'scheduled' ? 'SV Scheduled & Changed' :
+               activeBoard === 'hot' ? 'My Hot Leads' : 'Qualified Deals'}
             </span>
           </div>
           <h1 className="page-title">
-            {typeFilter === 'hot' ? '🔥 Hot Priority Leads' : stageFilter === 'new' ? '⚡ New Inbound Leads' : stageFilter === 'qualified' ? '🎯 Qualified Opportunities' : 'All Leads & Pre-Sales'}
+            {activeBoard === 'all' ? '🗂️ All Leads Board (Total CRM Leads)' :
+             activeBoard === 'new' ? '⚡ New Inbound Leads Board' :
+             activeBoard === 'scheduled' ? '📅 SV Scheduled & Changed Leads Board' :
+             activeBoard === 'hot' ? '🔥 Hot Priority Leads' : '🎯 Qualified Opportunities'}
           </h1>
-          <p className="page-subtitle">{filteredLeads.length} leads matching current view</p>
+          <p className="page-subtitle">
+            {activeBoard === 'all' ? `${totalCount} total leads across all stages · changes stay visible across boards` :
+             activeBoard === 'new' ? `${newLeadsCount} fresh inbound leads ready to be contacted & scheduled` :
+             activeBoard === 'scheduled' ? `${scheduledCount} site visits scheduled · ${actionedCount} active deals in progress` :
+             `${filteredTableLeads.length} leads matching current board`}
+          </p>
         </div>
         <div className="page-actions">
           {leads.length > 0 && (
@@ -1279,7 +1508,130 @@ export default function AllLeadsPage() {
         </div>
       </div>
 
-      {/* Filter Bar */}
+      <div className="leads-board-tabs-wrapper">
+        <div className="leads-board-tabs">
+          <div
+            className={`leads-board-tab ${activeBoard === 'all' ? 'active' : ''}`}
+            onClick={() => handleSwitchBoard('all')}
+          >
+            <div className="leads-board-tab-icon">🗂️</div>
+            <div className="leads-board-tab-content">
+              <div className="leads-board-tab-title">
+                All Leads Board
+                <span className="leads-board-tab-badge total">{totalCount} Total</span>
+              </div>
+              <div className="leads-board-tab-desc">Full lifecycle · All changes stay visible</div>
+            </div>
+          </div>
+
+          <div
+            className={`leads-board-tab ${activeBoard === 'new' ? 'active' : ''}`}
+            onClick={() => handleSwitchBoard('new')}
+          >
+            <div className="leads-board-tab-icon">⚡</div>
+            <div className="leads-board-tab-content">
+              <div className="leads-board-tab-title">
+                New Leads Board
+                <span className="leads-board-tab-badge new">{newLeadsCount} Fresh</span>
+              </div>
+              <div className="leads-board-tab-desc">Incoming queue · Fast triage &amp; SV schedule</div>
+            </div>
+          </div>
+
+          <div
+            className={`leads-board-tab ${activeBoard === 'scheduled' ? 'active' : ''}`}
+            onClick={() => handleSwitchBoard('scheduled')}
+          >
+            <div className="leads-board-tab-icon">📅</div>
+            <div className="leads-board-tab-content">
+              <div className="leads-board-tab-title">
+                SV Scheduled &amp; Changed
+                <span className="leads-board-tab-badge actioned">{scheduledCount} Scheduled</span>
+              </div>
+              <div className="leads-board-tab-desc">Leads moved/scheduled for site visits</div>
+            </div>
+          </div>
+
+          <div
+            className={`leads-board-tab ${activeBoard === 'hot' ? 'active' : ''}`}
+            onClick={() => handleSwitchBoard('hot')}
+          >
+            <div className="leads-board-tab-icon">🔥</div>
+            <div className="leads-board-tab-content">
+              <div className="leads-board-tab-title">
+                Hot Priority Deals
+                <span className="leads-board-tab-badge hot">{hotCount} Hot</span>
+              </div>
+              <div className="leads-board-tab-desc">High score prospects &amp; immediate buyers</div>
+            </div>
+          </div>
+
+          <div
+            className={`leads-board-tab ${activeBoard === 'qualified' ? 'active' : ''}`}
+            onClick={() => handleSwitchBoard('qualified')}
+          >
+            <div className="leads-board-tab-icon">🎯</div>
+            <div className="leads-board-tab-content">
+              <div className="leads-board-tab-title">
+                Qualified Deals
+                <span className="leads-board-tab-badge actioned">{qualifiedCount} Qualified</span>
+              </div>
+              <div className="leads-board-tab-desc">Handed over to field sales closers</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {activeBoard === 'all' && (
+        <div className="board-info-banner all">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>🗂️</span>
+            <span>
+              <strong>All Leads Board (Total Leads):</strong> Viewing all {totalCount} leads across all stages. Moving or updating any lead to SV Scheduled or any other stage stays visible right here.
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <span className="badge badge-primary">{leads.length} in CRM</span>
+          </div>
+        </div>
+      )}
+
+      {activeBoard === 'new' && (
+        <div className="board-info-banner new">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>⚡</span>
+            <span>
+              <strong>New Inbound Leads Board:</strong> {newLeadsCount} fresh leads awaiting first contact. When you advance a lead to <strong>SV Scheduled</strong>, it remains in the <em>📅 SV Scheduled</em> column on this board and syncs with the All Leads Board.
+            </span>
+          </div>
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ fontSize: 11.5, color: '#166534', fontWeight: 700 }}
+            onClick={() => handleSwitchBoard('all')}
+          >
+            Switch to All Leads Board ({totalCount}) →
+          </button>
+        </div>
+      )}
+
+      {activeBoard === 'scheduled' && (
+        <div className="board-info-banner actioned">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>📅</span>
+            <span>
+              <strong>SV Scheduled &amp; Changed Leads Board:</strong> Showing all leads advanced from New (Site Visits, Negotiations, Bookings). Leads changed to SV Scheduled appear here immediately.
+            </span>
+          </div>
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ fontSize: 11.5, color: '#92400e', fontWeight: 700 }}
+            onClick={() => handleSwitchBoard('all')}
+          >
+            View Total Leads ({totalCount}) →
+          </button>
+        </div>
+      )}
+
       <div className="filter-bar">
         <div className="filter-search">
           <Search size={14} color="var(--text-muted)" />
@@ -1402,7 +1754,6 @@ export default function AllLeadsPage() {
           ]}
         />
 
-        {/* View Toggle: Board 1st, Table 2nd */}
         <div style={{ display: 'flex', gap: 4, background: '#f1f5f9', borderRadius: 8, padding: 3, marginLeft: 'auto' }}>
           <button
             className={`btn btn-sm ${view === 'kanban' ? 'btn-primary' : 'btn-ghost'}`}
@@ -1427,25 +1778,35 @@ export default function AllLeadsPage() {
         </button>
       </div>
 
-      {/* Table View */}
       {view === 'table' && (
-        <div className="table-wrapper">
+        <div className="table-container">
           {loading ? (
             <div className="loading-overlay"><div className="spinner" /></div>
-          ) : filteredLeads.length === 0 ? (
+          ) : filteredTableLeads.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon"><TrendingUp size={28} /></div>
-              <div className="empty-state-title">No leads found</div>
-              <div className="empty-state-desc">Try adjusting your filters or create a new lead.</div>
-              <button className="btn btn-primary" onClick={openCreateLead} style={{ marginTop: 12 }}>
-                <Plus size={14} /> Add Lead
-              </button>
+              <div className="empty-state-icon">👥</div>
+              <div className="empty-state-title">No leads found in this board</div>
+              <div className="empty-state-text">
+                {activeBoard === 'new' ? 'No new inbound leads currently. Switch to All Leads Board to view all leads.' :
+                 activeBoard === 'scheduled' ? 'No site visits scheduled yet. Move a lead to SV Scheduled from New Leads Board!' :
+                 'Try clearing your filters or click Add Lead.'}
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12 }}>
+                {activeBoard !== 'all' && (
+                  <button className="btn btn-secondary btn-sm" onClick={() => handleSwitchBoard('all')}>
+                    View All Leads Board ({totalCount})
+                  </button>
+                )}
+                <button className="btn btn-primary btn-sm" onClick={openCreateLead}>
+                  <Plus size={14} /> Add Lead
+                </button>
+              </div>
             </div>
           ) : (
-            <table>
+            <table className="table">
               <thead>
                 <tr>
-                  <th style={{ width: 20 }}>
+                  <th style={{ width: 36 }}>
                     <input type="checkbox" style={{ cursor: 'pointer' }} />
                   </th>
                   <th>Lead</th>
@@ -1460,7 +1821,7 @@ export default function AllLeadsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredLeads.map(lead => (
+                {filteredTableLeads.map(lead => (
                   <tr key={lead._id} onClick={() => setSelectedLead(lead)} style={{ cursor: 'pointer' }}>
                     <td onClick={e => e.stopPropagation()}>
                       <input type="checkbox" style={{ cursor: 'pointer' }} />
@@ -1479,10 +1840,17 @@ export default function AllLeadsPage() {
                         {LEAD_SOURCES[lead.source]?.icon} {LEAD_SOURCES[lead.source]?.label || lead.source}
                       </span>
                     </td>
-                    <td>
-                      <Badge className={LEAD_STAGES[lead.stage]?.color || 'badge-gray'}>
-                        {LEAD_STAGES[lead.stage]?.label || lead.stage}
-                      </Badge>
+                    <td onClick={e => e.stopPropagation()} style={{ minWidth: 145 }}>
+                      <CustomSelect
+                        size="sm"
+                        value={lead.stage || 'new'}
+                        onChange={val => handleStageChange(lead._id, val)}
+                        options={Object.entries(LEAD_STAGES).map(([k, v]) => ({
+                          value: k,
+                          label: v.label,
+                          icon: k === 'site_visit_scheduled' ? '📅' : k === 'new' ? '⚡' : k === 'qualified' ? '🎯' : '📊'
+                        }))}
+                      />
                     </td>
                     <td>
                       <Badge className={LEAD_TYPES[lead.leadType]?.badge || 'badge-gray'}>
@@ -1561,22 +1929,23 @@ export default function AllLeadsPage() {
         </div>
       )}
 
-      {/* Kanban View */}
       {view === 'kanban' && (
         loading ? (
           <div className="loading-overlay"><div className="spinner" /></div>
         ) : (
           <KanbanView
-            leads={filteredLeads}
+            leads={kanbanLeads}
+            stagesList={kanbanStages}
+            boardType={activeBoard}
             onLeadClick={setSelectedLead}
             onEditLead={setEditingLead}
             onStageChange={handleStageChange}
             onAddLead={openCreateLead}
+            onSwitchBoard={handleSwitchBoard}
           />
         )
       )}
 
-      {/* Lead Drawer */}
       <LeadDrawer
         lead={selectedLead}
         usersList={usersList}
@@ -1585,9 +1954,10 @@ export default function AllLeadsPage() {
         onUpdateLead={handleUpdateLead}
         onEditLead={setEditingLead}
         onDeleteLead={handleDeleteLead}
+        onStageChange={handleStageChange}
+        onSwitchBoard={handleSwitchBoard}
       />
 
-      {/* Edit Lead Modal */}
       {editingLead && (
         <EditLeadModal
           lead={editingLead}
@@ -1597,7 +1967,6 @@ export default function AllLeadsPage() {
         />
       )}
 
-      {/* Import Modal */}
       {showImportModal && (
         <ImportModal
           onClose={() => setShowImportModal(false)}
