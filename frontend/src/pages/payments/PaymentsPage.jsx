@@ -602,15 +602,8 @@ export default function PaymentsPage() {
       {/* Header */}
       <div className="page-header">
         <div className="page-header-left">
-          <div className="breadcrumb">
-            <span>Finance & Collections</span>
-            <span className="breadcrumb-sep">/</span>
-            <span className="breadcrumb-current">
-              {tab === 'pending' ? 'Pending Collections' : tab === 'overdue' ? 'Overdue Demands' : tab === 'paid' ? 'Paid & Cleared' : 'All Demand Notices'}
-            </span>
-          </div>
-          <h1 className="page-title">Payments & Milestone Collections</h1>
-          <p className="page-subtitle">Milestone-linked demand notes, partial payment tracking, bank transfers, cash/UPI receipts, and GST invoices</p>
+          <h1 className="page-title">Payments & Collections</h1>
+          <p className="page-subtitle">{filtered.length} milestone demands · Track demands, collections, and receipts</p>
         </div>
         <div className="page-actions" style={{ display: 'flex', gap: 8 }}>
           <button
@@ -621,7 +614,7 @@ export default function PaymentsPage() {
             }}
             title="Download full milestone payments ledger"
           >
-            <Download size={14} /> Export Ledger CSV
+            <Download size={14} /> Export CSV
           </button>
           <button className="btn btn-primary btn-sm" onClick={openCreateModal}>
             <Plus size={14} /> Raise Milestone Demand

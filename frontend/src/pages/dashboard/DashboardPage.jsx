@@ -434,34 +434,27 @@ export default function DashboardPage() {
             )}
           </div>
           <p className="page-subtitle" style={{ marginTop: 4 }}>
-            {isTelecallerRole && `Welcome back, ${user?.name || 'Executive'}! Track your daily calling queue, connected prospects, and site visits.`}
-            {isSalesManagerRole && `Real-time visibility into team pipelines, closer quotas, discount price reviews, and unit inventory.`}
-            {isSalesExecRole && `Your assigned warm opportunities, property visits, 48-hour unit holds, and digital booking agreements.`}
-            {isMarketingRole && `Campaign velocity across Meta, Google Ads & Portals, cost per lead (CPL), and inbound conversion.`}
-            {isFinanceRole && `Construction-linked milestone billing, demand notices, token advance reconciliations, and escrow ledger.`}
-            {isCPRole && `Track your referred clients, scheduled site visits, approved bookings, and broker commission payouts.`}
-            {(!isTelecallerRole && !isSalesManagerRole && !isSalesExecRole && !isMarketingRole && !isFinanceRole && !isCPRole) && `Welcome back! Here's your master real-time revenue pulse and multi-department performance.`}
+            Real-time overview of sales pipeline, revenue realization, and operations.
           </p>
         </div>
 
         <div className="page-actions" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {(user?.role === 'admin' || user?.role === 'super_admin') && (
-            <div className="dashboard-view-as-box">
-              <Eye size={13} color="var(--primary)" />
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>View as:</span>
-              <div style={{ flex: 1 }}>
+            <div className="dashboard-view-as-box" style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>View as:</span>
+              <div style={{ minWidth: 150 }}>
                 <CustomSelect
                   value={activeRoleView}
                   onChange={val => setActiveRoleView(typeof val === 'object' && val.target ? val.target.value : val)}
                   size="sm"
                   options={[
-                    { value: 'admin', label: 'Admin / Executive', icon: '👑', subtext: 'Full Access' },
-                    { value: 'sales_head', label: 'Sales Head', icon: '🏢' },
-                    { value: 'sales_manager', label: 'Sales Manager', icon: '👔' },
-                    { value: 'sales_executive', label: 'Sales Closer / Exec', icon: '🎯' },
-                    { value: 'telecaller', label: 'Telecaller / Pre-Sales', icon: '📞' },
-                    { value: 'marketing_head', label: 'Marketing Head', icon: '📣' },
-                    { value: 'finance_manager', label: 'Finance Manager', icon: '💳' }
+                    { value: 'admin', label: 'Admin / Executive' },
+                    { value: 'sales_head', label: 'Sales Head' },
+                    { value: 'sales_manager', label: 'Sales Manager' },
+                    { value: 'sales_executive', label: 'Sales Closer' },
+                    { value: 'telecaller', label: 'Telecaller' },
+                    { value: 'marketing_head', label: 'Marketing Head' },
+                    { value: 'finance_manager', label: 'Finance Manager' }
                   ]}
                 />
               </div>
@@ -471,236 +464,59 @@ export default function DashboardPage() {
           <button className="btn btn-secondary btn-sm" onClick={handleExportDashboard}>
             <Download size={14} /> Export Summary
           </button>
-          <button id="dashboard-add-lead-btn" className="btn btn-primary btn-sm" onClick={openCreateLead}>
-            <Plus size={14} /> New Lead
-          </button>
         </div>
       </div>
 
-      {/* Fresh Tenant Workspace Onboarding Banner (When newly registered org has 0 records) */}
+      {/* Fresh Workspace Banner */}
       {(!stats?.kpis?.totalLeads && !stats?.kpis?.totalBookings && leadsList.length === 0 && user?.role !== 'super_admin') && (
         <div style={{
-          background: 'linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)',
-          border: '1.5px solid #bfdbfe',
-          borderRadius: 14,
-          padding: '20px 24px',
-          marginBottom: 20,
-          boxShadow: '0 2px 6px rgba(37,99,235,0.06)'
+          background: '#f8fafc',
+          border: '1px solid #e2e8f0',
+          borderRadius: 12,
+          padding: '16px 20px',
+          marginBottom: 16,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <span style={{ fontSize: 20 }}>🚀</span>
-                <h2 style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                  Welcome to {user?.organization || 'your organization'}!
-                </h2>
-                <span style={{ background: '#dcfce7', border: '1px solid #86efac', color: '#15803d', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20 }}>
-                  Approved & Live
-                </span>
-              </div>
-              <p style={{ fontSize: 13, color: '#475569', margin: 0, maxWidth: 650, lineHeight: 1.5 }}>
-                Your dedicated workspace is completely set up and isolated. No previous demo data or imported records from other developers are present. Get started by adding your first lead or property below.
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={openCreateLead}
-                style={{ gap: 6, fontWeight: 700 }}
-              >
-                <Plus size={14} /> Add First Lead
-              </button>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => navigate('/inventory')}
-                style={{ gap: 6, fontWeight: 600 }}
-              >
-                <Building size={14} /> Setup Inventory
-              </button>
-            </div>
+          <div>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: 0 }}>
+              Welcome to {user?.organization || 'your organization'}!
+            </h2>
+            <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>
+              Your workspace is active and ready. Start by adding your first lead or setting up property inventory.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-primary btn-sm" onClick={openCreateLead}>
+              <Plus size={14} /> Add Lead
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={() => navigate('/inventory')}>
+              Setup Inventory
+            </button>
           </div>
         </div>
       )}
 
-      {/* Role-Specific Quick Action Toolbars */}
-      <div className="dashboard-quick-actions-bar">
-        <div className="dashboard-quick-actions-title">
-          <Sparkles size={14} color="var(--primary)" /> Quick Workflows & Actions:
-        </div>
-
-        <div className="dashboard-quick-actions-list">
-          {isTelecallerRole && (
-            <>
-              <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/communication')}>
-                <PhoneCall size={13} color="var(--primary)" /> Open Cloud Dialer
-              </button>
-              <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/communication/whatsapp')}>
-                <MessageSquare size={13} color="#10b981" /> WhatsApp Live Chat
-              </button>
-              <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/site-visits')}>
-                <MapPin size={13} color="#f59e0b" /> Book Site Visit
-              </button>
-              <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/activities')}>
-                <CheckSquare size={13} color="#8b5cf6" /> My Follow-up Calls
-              </button>
-            </>
-          )}
-
-          {(isSalesManagerRole || isSalesExecRole) && (
-            <>
-              <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/inventory')}>
-                <Warehouse size={13} color="#10b981" /> Check Available Units
-              </button>
-              <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/booking')}>
-                <FileText size={13} color="var(--primary)" /> Create Official Booking
-              </button>
-              <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/pricing')}>
-                <DollarSign size={13} color="#d97706" /> Calculate Cost Sheet
-              </button>
-              <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/site-visits')}>
-                <MapPin size={13} color="#8b5cf6" /> My Scheduled Visits
-              </button>
-            </>
-          )}
-
-          {isMarketingRole && (
-            <>
-              <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/marketing')}>
-                <TrendingUp size={13} color="var(--primary)" /> Ad Campaigns & Budgets
-              </button>
-              <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/marketing/sources')}>
-                <Zap size={13} color="#d97706" /> Lead Sources & Integrations
-              </button>
-              <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/reports')}>
-                <BarChart3 size={13} color="#8b5cf6" /> Channel Attribution ROI
-              </button>
-            </>
-          )}
-
-          {isFinanceRole && (
-            <>
-              <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/payments')}>
-                <CreditCard size={13} color="var(--primary)" /> Issue Payment Demands
-              </button>
-              <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/booking')}>
-                <FileText size={13} color="#10b981" /> Booking Deeds & KYC
-              </button>
-              <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/pricing')}>
-                <DollarSign size={13} color="#d97706" /> Payment Slabs & Plans
-              </button>
-              <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/reports')}>
-                <BarChart3 size={13} color="#8b5cf6" /> Aging & Recovery Report
-              </button>
-            </>
-          )}
-
-          {(!isTelecallerRole && !isSalesManagerRole && !isSalesExecRole && !isMarketingRole && !isFinanceRole) && (
-            <>
-              <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/pipeline')}>
-                <TrendingUp size={13} color="var(--primary)" /> Sales Pipeline
-              </button>
-              <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/projects')}>
-                <Building size={13} color="#10b981" /> Projects Portfolio
-              </button>
-              <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/booking')}>
-                <FileText size={13} color="#d97706" /> Booking Applications
-              </button>
-              <button className="btn btn-secondary btn-sm" style={{ fontSize: 12, gap: 6 }} onClick={() => navigate('/reports')}>
-                <BarChart3 size={13} color="#8b5cf6" /> Revenue BI Reports
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* ─── UPCOMING REGISTRATIONS & SALE AGREEMENTS (4-DAY PRIORITY ALERTS) ─── */}
+      {/* Upcoming Registrations Alert Banner */}
       {upcomingReminders.length > 0 && (
         <div style={{
-          background: 'linear-gradient(135deg, #fefce8 0%, #fff7ed 100%)',
-          border: '1.5px solid #fed7aa',
-          borderRadius: 12,
-          padding: '14px 18px',
-          marginBottom: 20,
-          boxShadow: '0 2px 6px rgba(234, 88, 12, 0.06)'
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: '#fffbeb', border: '1px solid #fed7aa', borderRadius: 10,
+          padding: '10px 16px', marginBottom: 16, fontSize: 13, color: '#9a3412', gap: 12
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 20 }}>🏛️</span>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: '#9a3412', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  Upcoming Property Registrations & Sale Agreements
-                  <span style={{ fontSize: 11, background: '#ea580c', color: 'white', padding: '2px 8px', borderRadius: 12, fontWeight: 800 }}>
-                    {upcomingReminders.length} DUE IN 4 DAYS
-                  </span>
-                </div>
-                <div style={{ fontSize: 11.5, color: '#9a3412' }}>
-                  Automated advance notifications dispatched to Admins and assigned Telecallers
-                </div>
-              </div>
-            </div>
-
-            <button
-              className="btn btn-sm"
-              onClick={() => navigate('/booking')}
-              style={{ background: '#ea580c', color: 'white', border: 'none', fontWeight: 700, fontSize: 11.5, padding: '4px 12px', borderRadius: 6 }}
-            >
-              Open Booking & Registration Register →
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>🏛️</span>
+            <span>
+              <strong>{upcomingReminders.length} Registration{upcomingReminders.length > 1 ? 's' : ''} Due in 4 Days:</strong>{' '}
+              {upcomingReminders[0]?.customerName || 'Customer'} ({upcomingReminders[0]?.unitNumber || 'Unit'})
+            </span>
           </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
-            {upcomingReminders.map((rem, idx) => (
-              <div
-                key={idx}
-                onClick={() => navigate('/booking')}
-                style={{
-                  background: 'white',
-                  border: rem.type === 'ready_for_registration' ? '1.5px solid #86efac' : rem.daysRemaining <= 1 ? '1.5px solid #fca5a5' : '1.5px solid #fdba74',
-                  borderRadius: 8,
-                  padding: '10px 14px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  cursor: 'pointer',
-                  transition: 'transform 0.15s ease, box-shadow 0.15s ease'
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>{rem.type === 'ready_for_registration' ? '🏛️' : rem.type === 'registration_upcoming' ? '🏛️' : '📅'}</span>
-                    <span>{rem.customerName}</span>
-                    <span style={{ fontSize: 11, color: '#64748b' }}>({rem.unitNumber})</span>
-                  </div>
-                  <div style={{ fontSize: 11.5, color: '#64748b', marginTop: 2 }}>
-                    {rem.type === 'ready_for_registration' ? (
-                      <strong style={{ color: '#15803d' }}>Ready for Registration Clearance</strong>
-                    ) : (
-                      <span>Scheduled: <strong>{new Date(rem.scheduledDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</strong></span>
-                    )}
-                  </div>
-                </div>
-
-                <div style={{ textAlign: 'right' }}>
-                  {rem.daysRemaining !== undefined && (
-                    <span style={{
-                      fontSize: 10,
-                      fontWeight: 800,
-                      padding: '3px 7px',
-                      borderRadius: 4,
-                      background: rem.daysRemaining <= 0 ? '#fee2e2' : rem.daysRemaining === 1 ? '#ffedd5' : '#fef3c7',
-                      color: rem.daysRemaining <= 0 ? '#dc2626' : rem.daysRemaining === 1 ? '#ea580c' : '#b45309'
-                    }}>
-                      {rem.daysRemaining === 0 ? 'TODAY' : rem.daysRemaining < 0 ? 'OVERDUE' : `${rem.daysRemaining}d left`}
-                    </span>
-                  )}
-                  <div style={{ fontSize: 10.5, color: 'var(--primary)', fontWeight: 700, marginTop: 4 }}>
-                    Manage →
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <button
+            className="btn btn-sm"
+            onClick={() => navigate('/booking')}
+            style={{ background: '#ea580c', color: 'white', fontWeight: 600, fontSize: 11.5, padding: '4px 12px', borderRadius: 6 }}
+          >
+            View Bookings →
+          </button>
         </div>
       )}
 
@@ -708,229 +524,134 @@ export default function DashboardPage() {
       <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginBottom: 20 }}>
         {isTelecallerRole ? (
           <>
-            <div className="stat-card" onClick={() => navigate('/booking')} style={{ cursor: 'pointer', background: 'linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)', borderColor: '#bbf7d0' }} title="Deals won and converted to formal bookings">
-              <div className="stat-icon-wrap" style={{ background: '#dcfce7' }}><span style={{ fontSize: 20 }}>🏆</span></div>
+            <div className="stat-card" onClick={() => navigate('/booking')} style={{ cursor: 'pointer' }} title="Deals won and converted to formal bookings">
+              <div className="stat-icon-wrap" style={{ background: '#ecfdf5' }}><CheckCircle size={20} color="#16a34a" /></div>
               <div className="stat-info">
-                <div className="stat-label" style={{ color: '#166534', fontWeight: 700 }}>Deals Won & Closed</div>
-                <div className="stat-value" style={{ color: '#15803d' }}>{financeMetrics.totalBookingsCount ?? (stats?.funnel?.find(f => f.stage === 'booked')?.count || 0)} Deals</div>
-                <div className="stat-change up"><ArrowUp size={11} /> Converted Bookings</div>
+                <div className="stat-label">Deals Won & Closed</div>
+                <div className="stat-value">{financeMetrics.totalBookingsCount ?? (stats?.funnel?.find(f => f.stage === 'booked')?.count || 0)} Deals</div>
+                <div className="stat-change up"><ArrowUp size={11} /> Converted</div>
               </div>
             </div>
-            <div className="stat-card" onClick={() => navigate('/booking')} style={{ cursor: 'pointer', background: 'linear-gradient(135deg, #ffffff 0%, #eff6ff 100%)', borderColor: '#bfdbfe' }} title="Gross revenue realized from won deals">
-              <div className="stat-icon-wrap" style={{ background: '#dbeafe' }}><span style={{ fontSize: 20 }}>💰</span></div>
+            <div className="stat-card" onClick={() => navigate('/booking')} style={{ cursor: 'pointer' }} title="Gross revenue realized from won deals">
+              <div className="stat-icon-wrap" style={{ background: '#eff6ff' }}><DollarSign size={20} color="#2563eb" /></div>
               <div className="stat-info">
-                <div className="stat-label" style={{ color: '#1e40af', fontWeight: 700 }}>Closed Sales Revenue</div>
-                <div className="stat-value" style={{ color: '#1d4ed8' }}>{formatCurrency(financeMetrics.grossBookingValue || 0)}</div>
-                <div className="stat-change up"><ArrowUp size={11} /> Realized revenue</div>
+                <div className="stat-label">Closed Revenue</div>
+                <div className="stat-value">{formatCurrency(financeMetrics.grossBookingValue || 0)}</div>
+                <div className="stat-change up"><ArrowUp size={11} /> Realized</div>
               </div>
             </div>
-            <div className="stat-card" onClick={() => navigate('/leads')} style={{ cursor: 'pointer' }} title="Total unassigned/new inbound leads ready to be contacted">
-              <div className="stat-icon-wrap" style={{ background: '#eff6ff' }}><Users size={22} color="#2563eb" /></div>
+            <div className="stat-card" onClick={() => navigate('/leads')} style={{ cursor: 'pointer' }} title="Total leads ready to be contacted">
+              <div className="stat-icon-wrap" style={{ background: '#f8fafc' }}><Users size={20} color="#475569" /></div>
               <div className="stat-info">
-                <div className="stat-label">Assigned Calling Queue</div>
+                <div className="stat-label">Calling Queue</div>
                 <div className="stat-value">{stats?.kpis?.totalLeads ?? 0} Leads</div>
-                <div className="stat-change up"><ArrowUp size={11} /> {stats?.kpis?.todayLeads ?? 0} new today</div>
+                <div className="stat-change up"><ArrowUp size={11} /> {stats?.kpis?.todayLeads ?? 0} today</div>
               </div>
             </div>
-            <div className="stat-card" onClick={() => navigate('/leads')} style={{ cursor: 'pointer' }} title="Calls connected with prospective buyers today">
-              <div className="stat-icon-wrap" style={{ background: '#f3e8ff' }}><PhoneCall size={22} color="#7e22ce" /></div>
+            <div className="stat-card" onClick={() => navigate('/leads')} style={{ cursor: 'pointer' }} title="Leads qualified for sales">
+              <div className="stat-icon-wrap" style={{ background: '#fffbeb' }}><Sparkles size={20} color="#d97706" /></div>
               <div className="stat-info">
-                <div className="stat-label">Telecalling Notes Spoken</div>
-                <div className="stat-value">
-                  {leadsList.reduce((acc, l) => acc + (l.callLogs?.length || 0) + (l.activities?.filter(a => a.type === 'call')?.length || 0), 0) || 0} Spoken
-                </div>
-                <div className="stat-change up"><ArrowUp size={11} /> Multi-note logs</div>
-              </div>
-            </div>
-            <div className="stat-card" onClick={() => navigate('/leads')} style={{ cursor: 'pointer' }} title="Leads qualified and handed over to field sales closers">
-              <div className="stat-icon-wrap" style={{ background: '#fef3c7' }}><Sparkles size={22} color="#d97706" /></div>
-              <div className="stat-info">
-                <div className="stat-label">Qualified Leads (To Sales)</div>
+                <div className="stat-label">Qualified Leads</div>
                 <div className="stat-value">{stats?.funnel?.find(f => f.stage === 'qualified')?.count ?? 0}</div>
-                <div className="stat-change up"><ArrowUp size={11} /> Live Pipeline</div>
+                <div className="stat-change up"><ArrowUp size={11} /> Pipeline</div>
               </div>
             </div>
             <div className="stat-card" onClick={() => navigate('/activities')} style={{ cursor: 'pointer' }} title="Pending tasks requiring immediate follow-up">
-              <div className="stat-icon-wrap" style={{ background: '#fef2f2' }}><Clock size={22} color="#ef4444" /></div>
+              <div className="stat-icon-wrap" style={{ background: '#fef2f2' }}><Clock size={20} color="#dc2626" /></div>
               <div className="stat-info">
-                <div className="stat-label">Pending Follow-up Tasks</div>
+                <div className="stat-label">Pending Follow-ups</div>
                 <div className="stat-value">{dueTodayLeads.length + overdueLeads.length || stats?.kpis?.pendingTasks || 0}</div>
-                <div className="stat-change down"><AlertCircle size={11} /> Due/Overdue</div>
+                <div className="stat-change down"><AlertCircle size={11} /> Due / Overdue</div>
               </div>
             </div>
           </>
         ) : isSalesManagerRole ? (
           <>
-            <div className="stat-card" onClick={() => navigate('/pipeline')} style={{ cursor: 'pointer' }} title="Estimated total value of active pipeline deals">
-              <div className="stat-icon-wrap" style={{ background: '#eff6ff' }}><TrendingUp size={22} color="#2563eb" /></div>
+            <div className="stat-card" onClick={() => navigate('/pipeline')} style={{ cursor: 'pointer' }} title="Active pipeline deals">
+              <div className="stat-icon-wrap" style={{ background: '#eff6ff' }}><TrendingUp size={20} color="#2563eb" /></div>
               <div className="stat-info">
-                <div className="stat-label">Active Deals In Motion</div>
+                <div className="stat-label">Active Pipeline Deals</div>
                 <div className="stat-value">{stats?.kpis?.totalLeads ?? 0} Leads</div>
                 <div className="stat-change up"><ArrowUp size={11} /> Live Pipeline</div>
               </div>
             </div>
-            <div className="stat-card" onClick={() => navigate('/negotiations')} style={{ cursor: 'pointer' }} title="Pending price discount approval requests">
-              <div className="stat-icon-wrap" style={{ background: '#fef3c7' }}><Scale size={22} color="#d97706" /></div>
+            <div className="stat-card" onClick={() => navigate('/booking')} style={{ cursor: 'pointer' }} title="Total verified units booked">
+              <div className="stat-icon-wrap" style={{ background: '#ecfdf5' }}><CheckCircle size={20} color="#16a34a" /></div>
               <div className="stat-info">
-                <div className="stat-label">Price Discount Approvals</div>
-                <div className="stat-value">0</div>
-                <div className="stat-change down"><Clock size={11} /> Approval queue</div>
+                <div className="stat-label">Bookings Closed</div>
+                <div className="stat-value">{stats?.kpis?.totalBookings ?? 0} Deals</div>
+                <div className="stat-change up"><ArrowUp size={11} /> Confirmed</div>
               </div>
             </div>
-            <div className="stat-card" onClick={() => navigate('/site-visits')} style={{ cursor: 'pointer' }} title="Property site visits scheduled today">
-              <div className="stat-icon-wrap" style={{ background: '#dcfce7' }}><MapPin size={22} color="#10b981" /></div>
+            <div className="stat-card" onClick={() => navigate('/site-visits')} style={{ cursor: 'pointer' }} title="Property site visits scheduled">
+              <div className="stat-icon-wrap" style={{ background: '#fffbeb' }}><MapPin size={20} color="#d97706" /></div>
               <div className="stat-info">
                 <div className="stat-label">Site Visits Today</div>
-                <div className="stat-value">{stats?.kpis?.todaySiteVisits ?? 0}</div>
-                <div className="stat-change up"><ArrowUp size={11} /> Live tracker</div>
+                <div className="stat-value">{stats?.kpis?.todaySiteVisits ?? 0} Tours</div>
+                <div className="stat-change up"><ArrowUp size={11} /> Scheduled</div>
               </div>
             </div>
-            <div className="stat-card" onClick={() => navigate('/booking')} style={{ cursor: 'pointer' }} title="Total verified units booked">
-              <div className="stat-icon-wrap" style={{ background: '#f3e8ff' }}><FileText size={22} color="#8b5cf6" /></div>
+            <div className="stat-card" onClick={() => navigate('/inventory')} style={{ cursor: 'pointer' }} title="Inventory units on hold">
+              <div className="stat-icon-wrap" style={{ background: '#f8fafc' }}><Warehouse size={20} color="#475569" /></div>
               <div className="stat-info">
-                <div className="stat-label">Bookings Won</div>
-                <div className="stat-value">{stats?.kpis?.todayBookings ?? 0} Units</div>
-                <div className="stat-change up"><ArrowUp size={11} /> Verified bookings</div>
-              </div>
-            </div>
-            <div className="stat-card" onClick={() => navigate('/inventory')} style={{ cursor: 'pointer' }} title="Inventory units on temporary hold">
-              <div className="stat-icon-wrap" style={{ background: '#fff7ed' }}><Warehouse size={22} color="#ea580c" /></div>
-              <div className="stat-info">
-                <div className="stat-label">Available Inventory</div>
-                <div className="stat-value">{stats?.inventoryStats?.find(i => i._id === 'available')?.count ?? 0} Units</div>
-                <div className="stat-change up"><ArrowUp size={11} /> Ready to sell</div>
+                <div className="stat-label">Units on Hold</div>
+                <div className="stat-value">{inventory.filter(u => u.status === 'on_hold').length || 0} Units</div>
+                <div className="stat-change down"><Clock size={11} /> 48h Holds</div>
               </div>
             </div>
             <div className="stat-card" onClick={() => navigate('/activities')} style={{ cursor: 'pointer' }} title="Tasks pending across sales team">
-              <div className="stat-icon-wrap" style={{ background: '#ecfdf5' }}><CheckSquare size={22} color="#059669" /></div>
+              <div className="stat-icon-wrap" style={{ background: '#fef2f2' }}><Clock size={20} color="#dc2626" /></div>
               <div className="stat-info">
                 <div className="stat-label">Pending Team Tasks</div>
-                <div className="stat-value">{stats?.kpis?.pendingTasks ?? 0}</div>
-                <div className="stat-change up"><ArrowUp size={11} /> Active tasks</div>
-              </div>
-            </div>
-          </>
-        ) : isFinanceRole ? (
-          <>
-            <div className="stat-card" onClick={() => navigate('/payments')} style={{ cursor: 'pointer' }} title="Construction milestone payment notices raised">
-              <div className="stat-icon-wrap" style={{ background: '#eff6ff' }}><CreditCard size={22} color="#2563eb" /></div>
-              <div className="stat-info">
-                <div className="stat-label">Total Demands Raised</div>
-                <div className="stat-value">{formatCurrency(financeMetrics.totalDemandRaised || 0)}</div>
-                <div className="stat-change up"><ArrowUp size={11} /> {payments.length} Milestone Notices</div>
-              </div>
-            </div>
-            <div className="stat-card" onClick={() => navigate('/payments')} style={{ cursor: 'pointer' }} title="Payment receipts collected and reconciled in escrow">
-              <div className="stat-icon-wrap" style={{ background: '#dcfce7' }}><DollarSign size={22} color="#10b981" /></div>
-              <div className="stat-info">
-                <div className="stat-label">Realized Collections</div>
-                <div className="stat-value">{formatCurrency(financeMetrics.totalPaidCollected || 0)}</div>
-                <div className="stat-change up"><ArrowUp size={11} /> {financeMetrics.realizationRate || 0}% Realization</div>
-              </div>
-            </div>
-            <div className="stat-card" onClick={() => navigate('/payments')} style={{ cursor: 'pointer' }} title="Past due milestone invoices">
-              <div className="stat-icon-wrap" style={{ background: '#fef2f2' }}><AlertCircle size={22} color="#ef4444" /></div>
-              <div className="stat-info">
-                <div className="stat-label">Outstanding Balance</div>
-                <div className="stat-value">{formatCurrency(financeMetrics.totalOutstanding || 0)}</div>
-                <div className="stat-change down"><Clock size={11} /> {financeMetrics.overdueDemandsCount || 0} Overdue Notices</div>
-              </div>
-            </div>
-            <div className="stat-card" onClick={() => navigate('/booking')} style={{ cursor: 'pointer' }} title="Gross booking value across active customer bookings">
-              <div className="stat-icon-wrap" style={{ background: '#f3e8ff' }}><FileText size={22} color="#8b5cf6" /></div>
-              <div className="stat-info">
-                <div className="stat-label">Gross Bookings Value</div>
-                <div className="stat-value">{formatCurrency(financeMetrics.grossBookingValue || 0)}</div>
-                <div className="stat-change up"><ArrowUp size={11} /> {financeMetrics.totalBookingsCount || 0} Bookings</div>
+                <div className="stat-value">{stats?.kpis?.pendingTasks ?? 0} Tasks</div>
+                <div className="stat-change down"><AlertCircle size={11} /> Action items</div>
               </div>
             </div>
           </>
         ) : (
           <>
-            {/* Top Finance & Revenue Highlights */}
-            <div className="stat-card" onClick={() => navigate('/booking')} style={{ cursor: 'pointer', background: 'linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)', borderColor: '#bbf7d0' }} title="Gross value of all closed customer booking contracts">
-              <div className="stat-icon-wrap" style={{ background: '#dcfce7' }}><DollarSign size={22} color="#16a34a" /></div>
+            <div className="stat-card" onClick={() => navigate('/booking')} style={{ cursor: 'pointer' }} title="Gross value of all customer bookings">
+              <div className="stat-icon-wrap" style={{ background: '#ecfdf5' }}><DollarSign size={20} color="#16a34a" /></div>
               <div className="stat-info">
-                <div className="stat-label" style={{ color: '#166534', fontWeight: 700 }}>Gross Bookings Revenue</div>
-                <div className="stat-value" style={{ color: '#15803d' }}>{formatCurrency(financeMetrics.grossBookingValue || 0)}</div>
-                <div className="stat-change up"><ArrowUp size={11} /> {financeMetrics.totalBookingsCount || 0} Confirmed Bookings</div>
+                <div className="stat-label">Gross Revenue</div>
+                <div className="stat-value">{formatCurrency(financeMetrics.grossBookingValue || 0)}</div>
+                <div className="stat-change up"><ArrowUp size={11} /> {financeMetrics.totalBookingsCount || 0} Bookings</div>
               </div>
             </div>
 
-            <div className="stat-card" onClick={() => navigate('/payments')} style={{ cursor: 'pointer', background: 'linear-gradient(135deg, #ffffff 0%, #eff6ff 100%)', borderColor: '#bfdbfe' }} title="Total construction milestone demand notices issued">
-              <div className="stat-icon-wrap" style={{ background: '#dbeafe' }}><CreditCard size={22} color="#2563eb" /></div>
+            <div className="stat-card" onClick={() => navigate('/payments')} style={{ cursor: 'pointer' }} title="Milestone collections paid and cleared">
+              <div className="stat-icon-wrap" style={{ background: '#eff6ff' }}><CreditCard size={20} color="#2563eb" /></div>
               <div className="stat-info">
-                <div className="stat-label" style={{ color: '#1e40af', fontWeight: 700 }}>Milestone Demands Raised</div>
-                <div className="stat-value" style={{ color: '#1d4ed8' }}>{formatCurrency(financeMetrics.totalDemandRaised || 0)}</div>
-                <div className="stat-change up"><ArrowUp size={11} /> {payments.length} Milestone Notices</div>
-              </div>
-            </div>
-
-            <div className="stat-card" onClick={() => navigate('/payments/paid')} style={{ cursor: 'pointer', background: 'linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)', borderColor: '#bbf7d0' }} title="Total collections realized and cleared in escrow">
-              <div className="stat-icon-wrap" style={{ background: '#dcfce7' }}><CheckCircle size={22} color="#16a34a" /></div>
-              <div className="stat-info">
-                <div className="stat-label" style={{ color: '#166534', fontWeight: 700 }}>Realized Collections (Paid)</div>
-                <div className="stat-value" style={{ color: '#16a34a' }}>{formatCurrency(financeMetrics.totalPaidCollected || 0)}</div>
+                <div className="stat-label">Collections Paid</div>
+                <div className="stat-value">{formatCurrency(financeMetrics.totalPaidCollected || 0)}</div>
                 <div className="stat-change up"><ArrowUp size={11} /> {financeMetrics.realizationRate || 0}% Realization</div>
               </div>
             </div>
 
-            <div className="stat-card" onClick={() => navigate('/payments/pending')} style={{ cursor: 'pointer', background: 'linear-gradient(135deg, #ffffff 0%, #fef2f2 100%)', borderColor: '#fecaca' }} title="Outstanding milestone demand balance awaiting collection">
-              <div className="stat-icon-wrap" style={{ background: '#fee2e2' }}><AlertCircle size={22} color="#dc2626" /></div>
-              <div className="stat-info">
-                <div className="stat-label" style={{ color: '#991b1b', fontWeight: 700 }}>Outstanding Balance</div>
-                <div className="stat-value" style={{ color: '#dc2626' }}>{formatCurrency(financeMetrics.totalOutstanding || 0)}</div>
-                <div className="stat-change down"><Clock size={11} /> {financeMetrics.overdueDemandsCount || 0} Overdue Notices</div>
-              </div>
-            </div>
-
-            {/* Operational & CRM Highlights */}
-            <div className="stat-card" onClick={() => navigate('/leads')} style={{ cursor: 'pointer' }} title="Total inbound leads in CRM database">
-              <div className="stat-icon-wrap" style={{ background: '#eff6ff' }}><Users size={22} color="#2563eb" /></div>
+            <div className="stat-card" onClick={() => navigate('/leads')} style={{ cursor: 'pointer' }} title="Total CRM leads in pipeline">
+              <div className="stat-icon-wrap" style={{ background: '#f8fafc' }}><Users size={20} color="#475569" /></div>
               <div className="stat-info">
                 <div className="stat-label">Total Leads</div>
                 <div className="stat-value">{stats?.kpis?.totalLeads ?? 0}</div>
-                <div className="stat-change up"><ArrowUp size={11} /> Real-time database count</div>
+                <div className="stat-change up"><ArrowUp size={11} /> {stats?.kpis?.todayLeads ?? 0} today</div>
               </div>
             </div>
-            <div className="stat-card" onClick={() => navigate('/leads')} style={{ cursor: 'pointer' }} title="Leads captured today">
-              <div className="stat-icon-wrap" style={{ background: '#dcfce7' }}><TrendingUp size={22} color="#10b981" /></div>
-              <div className="stat-info">
-                <div className="stat-label">Today's Leads</div>
-                <div className="stat-value">{stats?.kpis?.todayLeads ?? 0}</div>
-                <div className="stat-change up"><ArrowUp size={11} /> Today's inquiries</div>
-              </div>
-            </div>
-            <div className="stat-card" onClick={() => navigate('/site-visits')} style={{ cursor: 'pointer' }} title="Site visits scheduled for today">
-              <div className="stat-icon-wrap" style={{ background: '#fef3c7' }}><MapPin size={22} color="#f59e0b" /></div>
+
+            <div className="stat-card" onClick={() => navigate('/site-visits')} style={{ cursor: 'pointer' }} title="Site visits scheduled today">
+              <div className="stat-icon-wrap" style={{ background: '#fffbeb' }}><MapPin size={20} color="#d97706" /></div>
               <div className="stat-info">
                 <div className="stat-label">Site Visits Today</div>
                 <div className="stat-value">{stats?.kpis?.todaySiteVisits ?? 0}</div>
                 <div className="stat-change up"><ArrowUp size={11} /> Scheduled visits</div>
               </div>
             </div>
-            <div className="stat-card" onClick={() => navigate('/booking')} style={{ cursor: 'pointer' }} title="Bookings created today">
-              <div className="stat-icon-wrap" style={{ background: '#f3e8ff' }}><FileText size={22} color="#8b5cf6" /></div>
-              <div className="stat-info">
-                <div className="stat-label">Bookings Today</div>
-                <div className="stat-value">{stats?.kpis?.todayBookings ?? 0} Units</div>
-                <div className="stat-change up"><ArrowUp size={11} /> Closed today</div>
-              </div>
-            </div>
+
             <div className="stat-card" onClick={() => navigate('/activities')} style={{ cursor: 'pointer' }} title="Follow-up tasks due or pending">
-              <div className="stat-icon-wrap" style={{ background: '#fef2f2' }}><Clock size={22} color="#ef4444" /></div>
+              <div className="stat-icon-wrap" style={{ background: '#fef2f2' }}><Clock size={20} color="#dc2626" /></div>
               <div className="stat-info">
-                <div className="stat-label">Pending Follow-up Tasks</div>
+                <div className="stat-label">Pending Tasks</div>
                 <div className="stat-value">{stats?.kpis?.pendingTasks ?? 0}</div>
-                <div className="stat-change down"><AlertCircle size={11} /> Pending tasks</div>
-              </div>
-            </div>
-            <div className="stat-card" onClick={() => navigate('/pipeline')} style={{ cursor: 'pointer' }} title="New unassigned leads awaiting allocation">
-              <div className="stat-icon-wrap" style={{ background: '#fff7ed' }}><AlertCircle size={22} color="#f97316" /></div>
-              <div className="stat-info">
-                <div className="stat-label">Unassigned Inbound</div>
-                <div className="stat-value">{stats?.kpis?.newLeads ?? 0}</div>
-                <div className="stat-change up"><ArrowUp size={11} /> New stage leads</div>
+                <div className="stat-change down"><AlertCircle size={11} /> Action items</div>
               </div>
             </div>
           </>

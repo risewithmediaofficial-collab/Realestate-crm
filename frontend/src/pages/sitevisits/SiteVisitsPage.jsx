@@ -862,7 +862,7 @@ export default function SiteVisitsPage() {
             }}
             title="Download full site visits register"
           >
-            <Download size={14} /> Export Visits CSV
+            <Download size={14} /> Export CSV
           </button>
           <button className="btn btn-primary btn-sm" onClick={() => setShowSchedule(true)}>
             <Plus size={14} /> Schedule Visit

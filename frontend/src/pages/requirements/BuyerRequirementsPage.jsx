@@ -362,59 +362,57 @@ export default function BuyerRequirementsPage() {
       {/* Header */}
       <div className="page-header" style={{ marginBottom: 20 }}>
         <div className="page-header-left">
-          <div className="breadcrumb">
-            <span>Sales & Sourcing</span>
-            <span className="breadcrumb-sep">/</span>
-            <span className="breadcrumb-current">Custom Buyer Inquiries</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 38, height: 38, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Sparkles size={20} color="var(--primary)" />
-            </div>
-            <div>
-              <h1 className="page-title">Custom Buyer Requirements Dashboard</h1>
-              <p className="page-subtitle">Capture bespoke customer demands, manage land sourcing pipelines & match with CRM inventory</p>
-            </div>
-          </div>
+          <h1 className="page-title">Buyer Requirements</h1>
+          <p className="page-subtitle">{requirements.length} buyer profiles · Sourcing, land matching & customized inquiries</p>
         </div>
         <div className="page-actions">
           <button className="btn btn-secondary btn-sm" onClick={handleExportCSV}>
             <Download size={14} /> Export CSV
           </button>
           <button className="btn btn-primary btn-sm" onClick={handleOpenCreate} style={{ gap: 6 }}>
-            <Plus size={15} /> Record Custom Requirement
+            <Plus size={15} /> New Requirement
           </button>
         </div>
       </div>
 
       {/* KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 22 }}>
-        <div className="card" style={{ padding: 16, background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 }}>TOTAL BUYER DEMANDS</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a' }}>{stats?.totalRequirements || requirements.length}</div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Bespoke inquiries recorded</div>
-        </div>
-        <div className="card" style={{ padding: 16, background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#c2410c', marginBottom: 4 }}>🔥 HOT BUYERS</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#ea580c' }}>{stats?.hotBuyers || requirements.filter(r => r.priority === 'hot').length}</div>
-          <div style={{ fontSize: 11, color: '#9a3412', marginTop: 4 }}>Immediate purchase timeline</div>
-        </div>
-        <div className="card" style={{ padding: 16, background: '#fefce8', border: '1px solid #fef08a', borderRadius: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#a16207', marginBottom: 4 }}>🔍 SOURCING ACTIVE</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#ca8a04' }}>{stats?.sourcingInProgress || requirements.filter(r => r.status === 'sourcing_in_progress').length}</div>
-          <div style={{ fontSize: 11, color: '#854d0e', marginTop: 4 }}>Lands currently being evaluated</div>
-        </div>
-        <div className="card" style={{ padding: 16, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#15803d', marginBottom: 4 }}>🤝 NEGOTIATIONS / VISITS</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#16a34a' }}>{stats?.activeNegotiations || requirements.filter(r => ['properties_shortlisted', 'site_visit_arranged', 'in_negotiation'].includes(r.status)).length}</div>
-          <div style={{ fontSize: 11, color: '#166534', marginTop: 4 }}>High probability deals</div>
-        </div>
-        <div className="card" style={{ padding: 16, background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 }}>💰 TOTAL BUDGET POOL</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#0284c7' }}>
-            {formatCurrency(stats?.totalBudgetPool || requirements.reduce((acc, r) => acc + (r.budgetMax || 0), 0))}
+        <div className="stat-card">
+          <div className="stat-info">
+            <div className="stat-label">Total Demands</div>
+            <div className="stat-value">{stats?.totalRequirements || requirements.length}</div>
+            <div className="stat-change" style={{ color: 'var(--text-muted)' }}>Recorded inquiries</div>
           </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Combined buyer investment pool</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-info">
+            <div className="stat-label">Hot Buyers</div>
+            <div className="stat-value" style={{ color: '#ea580c' }}>{stats?.hotBuyers || requirements.filter(r => r.priority === 'hot').length}</div>
+            <div className="stat-change" style={{ color: 'var(--text-muted)' }}>Immediate timeline</div>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-info">
+            <div className="stat-label">Sourcing Active</div>
+            <div className="stat-value" style={{ color: '#d97706' }}>{stats?.sourcingInProgress || requirements.filter(r => r.status === 'sourcing_in_progress').length}</div>
+            <div className="stat-change" style={{ color: 'var(--text-muted)' }}>Lands evaluated</div>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-info">
+            <div className="stat-label">Negotiations & Visits</div>
+            <div className="stat-value" style={{ color: '#16a34a' }}>{stats?.activeNegotiations || requirements.filter(r => ['properties_shortlisted', 'site_visit_arranged', 'in_negotiation'].includes(r.status)).length}</div>
+            <div className="stat-change" style={{ color: 'var(--text-muted)' }}>Active pipeline</div>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-info">
+            <div className="stat-label">Total Budget Pool</div>
+            <div className="stat-value" style={{ color: '#2563eb' }}>
+              {formatCurrency(stats?.totalBudgetPool || requirements.reduce((acc, r) => acc + (r.budgetMax || 0), 0))}
+            </div>
+            <div className="stat-change" style={{ color: 'var(--text-muted)' }}>Combined pool</div>
+          </div>
         </div>
       </div>
 

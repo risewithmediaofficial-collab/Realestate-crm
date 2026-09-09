@@ -497,15 +497,8 @@ export default function UsersPage() {
     <div>
       <div className="page-header">
         <div className="page-header-left">
-          <div className="breadcrumb">
-            <span>Settings & Access</span>
-            <span className="breadcrumb-sep">/</span>
-            <span className="breadcrumb-current">
-              {tab === 'roles' ? 'Role Permissions (RBAC)' : tab === 'hierarchy' ? 'Reporting Hierarchy' : 'User Accounts'}
-            </span>
-          </div>
-          <h1 className="page-title">Users & Access Control</h1>
-          <p className="page-subtitle">Manage organization accounts, role-based security, and reporting structure</p>
+          <h1 className="page-title">Team & Access Control</h1>
+          <p className="page-subtitle">{users.length} team members · Manage accounts, roles, and permissions</p>
         </div>
         <div className="page-actions">
           {tab === 'roles' ? (

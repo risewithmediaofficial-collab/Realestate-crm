@@ -621,15 +621,8 @@ export default function ActivitiesPage() {
     <div>
       <div className="page-header">
         <div className="page-header-left">
-          <div className="breadcrumb">
-            <span>Sales</span>
-            <span className="breadcrumb-sep">/</span>
-            <span className="breadcrumb-current">
-              {filter === 'call' ? 'Follow-up Calls' : filter === 'meeting' ? 'Meetings & Site Visits' : filter === 'overdue' ? 'Overdue Tasks' : 'All Tasks'}
-            </span>
-          </div>
-          <h1 className="page-title">Tasks & Sales Activities</h1>
-          <p className="page-subtitle">Track follow-ups, calls, appointments, and SLA task completion</p>
+          <h1 className="page-title">Follow-ups & Tasks</h1>
+          <p className="page-subtitle">{filtered.length} tasks · Track follow-ups, calls, and meetings</p>
         </div>
         <div className="page-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button
@@ -640,7 +633,7 @@ export default function ActivitiesPage() {
             }}
             title="Download full tasks and follow-up activities ledger"
           >
-            <Download size={14} /> Export Tasks CSV
+            <Download size={14} /> Export CSV
           </button>
           <button className="btn btn-primary btn-sm" onClick={() => { setEditingTask(null); setShowModal(true); }}>
             <Plus size={14} /> New Task

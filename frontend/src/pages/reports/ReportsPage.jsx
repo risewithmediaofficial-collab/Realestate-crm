@@ -350,19 +350,12 @@ export default function ReportsPage() {
       {/* Header */}
       <div className="page-header">
         <div className="page-header-left">
-          <div className="breadcrumb">
-            <span>Executive BI</span>
-            <span className="breadcrumb-sep">/</span>
-            <span className="breadcrumb-current">
-              {tab === 'finance' ? 'Finance & Milestone Collections' : tab === 'sales' ? 'Sales Realization' : tab === 'leads' ? 'Lead Attribution ROI' : tab === 'team' ? 'Team Performance' : 'Absorption Velocity'}
-            </span>
-          </div>
-          <h1 className="page-title">Executive Reports & BI Analytics</h1>
-          <p className="page-subtitle">Real-time revenue realization, milestone collections, channel attribution, and rep productivity matrix</p>
+          <h1 className="page-title">Reports & Analytics</h1>
+          <p className="page-subtitle">Track revenue realization, collections, team productivity, and lead attribution</p>
         </div>
         <div className="page-actions">
           <button className="btn btn-primary btn-sm" onClick={handleExportCSV} title="Export live dataset to CSV">
-            <Download size={14} /> Export Excel / CSV
+            <Download size={14} /> Export CSV
           </button>
         </div>
       </div>
@@ -370,11 +363,11 @@ export default function ReportsPage() {
       {/* Tabs */}
       <div className="tabs">
         {[
-          { id: 'finance', label: '💳 Finance & Milestone Collections' },
-          { id: 'sales', label: '📊 Sales & Revenue Realization' },
-          { id: 'leads', label: '🎯 Lead Sourcing & Funnel ROI' },
-          { id: 'team', label: '👥 Team Scorecard & Productivity' },
-          { id: 'inventory', label: '🏗️ Inventory Absorption Velocity' },
+          { id: 'finance', label: 'Finance & Collections' },
+          { id: 'sales', label: 'Sales & Revenue' },
+          { id: 'leads', label: 'Lead Funnel' },
+          { id: 'team', label: 'Team Scorecard' },
+          { id: 'inventory', label: 'Inventory Absorption' },
         ].map(t => (
           <div
             key={t.id}

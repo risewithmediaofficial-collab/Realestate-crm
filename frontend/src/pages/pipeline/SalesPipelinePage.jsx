@@ -111,13 +111,8 @@ export default function SalesPipelinePage() {
       {/* Header */}
       <div className="page-header">
         <div className="page-header-left">
-          <div className="breadcrumb">
-            <span>Sales</span>
-            <span className="breadcrumb-sep">/</span>
-            <span className="breadcrumb-current">Deal Pipeline</span>
-          </div>
-          <h1 className="page-title">Sales Pipeline & Opportunity Stages</h1>
-          <p className="page-subtitle">Drag and drop deal cards to instantly advance pipeline stages with weighted forecasting</p>
+          <h1 className="page-title">Sales Pipeline</h1>
+          <p className="page-subtitle">{filtered.length} active opportunities · Total pipeline: {formatCurrency(totalPipelineValue)}</p>
         </div>
         <div className="page-actions" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <button
@@ -128,12 +123,8 @@ export default function SalesPipelinePage() {
             }}
             title="Download full sales pipeline register"
           >
-            <Download size={14} /> Export Pipeline CSV
+            <Download size={14} /> Export CSV
           </button>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Pipeline Value</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--primary)' }}>{formatCurrency(totalPipelineValue)}</div>
-          </div>
         </div>
       </div>
 
