@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
-import { X, UserPlus, Phone, Mail, MapPin, DollarSign, Building, FileText } from 'lucide-react';
+import { X, UserPlus, Phone, Mail, MapPin, DollarSign, Building, FileText, AlertCircle } from 'lucide-react';
 import api from '../../services/api';
-import { LEAD_SOURCES } from '../../utils/constants';
+import { LEAD_SOURCES, LEAD_STAGES } from '../../utils/constants';
+import { useAuth } from '../../context/AuthContext';
 import CustomSelect from '../ui/CustomSelect';
 
-export default function CreateLeadModal({ onClose, onCreated }) {
+export default function CreateLeadModal({ onClose, onCreated, initialData }) {
+  const { user } = useAuth();
+
   // Prevent background scrolling while modal is open
   useEffect(() => {
     document.body.classList.add('no-scroll');
@@ -44,22 +47,23 @@ export default function CreateLeadModal({ onClose, onCreated }) {
   }, []);
 
   const [form, setForm] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    source: 'website',
-    city: '',
-    interestedProject: '',
-    interestedUnitType: '3BHK',
+    name: initialData?.name || '',
+    phone: initialData?.phone || '',
+    email: initialData?.email || '',
+    source: initialData?.source || 'website',
+    city: initialData?.city || '',
+    interestedProject: initialData?.interestedProject?._id || initialData?.interestedProject || '',
+    interestedUnitType: initialData?.interestedUnitType || '3BHK',
     customUnitType: '',
-    budgetMin: '',
-    budgetMax: '',
-    notes: '',
-    leadType: 'warm',
-    assignedTo: '',
+    budgetMin: initialData?.budget?.min ? String(initialData.budget.min) : '',
+    budgetMax: initialData?.budget?.max ? String(initialData.budget.max) : '',
+    notes: initialData?.notes || '',
+    leadType: initialData?.leadType || 'warm',
+    stage: initialData?.stage || 'new',
+    assignedTo: initialData?.assignedTo?._id || initialData?.assignedTo || '',
 
     // Direct Site Visit Scheduling
-    scheduleSiteVisit: false,
+    scheduleSiteVisit: Boolean(initialData?.stage === 'site_visit_scheduled'),
     visitDate: '',
     visitTime: '11:00 AM',
     visitProject: '',
@@ -93,24 +97,30 @@ export default function CreateLeadModal({ onClose, onCreated }) {
     setError('');
 
     const unitTypeToSave = form.interestedUnitType === 'custom' ? (form.customUnitType.trim() || 'Custom Unit') : form.interestedUnitType;
-
     const isVisitScheduled = form.scheduleSiteVisit && Boolean(form.visitDate);
+
+    const cleanMin = form.budgetMin ? Number(String(form.budgetMin).replace(/[^0-9.]/g, '')) : 0;
+    const cleanMax = form.budgetMax ? Number(String(form.budgetMax).replace(/[^0-9.]/g, '')) : 0;
 
     const payload = {
       name: form.name.trim(),
       phone: form.phone.trim(),
-      email: form.email.trim(),
       source: form.source,
       city: form.city.trim(),
       interestedUnitType: unitTypeToSave,
       leadType: form.leadType,
+      stage: isVisitScheduled ? 'site_visit_scheduled' : (form.stage || 'new'),
       budget: {
-        min: form.budgetMin ? Number(form.budgetMin) : 0,
-        max: form.budgetMax ? Number(form.budgetMax) : 0
+        min: isNaN(cleanMin) ? 0 : cleanMin,
+        max: isNaN(cleanMax) ? 0 : cleanMax
       },
-      stage: 'new', // Always save newly created leads in 'new' stage
-      notes: form.notes.trim()
+      notes: form.notes.trim(),
+      organization: user?.organization || 'MRP REAL ESTATE'
     };
+
+    if (form.email && form.email.trim()) {
+      payload.email = form.email.trim();
+    }
     if (form.interestedProject) payload.interestedProject = form.interestedProject;
     if (form.assignedTo) payload.assignedTo = form.assignedTo;
 
@@ -118,7 +128,7 @@ export default function CreateLeadModal({ onClose, onCreated }) {
       const { data } = await api.post('/leads', payload);
       const createdLead = data.data;
 
-      // Automatically create the linked Site Visit in backend
+      // Automatically create the linked Site Visit in backend if scheduled
       if (isVisitScheduled && createdLead?._id) {
         try {
           const targetProj = form.visitProject || form.interestedProject || (projects[0]?._id);
@@ -142,20 +152,8 @@ export default function CreateLeadModal({ onClose, onCreated }) {
       onClose();
     } catch (err) {
       console.error('Failed to create lead via API:', err);
-      // Fallback for offline or local preview
-      const selectedProj = projects.find(p => p._id === form.interestedProject);
-      const selectedUser = users.find(u => u._id === form.assignedTo);
-      const fallbackLead = {
-        _id: Date.now().toString(),
-        ...payload,
-        leadScore: form.leadType === 'hot' ? 85 : form.leadType === 'warm' ? 60 : 30,
-        interestedProject: selectedProj ? { _id: selectedProj._id, name: selectedProj.name } : null,
-        assignedTo: selectedUser ? { _id: selectedUser._id, name: selectedUser.name } : null,
-        createdAt: new Date(),
-        activities: form.notes ? [{ type: 'note', title: 'Initial Inquiry Note', description: form.notes, performedAt: new Date() }] : []
-      };
-      if (onCreated) onCreated(fallbackLead);
-      onClose();
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to save lead to server. Please verify the details and try again.';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -313,45 +311,64 @@ export default function CreateLeadModal({ onClose, onCreated }) {
             )}
 
             {/* Unit & Intent */}
-            <div className="form-row" style={{ marginBottom: 14 }}>
-              <div>
-                <CustomSelect
-                  label="Configuration / Unit Type"
-                  value={form.interestedUnitType}
-                  onChange={val => setForm(p => ({ ...p, interestedUnitType: val }))}
-                  options={[
-                    { value: '1BHK', label: '1 BHK Apartment', icon: '🏠' },
-                    { value: '2BHK', label: '2 BHK Apartment', icon: '🏡' },
-                    { value: '3BHK', label: '3 BHK Apartment', icon: '🏢' },
-                    { value: '4BHK', label: '4 BHK Luxury', icon: '🏰' },
-                    { value: 'Villa / Row House', label: 'Villa / Row House', icon: '🏘️' },
-                    { value: 'Plotted Layout', label: 'Plotted Layout (30x40 / 40x60)', icon: '📐' },
-                    { value: 'Managed Farmlands', label: 'Managed Farmlands (Acres)', icon: '🌳' },
-                    { value: 'Agricultural Acreage', label: 'Agricultural Land', icon: '🌾' },
-                    { value: 'Commercial Office / Retail', label: 'Commercial / Retail', icon: '🏬' },
-                    { value: 'custom', label: '✏️ Enter Custom Category...', icon: '✏️' }
-                  ]}
+            <div style={{ marginBottom: 14 }}>
+              <CustomSelect
+                label="Configuration / Unit Type"
+                value={form.interestedUnitType}
+                onChange={val => setForm(p => ({ ...p, interestedUnitType: val }))}
+                options={[
+                  { value: '1BHK', label: '1 BHK Apartment', icon: '🏠' },
+                  { value: '2BHK', label: '2 BHK Apartment', icon: '🏡' },
+                  { value: '3BHK', label: '3 BHK Apartment', icon: '🏢' },
+                  { value: '4BHK', label: '4 BHK Luxury', icon: '🏰' },
+                  { value: 'Villa / Row House', label: 'Villa / Row House', icon: '🏘️' },
+                  { value: 'Plotted Layout', label: 'Plotted Layout (30x40 / 40x60)', icon: '📐' },
+                  { value: 'Managed Farmlands', label: 'Managed Farmlands (Acres)', icon: '🌳' },
+                  { value: 'Agricultural Acreage', label: 'Agricultural Land', icon: '🌾' },
+                  { value: 'Commercial Office / Retail', label: 'Commercial / Retail', icon: '🏬' },
+                  { value: 'custom', label: '✏️ Enter Custom Category...', icon: '✏️' }
+                ]}
+              />
+              {form.interestedUnitType === 'custom' && (
+                <input
+                  className="form-input"
+                  style={{ marginTop: 8 }}
+                  value={form.customUnitType}
+                  onChange={e => setForm(p => ({ ...p, customUnitType: e.target.value }))}
+                  placeholder="Type custom configuration (e.g. 5 Acre Coffee Estate, Duplex Villa)"
+                  title="Manual custom category entry"
                 />
-                {form.interestedUnitType === 'custom' && (
-                  <input
-                    className="form-input"
-                    style={{ marginTop: 8 }}
-                    value={form.customUnitType}
-                    onChange={e => setForm(p => ({ ...p, customUnitType: e.target.value }))}
-                    placeholder="Type custom configuration (e.g. 5 Acre Coffee Estate, Duplex Villa)"
-                    title="Manual custom category entry"
-                  />
-                )}
-              </div>
+              )}
+            </div>
+
+            {/* Stage & Temperature */}
+            <div className="form-row" style={{ marginBottom: 14 }}>
+              <CustomSelect
+                label="Pipeline Stage"
+                value={form.stage}
+                onChange={val => setForm(p => ({ ...p, stage: val }))}
+                options={[
+                  { value: 'new', label: 'New / Fresh Inbound', icon: '⚡' },
+                  { value: 'contacted', label: 'Contacted', icon: '📞' },
+                  { value: 'connected', label: 'Connected', icon: '💬' },
+                  { value: 'qualified', label: 'Qualified', icon: '🎯' },
+                  { value: 'site_visit_scheduled', label: 'Site Visit Scheduled', icon: '📅' },
+                  { value: 'site_visit_done', label: 'Site Visit Done', icon: '🏠' },
+                  { value: 'negotiation', label: 'Negotiation', icon: '🤝' },
+                  { value: 'booking_in_progress', label: 'Booking in Progress', icon: '📝' },
+                  { value: 'booked', label: 'Booked / Closed', icon: '✅' },
+                  { value: 'follow_up', label: 'Follow Up', icon: '⏰' }
+                ]}
+              />
 
               <CustomSelect
                 label="Buyer Temperature"
                 value={form.leadType}
                 onChange={val => setForm(p => ({ ...p, leadType: val }))}
                 options={[
-                  { value: 'hot', label: 'Hot (Immediate Buyer — Ready to Book)', icon: '🔥', badge: 'HOT', badgeClass: 'badge-danger' },
-                  { value: 'warm', label: 'Warm (1-3 Months Timeline)', icon: '⚡', badge: 'WARM', badgeClass: 'badge-warning' },
-                  { value: 'cold', label: 'Cold (Exploring Pipeline)', icon: '❄️', badge: 'COLD', badgeClass: 'badge-gray' }
+                  { value: 'hot', label: 'Hot (Immediate Buyer)', icon: '🔥', badge: 'HOT', badgeClass: 'badge-danger' },
+                  { value: 'warm', label: 'Warm (1-3 Months)', icon: '⚡', badge: 'WARM', badgeClass: 'badge-warning' },
+                  { value: 'cold', label: 'Cold (Exploring)', icon: '❄️', badge: 'COLD', badgeClass: 'badge-gray' }
                 ]}
               />
             </div>
@@ -398,26 +415,6 @@ export default function CreateLeadModal({ onClose, onCreated }) {
                 onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
                 placeholder="Specific requirements (e.g. East facing, corner plot, immediate registration, loan approved)..."
                 title="Buyer notes and specific instructions"
-              />
-            </div>
-
-            {/* Assign Executive / Telecaller */}
-            <div className="form-group" style={{ marginBottom: 16 }}>
-              <CustomSelect
-                label="Assign Executive / Telecaller"
-                value={form.assignedTo}
-                onChange={val => setForm(p => ({ ...p, assignedTo: val }))}
-                options={[
-                  { value: '', label: '-- Auto-Assign / None --', icon: '⚡' },
-                  ...users
-                    .filter(u => u.isActive !== false)
-                    .map(u => ({
-                      value: u._id,
-                      label: u.name || u.email || 'Staff Member',
-                      subtext: `${u.role ? u.role.replace(/_/g, ' ') : 'User'}${u.phone ? ' · ' + u.phone : ''}`,
-                      avatar: u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || 'User')}&background=4f46e5&color=fff&size=64`
-                    }))
-                ]}
               />
             </div>
 

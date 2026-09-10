@@ -6,13 +6,26 @@ const UIContext = createContext(null);
 
 export const UIProvider = ({ children }) => {
   const [isCreateLeadOpen, setIsCreateLeadOpen] = useState(false);
+  const [createLeadInitialData, setCreateLeadInitialData] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [notification, setNotification] = useState(null);
   const [activeCall, setActiveCall] = useState(null);
   const [simulatedRole, setSimulatedRole] = useState(null);
 
-  const openCreateLead = () => setIsCreateLeadOpen(true);
-  const closeCreateLead = () => setIsCreateLeadOpen(false);
+  const openCreateLead = (initialDataOrStage) => {
+    if (typeof initialDataOrStage === 'string') {
+      setCreateLeadInitialData({ stage: initialDataOrStage });
+    } else if (initialDataOrStage && typeof initialDataOrStage === 'object') {
+      setCreateLeadInitialData(initialDataOrStage);
+    } else {
+      setCreateLeadInitialData(null);
+    }
+    setIsCreateLeadOpen(true);
+  };
+  const closeCreateLead = () => {
+    setIsCreateLeadOpen(false);
+    setCreateLeadInitialData(null);
+  };
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(p => !p);
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
@@ -46,6 +59,7 @@ export const UIProvider = ({ children }) => {
       {children}
       {isCreateLeadOpen && (
         <CreateLeadModal
+          initialData={createLeadInitialData}
           onClose={closeCreateLead}
           onCreated={handleLeadCreated}
         />

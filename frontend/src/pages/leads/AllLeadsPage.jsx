@@ -157,12 +157,13 @@ const KanbanView = ({
 
   const handleDrop = (e, stage) => {
     e.preventDefault();
+    e.stopPropagation();
     const leadId = e.dataTransfer.getData('text/plain') || draggedId;
+    setDraggedId(null);
+    setDragOverStage(null);
     if (leadId && onStageChange) {
       onStageChange(leadId, stage);
     }
-    setDraggedId(null);
-    setDragOverStage(null);
   };
 
   return (
@@ -180,6 +181,7 @@ const KanbanView = ({
               onDragOver={(e) => handleDragOver(e, col.stage)}
               onDragEnter={(e) => handleDragOver(e, col.stage)}
               onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, col.stage)}
             >
             <div className="kanban-col-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div className="kanban-col-title">
@@ -221,7 +223,11 @@ const KanbanView = ({
               </div>
             </div>
 
-            <div className="kanban-col-body">
+            <div
+              className="kanban-col-body"
+              onDragOver={(e) => handleDragOver(e, col.stage)}
+              onDrop={(e) => handleDrop(e, col.stage)}
+            >
               {col.leads.length === 0 ? (
                 <div style={{
                   textAlign: 'center',
@@ -1343,14 +1349,25 @@ export default function AllLeadsPage() {
       }));
     }
 
+    let syncSuccess = false;
     try {
       await api.put(`/leads/${leadId}/stage`, { stage: newStage });
+      syncSuccess = true;
     } catch {
       try {
         await api.put(`/leads/${leadId}`, { stage: newStage });
+        syncSuccess = true;
       } catch (err) {
         console.error('Failed to sync stage to backend:', err);
       }
+    }
+
+    if (!syncSuccess) {
+      // Revert stage change in UI if backend rejected the update
+      setLeads(prev => prev.map(l => l._id === leadId ? lead : l));
+      if (selectedLead?._id === leadId) setSelectedLead(lead);
+      showNotification(`Failed to move lead to ${newStageLabel}. Server sync failed.`, 'error');
+      return;
     }
 
     if (newStage === 'site_visit_scheduled') {

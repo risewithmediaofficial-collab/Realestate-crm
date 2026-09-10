@@ -2,6 +2,24 @@ const mongoose = require('mongoose');
 const Lead = require('../models/Lead.model');
 const User = require('../models/User.model');
 
+// Helper to safely escape special characters in regex patterns
+const escapeRegex = (str) => {
+  return String(str || '').trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
+// Helper to build case-insensitive multi-tenant organization filter
+const getOrgQuery = (user, queryOrg) => {
+  if (user?.role === 'super_admin') {
+    if (queryOrg) {
+      return new RegExp(`^${escapeRegex(queryOrg)}$`, 'i');
+    }
+    return null;
+  }
+  const userOrg = user?.organization;
+  if (!userOrg) return '__UNAUTHORIZED__';
+  return new RegExp(`^${escapeRegex(userOrg)}$`, 'i');
+};
+
 // GET /api/leads
 const getLeads = async (req, res, next) => {
   try {
@@ -11,16 +29,12 @@ const getLeads = async (req, res, next) => {
     } = req.query;
 
     const query = {};
-    const isSuperAdmin = req.user?.role === 'super_admin';
-    const userOrg = req.user?.organization;
-
-    if (isSuperAdmin) {
-      if (req.query.organization) query.organization = req.query.organization;
-    } else {
-      if (!userOrg) {
-        return res.json({ success: true, data: [], total: 0, page: Number(page), pages: 0 });
-      }
-      query.organization = userOrg;
+    const orgFilter = getOrgQuery(req.user, req.query.organization);
+    if (orgFilter === '__UNAUTHORIZED__') {
+      return res.json({ success: true, data: [], total: 0, page: Number(page), pages: 0 });
+    }
+    if (orgFilter) {
+      query.organization = orgFilter;
     }
 
     if (stage) query.stage = stage;
@@ -29,11 +43,12 @@ const getLeads = async (req, res, next) => {
     if (project) query.interestedProject = project;
     if (leadType) query.leadType = leadType;
     if (campaign) query.campaign = campaign;
-    if (search) {
+    if (search && search.trim()) {
+      const safeSearch = escapeRegex(search);
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
+        { name: { $regex: safeSearch, $options: 'i' } },
+        { phone: { $regex: safeSearch, $options: 'i' } },
+        { email: { $regex: safeSearch, $options: 'i' } },
       ];
     }
 
@@ -58,10 +73,10 @@ const getLeads = async (req, res, next) => {
 // GET /api/leads/:id
 const getLead = async (req, res, next) => {
   try {
-    const isSuperAdmin = req.user?.role === 'super_admin';
     const query = { _id: req.params.id };
-    if (!isSuperAdmin) {
-      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    const orgFilter = getOrgQuery(req.user, req.query.organization);
+    if (orgFilter) {
+      query.organization = orgFilter;
     }
 
     const lead = await Lead.findOne(query)
@@ -78,14 +93,56 @@ const getLead = async (req, res, next) => {
 const createLead = async (req, res, next) => {
   try {
     const leadData = { ...req.body };
-    const isSuperAdmin = req.user?.role === 'super_admin';
     const userOrg = req.user?.organization;
 
-    if (!isSuperAdmin || !leadData.organization) {
-      leadData.organization = userOrg;
+    if (!leadData.organization || req.user?.role !== 'super_admin') {
+      leadData.organization = userOrg || leadData.organization || 'MRP REAL ESTATE';
     }
-    if (!leadData.organization) {
-      return res.status(400).json({ success: false, message: 'User organization is required to create a lead' });
+    leadData.organization = String(leadData.organization).trim();
+
+    if (!leadData.name || !String(leadData.name).trim()) {
+      return res.status(400).json({ success: false, message: 'Lead name is required' });
+    }
+    if (!leadData.phone || !String(leadData.phone).trim()) {
+      return res.status(400).json({ success: false, message: 'Lead phone number is required' });
+    }
+
+    leadData.name = String(leadData.name).trim();
+    leadData.phone = String(leadData.phone).trim();
+
+    // Sanitize email: omit if empty string so it doesn't trigger unique index conflicts
+    if (typeof leadData.email === 'string') {
+      leadData.email = leadData.email.trim();
+      if (!leadData.email) {
+        delete leadData.email;
+      }
+    } else {
+      delete leadData.email;
+    }
+
+    if (leadData.city && typeof leadData.city === 'string') {
+      leadData.city = leadData.city.trim();
+      if (!leadData.city) delete leadData.city;
+    }
+
+    // Sanitize numeric budget values to prevent Cast to Number NaN errors
+    if (leadData.budget) {
+      const minVal = Number(String(leadData.budget.min || 0).replace(/[^0-9.]/g, ''));
+      const maxVal = Number(String(leadData.budget.max || 0).replace(/[^0-9.]/g, ''));
+      leadData.budget = {
+        min: isNaN(minVal) ? 0 : minVal,
+        max: isNaN(maxVal) ? 0 : maxVal,
+      };
+    }
+
+    // Validate stage against allowed enum
+    const ALLOWED_STAGES = [
+      'new', 'contacted', 'connected', 'qualified', 'site_visit_scheduled',
+      'site_visit_done', 'negotiation', 'booking_in_progress', 'booked',
+      'not_connected', 'follow_up', 'nurturing', 'not_interested', 'lost', 'duplicate'
+    ];
+    if (!leadData.stage || !ALLOWED_STAGES.includes(leadData.stage)) {
+      leadData.stage = 'new';
     }
 
     if (!leadData.createdBy && req.user?._id && mongoose.Types.ObjectId.isValid(req.user._id)) {
@@ -108,14 +165,33 @@ const createLead = async (req, res, next) => {
       delete leadData.channelPartner;
     }
 
-    // Duplicate check by phone within same organization
+    // Persist notes directly & create initial activity note
+    if (leadData.notes && typeof leadData.notes === 'string') {
+      leadData.notes = leadData.notes.trim();
+      if (leadData.notes) {
+        leadData.followUpNotes = leadData.notes;
+        leadData.activities = [{
+          type: 'note',
+          title: 'Initial Inquiry Note',
+          description: leadData.notes,
+          performedBy: req.user?._id && mongoose.Types.ObjectId.isValid(req.user._id) ? req.user._id : undefined,
+          performedAt: new Date()
+        }];
+      }
+    }
+
+    // Duplicate check by phone within same organization (case-insensitive)
     if (leadData.phone) {
-      const existingLead = await Lead.findOne({ phone: leadData.phone, organization: leadData.organization });
+      const existingLead = await Lead.findOne({
+        phone: leadData.phone,
+        organization: new RegExp(`^${escapeRegex(leadData.organization)}$`, 'i')
+      });
       if (existingLead) {
         leadData.isDuplicate = true;
         leadData.duplicateOf = existingLead._id;
       }
     }
+
     const lead = await Lead.create({ ...leadData, slaStartedAt: new Date() });
     const populatedLead = await lead.populate([
       { path: 'assignedTo', select: 'name email avatar' },
@@ -128,10 +204,10 @@ const createLead = async (req, res, next) => {
 // PUT /api/leads/:id
 const updateLead = async (req, res, next) => {
   try {
-    const isSuperAdmin = req.user?.role === 'super_admin';
     const query = { _id: req.params.id };
-    if (!isSuperAdmin) {
-      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    const orgFilter = getOrgQuery(req.user);
+    if (orgFilter) {
+      query.organization = orgFilter;
     }
 
     const updateData = { ...req.body };
@@ -158,6 +234,12 @@ const updateLead = async (req, res, next) => {
       updateData.assignedAt = new Date();
     }
 
+    // If notes updated, sync to followUpNotes
+    if (updateData.notes && typeof updateData.notes === 'string') {
+      updateData.notes = updateData.notes.trim();
+      updateData.followUpNotes = updateData.notes;
+    }
+
     const lead = await Lead.findOneAndUpdate(query, updateData, { new: true, runValidators: true })
       .populate('assignedTo', 'name email phone role avatar')
       .populate('interestedProject', 'name city code');
@@ -169,10 +251,10 @@ const updateLead = async (req, res, next) => {
 // DELETE /api/leads/:id
 const deleteLead = async (req, res, next) => {
   try {
-    const isSuperAdmin = req.user?.role === 'super_admin';
     const query = { _id: req.params.id };
-    if (!isSuperAdmin) {
-      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    const orgFilter = getOrgQuery(req.user);
+    if (orgFilter) {
+      query.organization = orgFilter;
     }
 
     const lead = await Lead.findOneAndDelete(query);
@@ -184,10 +266,10 @@ const deleteLead = async (req, res, next) => {
 // POST /api/leads/:id/activity
 const addActivity = async (req, res, next) => {
   try {
-    const isSuperAdmin = req.user?.role === 'super_admin';
     const query = { _id: req.params.id };
-    if (!isSuperAdmin) {
-      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    const orgFilter = getOrgQuery(req.user);
+    if (orgFilter) {
+      query.organization = orgFilter;
     }
 
     const lead = await Lead.findOne(query);
@@ -208,10 +290,10 @@ const addActivity = async (req, res, next) => {
 // PUT /api/leads/:id/assign
 const assignLead = async (req, res, next) => {
   try {
-    const isSuperAdmin = req.user?.role === 'super_admin';
     const query = { _id: req.params.id };
-    if (!isSuperAdmin) {
-      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    const orgFilter = getOrgQuery(req.user);
+    if (orgFilter) {
+      query.organization = orgFilter;
     }
 
     const { assignedTo } = req.body;
@@ -228,10 +310,10 @@ const assignLead = async (req, res, next) => {
 // PUT /api/leads/:id/stage
 const updateStage = async (req, res, next) => {
   try {
-    const isSuperAdmin = req.user?.role === 'super_admin';
     const query = { _id: req.params.id };
-    if (!isSuperAdmin) {
-      query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    const orgFilter = getOrgQuery(req.user);
+    if (orgFilter) {
+      query.organization = orgFilter;
     }
 
     const { stage } = req.body;
@@ -239,10 +321,11 @@ const updateStage = async (req, res, next) => {
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
     const prevStage = lead.stage;
     lead.stage = stage;
+    const performerId = req.user?._id && mongoose.Types.ObjectId.isValid(req.user._id) ? req.user._id : undefined;
     lead.activities.push({
       type: 'stage_change',
       title: `Stage changed from ${prevStage} to ${stage}`,
-      performedBy: req.user._id,
+      performedBy: performerId,
     });
     await lead.save();
     res.json({ success: true, data: lead });
@@ -252,11 +335,8 @@ const updateStage = async (req, res, next) => {
 // GET /api/leads/stats
 const getLeadStats = async (req, res, next) => {
   try {
-    const isSuperAdmin = req.user?.role === 'super_admin';
-    const userOrg = req.user?.organization;
-    const match = isSuperAdmin
-      ? (req.query.organization ? { organization: req.query.organization } : {})
-      : { organization: userOrg || '__NO_ORG__' };
+    const orgFilter = getOrgQuery(req.user, req.query.organization);
+    const match = orgFilter && orgFilter !== '__UNAUTHORIZED__' ? { organization: orgFilter } : {};
 
     const stageStats = await Lead.aggregate([
       ...(Object.keys(match).length ? [{ $match: match }] : []),
@@ -281,12 +361,10 @@ const getLeadStats = async (req, res, next) => {
 // DELETE /api/leads/delete-all
 const deleteAllLeads = async (req, res, next) => {
   try {
-    const isSuperAdmin = req.user?.role === 'super_admin';
     const query = {};
-    if (!isSuperAdmin) {
-      query.organization = req.user?.organization || '__UNAUTHORIZED__';
-    } else if (req.query.organization) {
-      query.organization = req.query.organization;
+    const orgFilter = getOrgQuery(req.user, req.query.organization);
+    if (orgFilter && orgFilter !== '__UNAUTHORIZED__') {
+      query.organization = orgFilter;
     }
     await Lead.deleteMany(query);
     res.json({ success: true, message: 'Leads deleted successfully' });
@@ -300,9 +378,9 @@ const addCallLog = async (req, res, next) => {
     const { note, outcome, nextFollowUp, nextFollowUpTime, duration, callDate } = req.body;
     if (!note || !note.trim()) return res.status(400).json({ success: false, message: 'Note is required' });
 
-    const isSuperAdmin = req.user?.role === 'super_admin';
     const query = { _id: req.params.id };
-    if (!isSuperAdmin) query.organization = req.user?.organization || '__UNAUTHORIZED__';
+    const orgFilter = getOrgQuery(req.user);
+    if (orgFilter) query.organization = orgFilter;
 
     const lead = await Lead.findOne(query);
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
@@ -314,7 +392,7 @@ const addCallLog = async (req, res, next) => {
       duration: duration ? Number(duration) : undefined,
       nextFollowUp: nextFollowUp ? new Date(nextFollowUp) : undefined,
       nextFollowUpTime: nextFollowUpTime || undefined,
-      addedBy: req.user?._id,
+      addedBy: req.user?._id && mongoose.Types.ObjectId.isValid(req.user._id) ? req.user._id : undefined,
       notified: false,
     };
 
@@ -339,11 +417,8 @@ const addCallLog = async (req, res, next) => {
 // GET /api/leads/follow-ups/today  — leads due for follow-up today (for bell notification)
 const getFollowUpsToday = async (req, res, next) => {
   try {
-    const isSuperAdmin = req.user?.role === 'super_admin';
-    const userOrg = req.user?.organization;
-    const orgQuery = isSuperAdmin
-      ? (req.query.organization ? { organization: req.query.organization } : {})
-      : { organization: userOrg || '__NO_ORG__' };
+    const orgFilter = getOrgQuery(req.user, req.query.organization);
+    const orgQuery = orgFilter && orgFilter !== '__UNAUTHORIZED__' ? { organization: orgFilter } : {};
 
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);

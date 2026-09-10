@@ -39,6 +39,7 @@ const leadSchema = new mongoose.Schema({
   alternatePhone: { type: String },
   city: { type: String },
   locality: { type: String },
+  notes: { type: String, trim: true },
   budget: {
     min: { type: Number },
     max: { type: Number },
