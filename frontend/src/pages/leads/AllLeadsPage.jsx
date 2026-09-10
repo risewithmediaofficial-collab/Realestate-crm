@@ -1394,7 +1394,22 @@ export default function AllLeadsPage() {
         if (search && !l.name?.toLowerCase().includes(search.toLowerCase()) && !l.phone?.includes(search) && !l.email?.toLowerCase().includes(search.toLowerCase())) return false;
         if (stageFilter && l.stage !== stageFilter) return false;
         if (typeFilter && l.leadType !== typeFilter) return false;
-        if (sourceFilter && l.source !== sourceFilter) return false;
+        if (sourceFilter) {
+          if (sourceFilter === 'facebook') {
+            const isFb = l.source === 'facebook' ||
+              (l.source === 'meta_ads' && (!l.sourceMetadata?.platform || l.sourceMetadata?.platform?.toLowerCase().includes('facebook') || l.sourceMetadata?.platform?.toLowerCase().includes('meta')));
+            if (!isFb) return false;
+          } else if (sourceFilter === 'instagram') {
+            const isInsta = l.source === 'instagram' ||
+              (l.source === 'meta_ads' && l.sourceMetadata?.platform?.toLowerCase().includes('instagram'));
+            if (!isInsta) return false;
+          } else if (sourceFilter === 'meta_ads') {
+            const isMeta = ['meta_ads', 'facebook', 'instagram'].includes(l.source);
+            if (!isMeta) return false;
+          } else if (l.source !== sourceFilter) {
+            return false;
+          }
+        }
         if (projectFilter && (l.interestedProject?._id !== projectFilter && l.interestedProject !== projectFilter)) return false;
         if (locationFilter) {
           const term = locationFilter.toLowerCase();

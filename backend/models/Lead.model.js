@@ -48,8 +48,8 @@ const leadSchema = new mongoose.Schema({
   // Source & Campaign
   source: {
     type: String,
-    enum: ['meta_ads', 'google_ads', 'property_portal', 'portal', 'website', 'walk_in', 'channel_partner',
-      'phone_call', 'referral', 'whatsapp', 'organic', 'email_campaign', 'other'],
+    enum: ['meta_ads', 'facebook', 'instagram', 'google_ads', 'property_portal', 'portal', 'website', 'walk_in', 'channel_partner',
+      'phone_call', 'referral', 'whatsapp', 'manual', 'organic', 'email_campaign', 'other'],
     default: 'other',
   },
   campaign: { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign' },

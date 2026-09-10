@@ -38,7 +38,28 @@ const getLeads = async (req, res, next) => {
     }
 
     if (stage) query.stage = stage;
-    if (source) query.source = source;
+    if (source) {
+      if (source === 'facebook') {
+        query.$or = [
+          { source: 'facebook' },
+          { source: 'meta_ads', 'sourceMetadata.platform': { $regex: 'facebook|meta', $options: 'i' } },
+          { source: 'meta_ads', 'sourceMetadata.platform': { $exists: false } }
+        ];
+      } else if (source === 'instagram') {
+        query.$or = [
+          { source: 'instagram' },
+          { source: 'meta_ads', 'sourceMetadata.platform': { $regex: 'instagram', $options: 'i' } }
+        ];
+      } else if (source === 'meta_ads') {
+        query.$or = [
+          { source: 'meta_ads' },
+          { source: 'facebook' },
+          { source: 'instagram' }
+        ];
+      } else {
+        query.source = source;
+      }
+    }
     if (assignedTo) query.assignedTo = assignedTo;
     if (project) query.interestedProject = project;
     if (leadType) query.leadType = leadType;
@@ -143,6 +164,16 @@ const createLead = async (req, res, next) => {
     ];
     if (!leadData.stage || !ALLOWED_STAGES.includes(leadData.stage)) {
       leadData.stage = 'new';
+    }
+
+    // Validate source against allowed enum, fallback to 'other'
+    const ALLOWED_SOURCES = [
+      'meta_ads', 'facebook', 'instagram', 'google_ads', 'property_portal', 'portal',
+      'website', 'walk_in', 'channel_partner', 'phone_call', 'referral',
+      'whatsapp', 'manual', 'organic', 'email_campaign', 'other'
+    ];
+    if (leadData.source && !ALLOWED_SOURCES.includes(leadData.source)) {
+      leadData.source = 'other';
     }
 
     if (!leadData.createdBy && req.user?._id && mongoose.Types.ObjectId.isValid(req.user._id)) {
