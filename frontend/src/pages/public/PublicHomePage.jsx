@@ -425,7 +425,7 @@ export default function PublicHomePage() {
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         <Link to={`/project/${proj._id}`} className="pub-card-btn-view">
                           <Eye size={13} /> View Units
                         </Link>
@@ -531,16 +531,7 @@ export default function PublicHomePage() {
             </p>
           </div>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1.2fr 1fr',
-            gap: 40,
-            background: '#ffffff',
-            border: '1.5px solid #e2ece0',
-            borderRadius: 20,
-            padding: 32,
-            boxShadow: '0 8px 24px rgba(69, 133, 34, 0.05)'
-          }}>
+          <div className="pub-emi-container">
             {/* Sliders */}
             <div>
               <div style={{ marginBottom: 20 }}>
@@ -579,7 +570,7 @@ export default function PublicHomePage() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="pub-emi-subgrid">
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontWeight: 700, fontSize: 13 }}>
                     <span>Tenure:</span>
@@ -731,12 +722,7 @@ export default function PublicHomePage() {
 
       {/* ── VIP BROCHURE DOWNLOAD FORM SECTION ── */}
       <section className="pub-section">
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1.2fr 1fr',
-          gap: 48,
-          alignItems: 'center'
-        }}>
+        <div className="pub-brochure-grid">
           <div>
             <div className="pub-section-tag">
               <ShieldCheck size={13} /> Official Document Access
@@ -748,7 +734,7 @@ export default function PublicHomePage() {
               Get the complete master plan layout, unit dimensions, payment milestones, and legal approvals directly delivered to your phone or inbox.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+            <div className="pub-brochure-features">
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: '#edf7e8', color: '#458522', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <CheckCircle2 size={18} />
@@ -772,14 +758,7 @@ export default function PublicHomePage() {
           </div>
 
           {/* Quick VIP Lead Capture Card */}
-          <div style={{
-            background: 'linear-gradient(135deg, #172a11 0%, #25441b 100%)',
-            border: '1px solid #366d1a',
-            color: '#ffffff',
-            borderRadius: 20,
-            padding: '36px 30px',
-            boxShadow: '0 20px 45px rgba(23, 42, 17, 0.25)'
-          }}>
+          <div className="pub-brochure-card">
             <div style={{ fontSize: 12, color: '#86efac', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               VIP Brochure &amp; Price List
             </div>
@@ -905,16 +884,6 @@ export default function PublicHomePage() {
         >
           <Car size={16} color="#86efac" /> Free Cab Visit
         </button>
-
-        <a
-          href="https://wa.me/919876543210?text=Hi%20MRP%20Real%20Estate,%20I%20am%20interested%20in%20exploring%20your%20verified%20properties!"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="pub-float-btn pub-float-wa"
-          title="Chat with Us on WhatsApp"
-        >
-          <MessageCircle size={17} /> WhatsApp Us
-        </a>
       </div>
 
       {/* ── POPUP MODAL: SCHEDULE FREE VIP CAB SITE VISIT ── */}
@@ -1028,7 +997,7 @@ export default function PublicHomePage() {
                     />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="pub-form-grid-2">
                     <div>
                       <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#1e293b', marginBottom: 5 }}>
                         Preferred Date *

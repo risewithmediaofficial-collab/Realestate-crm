@@ -60,33 +60,22 @@ export default function PublicProjectsPage() {
   };
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '36px 24px 80px' }}>
+    <div className="pub-section" style={{ paddingBottom: 80 }}>
       {/* Header Banner */}
-      <div style={{ marginBottom: 32 }}>
+      <div style={{ marginBottom: 28 }}>
         <div className="pub-section-tag">
           <Building2 size={13} /> Verified Portfolio
         </div>
-        <h1 style={{ fontSize: 34, fontWeight: 800, color: 'var(--pub-primary)', margin: '4px 0 8px' }}>
+        <h1 className="pub-section-title" style={{ margin: '4px 0 8px' }}>
           Explore Real Estate Developments
         </h1>
-        <p style={{ color: 'var(--pub-text-muted)', fontSize: 15, margin: 0 }}>
+        <p style={{ color: 'var(--pub-text-muted)', fontSize: 14.5, margin: 0 }}>
           Showing {total} active RERA-registered master projects with live inventory and direct buyer booking.
         </p>
       </div>
 
       {/* Filter Bar */}
-      <div style={{
-        background: '#ffffff',
-        border: '1px solid #e2e8f0',
-        borderRadius: 16,
-        padding: '16px 20px',
-        marginBottom: 36,
-        display: 'grid',
-        gridTemplateColumns: '1.5fr 1fr 1fr 1fr auto',
-        gap: 12,
-        alignItems: 'center',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
-      }}>
+      <div className="pub-filter-bar">
         {/* Search */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f8fafc', padding: '8px 12px', borderRadius: 10, border: '1px solid #e2e8f0' }}>
           <Search size={15} color="var(--pub-text-muted)" />
@@ -288,7 +277,7 @@ export default function PublicProjectsPage() {
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: 6 }}>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <Link to={`/project/${proj._id}`} className="pub-card-btn-view">
                         <Eye size={13} /> View Units
                       </Link>

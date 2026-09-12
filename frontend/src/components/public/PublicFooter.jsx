@@ -91,7 +91,7 @@ export default function PublicFooter() {
         <div>
           © {new Date().getFullYear()} MRP Real Estate Developments. All Rights Reserved.
         </div>
-        <div style={{ display: 'flex', gap: 20 }}>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
           <Link to="/explore">Privacy Policy</Link>
           <Link to="/explore">Terms of Booking</Link>
           <Link to="/explore">RERA Disclosures</Link>

@@ -446,7 +446,7 @@ export default function PublicSelfBookingPage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+          <div className="pub-form-grid-2" style={{ marginBottom: 16 }}>
             <div>
               <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>
                 Primary Applicant Full Name (as per PAN) *
@@ -475,7 +475,7 @@ export default function PublicSelfBookingPage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
+          <div className="pub-form-grid-3" style={{ marginBottom: 16 }}>
             <div>
               <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>
                 Email Address
@@ -526,7 +526,7 @@ export default function PublicSelfBookingPage() {
               onChange={e => setKycForm(p => ({ ...p, address: e.target.value }))}
               style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, boxSizing: 'border-box', marginBottom: 8 }}
             />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            <div className="pub-form-grid-3" style={{ gap: 10 }}>
               <input
                 placeholder="City"
                 value={kycForm.city}
@@ -560,7 +560,7 @@ export default function PublicSelfBookingPage() {
             </label>
 
             {kycForm.hasCoApplicant && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12, paddingTop: 12, borderTop: '1px solid #e2e8f0' }}>
+              <div className="pub-form-grid-2" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #e2e8f0', gap: 12 }}>
                 <input
                   placeholder="Co-Applicant Name"
                   value={kycForm.coApplicantName}
@@ -577,7 +577,7 @@ export default function PublicSelfBookingPage() {
             )}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, borderTop: '1px solid #f1f5f9', paddingTop: 20 }}>
             <button
               type="button"
               onClick={() => setStep(1)}
@@ -740,7 +740,7 @@ export default function PublicSelfBookingPage() {
             </label>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, borderTop: '1px solid #f1f5f9', paddingTop: 20 }}>
             <button
               type="button"
               onClick={() => setStep(2)}
@@ -755,8 +755,8 @@ export default function PublicSelfBookingPage() {
               onClick={handleConfirmFinalBooking}
               className="pub-btn-book"
               style={{
-                padding: '14px 32px',
-                fontSize: 15,
+                padding: '14px 28px',
+                fontSize: 14.5,
                 background: termsAccepted ? 'linear-gradient(135deg, #059669 0%, #047857 100%)' : '#94a3b8',
                 cursor: termsAccepted ? 'pointer' : 'not-allowed'
               }}
@@ -810,7 +810,7 @@ export default function PublicSelfBookingPage() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, fontSize: 13 }}>
+            <div className="pub-form-grid-2" style={{ gap: 14, fontSize: 13 }}>
               <div>
                 <span style={{ color: '#64748b' }}>Project:</span><br />
                 <strong>{confirmedBooking.projectName}</strong>

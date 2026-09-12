@@ -19,10 +19,12 @@ export default function PublicLayout({ children }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 8
+        flexWrap: 'wrap',
+        gap: '4px 8px',
+        lineHeight: 1.4
       }}>
         <span>🎉 Special Festive Launch Offer: Instant ₹50,000 Token Hold Guarantee &amp; Zero Brokerage.</span>
-        <a href="/explore" style={{ color: '#fef08a', textDecoration: 'underline', fontWeight: 700 }}>
+        <a href="/explore" style={{ color: '#fef08a', textDecoration: 'underline', fontWeight: 700, whiteSpace: 'nowrap' }}>
           Browse Available Units →
         </a>
       </div>
@@ -41,27 +43,28 @@ export default function PublicLayout({ children }) {
         target="_blank"
         rel="noopener noreferrer"
         title="Chat with Property Expert on WhatsApp"
+        className="pub-layout-float-wa"
         style={{
           position: 'fixed',
-          bottom: 24,
-          right: 24,
-          zIndex: 999,
+          bottom: 20,
+          right: 20,
+          zIndex: 899,
           background: '#25D366',
           color: '#ffffff',
-          width: 54,
-          height: 54,
+          width: 50,
+          height: 50,
           borderRadius: '50%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 8px 24px rgba(37, 211, 102, 0.4)',
+          boxShadow: '0 6px 20px rgba(37, 211, 102, 0.45)',
           transition: 'transform 0.2s ease',
           textDecoration: 'none'
         }}
         onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}
         onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
       >
-        <MessageSquare size={26} />
+        <MessageSquare size={24} />
       </a>
     </div>
   );

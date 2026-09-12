@@ -841,83 +841,100 @@
   gap: 12px;
 }
 
-/* ─── RESPONSIVE BREAKPOINTS ─────────────────────────────────────────────── */
-@media (max-width: 1023px) {
-  .pub-hero-title {
-    font-size: 38px;
-  }
-  .pub-hero-search {
-    grid-template-columns: 1fr 1fr;
-  }
-  .pub-search-col {
-    border-right: none;
-    border-bottom: 1px solid #e2e8f0;
-  }
-  .pub-footer-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-  .pub-stats-container {
-    grid-template-columns: repeat(2, 1fr);
-  }
+/* ─── RESPONSIVE COMPONENT CLASSES ────────────────────────────────────────── */
+/* Filter Bar (Projects Directory) */
+.pub-filter-bar {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-bottom: 36px;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
-@media (max-width: 767px) {
-  .pub-nav-links,
-  .pub-btn-crm {
-    display: none;
-  }
-  .pub-mobile-toggle {
-    display: block;
-  }
-  .pub-hero {
-    padding: 50px 16px 70px;
-  }
-  .pub-hero-title {
-    font-size: 28px;
-  }
-  .pub-hero-subtitle {
-    font-size: 14px;
-  }
-  .pub-hero-search {
-    grid-template-columns: 1fr;
-    padding: 16px;
-    border-radius: 14px;
-  }
-  .pub-search-btn {
-    width: 100%;
-    justify-content: center;
-  }
-  .pub-projects-grid {
-    grid-template-columns: 1fr;
-  }
-  .pub-footer-grid {
-    grid-template-columns: 1fr;
-    gap: 30px;
-  }
-  .pub-booking-card {
-    padding: 20px 16px;
-  }
-  .pub-receipt-card {
-    padding: 24px 16px;
-  }
-  .pub-stepper-line {
-    display: none;
-  }
-  .pub-why-grid {
-    grid-template-columns: 1fr;
-  }
-  .pub-reviews-grid {
-    grid-template-columns: 1fr;
-  }
-  .pub-cab-banner {
-    flex-direction: column;
-    padding: 24px 20px;
-    text-align: center;
-  }
-  .pub-cab-btn {
-    width: 100%;
-    justify-content: center;
-  }
+/* EMI Calculator Grid */
+.pub-emi-container {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 40px;
+  background: #ffffff;
+  border: 1.5px solid #e2ece0;
+  border-radius: 20px;
+  padding: 32px;
+  box-shadow: 0 8px 24px rgba(69, 133, 34, 0.05);
+}
+.pub-emi-subgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* VIP Brochure Lead Generation */
+.pub-brochure-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 48px;
+  align-items: center;
+}
+.pub-brochure-features {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.pub-brochure-card {
+  background: linear-gradient(135deg, #172a11 0%, #25441b 100%);
+  border: 1px solid #366d1a;
+  color: #ffffff;
+  border-radius: 20px;
+  padding: 36px 30px;
+  box-shadow: 0 20px 45px rgba(23, 42, 17, 0.25);
+}
+
+/* Standardized Responsive Form Grids */
+.pub-form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.pub-form-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+/* Project Detail Hero Banner */
+.pub-detail-hero-frame {
+  position: relative;
+  min-height: 380px;
+  background: #1e293b;
+  overflow: hidden;
+}
+.pub-detail-hero-img {
+  width: 100%;
+  height: 100%;
+  min-height: 380px;
+  object-fit: cover;
+  display: block;
+}
+.pub-detail-hero-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(15, 23, 42, 0.94) 0%, rgba(15, 23, 42, 0.35) 60%, transparent 100%);
+}
+.pub-detail-hero-content {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  right: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -984,6 +1001,7 @@ body.modal-open {
   padding: 4px 2px 14px;
   margin-bottom: 24px;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 .pub-cat-filters::-webkit-scrollbar { display: none; }
 
@@ -1213,8 +1231,8 @@ body.modal-open {
 /* ─── FLOATING CONNECT BUTTONS ───────────────────────────────────────────── */
 .pub-floating-actions {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  bottom: 82px;
+  right: 20px;
   z-index: 900;
   display: flex;
   flex-direction: column;
@@ -1246,5 +1264,314 @@ body.modal-open {
   background: #172a11;
   color: #ffffff;
   border: 1px solid #458522;
+}
+
+/* ─── RESPONSIVE BREAKPOINTS ─────────────────────────────────────────────── */
+@media (max-width: 1023px) {
+  .pub-hero-title {
+    font-size: 38px;
+  }
+  .pub-hero-search {
+    grid-template-columns: 1fr 1fr;
+  }
+  .pub-search-col {
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .pub-filter-bar {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .pub-emi-container {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding: 24px;
+  }
+  .pub-brochure-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .pub-footer-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+  }
+  .pub-stats-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .pub-why-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  /* Layout & Navbar */
+  .pub-layout {
+    overflow-x: hidden;
+  }
+  .pub-nav-container {
+    padding: 10px 16px;
+    gap: 12px;
+  }
+  .pub-nav-links,
+  .pub-btn-crm,
+  .pub-nav-actions .pub-btn-book {
+    display: none !important;
+  }
+  .pub-mobile-toggle {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: var(--pub-primary);
+  }
+  .pub-brand {
+    gap: 8px;
+  }
+  .pub-brand-logo-box {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 10px !important;
+  }
+  .pub-brand-title {
+    font-size: 15px !important;
+  }
+  .pub-brand-sub {
+    font-size: 10px !important;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Section Spacing */
+  .pub-section {
+    padding: 40px 16px;
+  }
+  .pub-section-header {
+    margin-bottom: 24px;
+  }
+  .pub-section-title {
+    font-size: 24px;
+  }
+  .pub-section-subtitle {
+    font-size: 13.5px;
+  }
+
+  /* Hero Section */
+  .pub-hero {
+    padding: 44px 16px 60px;
+  }
+  .pub-hero-badge {
+    font-size: 11.5px;
+    padding: 5px 14px;
+    margin-bottom: 16px;
+  }
+  .pub-hero-title {
+    font-size: 26px;
+    line-height: 1.25;
+  }
+  .pub-hero-subtitle {
+    font-size: 13.5px;
+    margin-bottom: 28px;
+  }
+  .pub-hero-search {
+    grid-template-columns: 1fr;
+    padding: 14px;
+    border-radius: 14px;
+    gap: 10px;
+  }
+  .pub-search-col {
+    padding: 4px 6px;
+    border-bottom: 1px solid #edf2eb;
+  }
+  .pub-search-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 12px;
+  }
+
+  /* Trust Stats */
+  .pub-stats-strip {
+    padding: 18px 14px;
+  }
+  .pub-stats-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px 12px;
+  }
+  .pub-stat-number {
+    font-size: 22px;
+  }
+  .pub-stat-label {
+    font-size: 11px;
+  }
+
+  /* Projects Grid */
+  .pub-projects-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  /* Filter Bar */
+  .pub-filter-bar {
+    grid-template-columns: 1fr;
+    padding: 14px;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  /* Responsive Form Grids */
+  .pub-form-grid-3,
+  .pub-form-grid-2 {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* EMI Calculator */
+  .pub-emi-container {
+    padding: 18px 14px;
+    border-radius: 16px;
+  }
+  .pub-emi-subgrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Brochure Section */
+  .pub-brochure-card {
+    padding: 24px 16px;
+    border-radius: 16px;
+  }
+  .pub-brochure-features {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  /* Why Buy & Reviews */
+  .pub-why-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .pub-reviews-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  /* VIP Cab Banner */
+  .pub-cab-banner {
+    flex-direction: column;
+    padding: 24px 18px;
+    text-align: center;
+    gap: 20px;
+  }
+  .pub-cab-banner h3 {
+    font-size: 19px !important;
+  }
+  .pub-cab-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Self-Booking Checkout & Stepper */
+  .pub-checkout-container {
+    padding: 0 12px;
+    margin: 20px auto 60px;
+  }
+  .pub-stepper {
+    margin-bottom: 20px;
+  }
+  .pub-stepper-line {
+    display: none;
+  }
+  .pub-step-circle {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+  .pub-step-label {
+    font-size: 10.5px;
+    margin-top: 4px;
+  }
+  .pub-booking-card {
+    padding: 18px 14px;
+    border-radius: 14px;
+  }
+  .pub-receipt-card {
+    padding: 24px 14px;
+  }
+
+  /* Project Detail Hero & Tabs */
+  .pub-detail-hero-frame {
+    min-height: 420px;
+  }
+  .pub-detail-hero-img {
+    min-height: 420px;
+  }
+  .pub-detail-hero-content {
+    bottom: 16px;
+    left: 16px;
+    right: 16px;
+    gap: 14px;
+  }
+  .pub-detail-hero-actions {
+    width: 100%;
+    flex-direction: column;
+    gap: 8px !important;
+  }
+  .pub-detail-hero-actions button,
+  .pub-detail-hero-actions a {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Floating Action Button */
+  .pub-floating-actions {
+    bottom: 16px;
+    right: 16px;
+    gap: 8px;
+  }
+  .pub-float-btn {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+
+  /* Footer */
+  .pub-footer {
+    padding: 44px 16px 24px;
+    margin-top: 50px;
+  }
+  .pub-footer-grid {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .pub-footer-bottom {
+    flex-direction: column;
+    text-align: center;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 479px) {
+  .pub-hero-title {
+    font-size: 23px;
+  }
+  .pub-stats-container {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 8px;
+  }
+  .pub-stat-number {
+    font-size: 20px;
+  }
+  .pub-brand-sub {
+    display: none !important;
+  }
+  .pub-modal-card {
+    width: 100%;
+    margin: 8px;
+    max-height: calc(100vh - 20px);
+  }
 }
 

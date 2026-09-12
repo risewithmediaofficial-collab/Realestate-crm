@@ -134,9 +134,9 @@ export default function PublicProjectDetailPage() {
   const defaultImg = activeHeroImg || galleryImages[0] || 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80';
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 24px 100px' }}>
+    <div className="pub-section" style={{ paddingTop: 16, paddingBottom: 100 }}>
       {/* Breadcrumb Navigation */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b', marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b', marginBottom: 16, flexWrap: 'wrap' }}>
         <Link to="/" style={{ color: '#64748b', textDecoration: 'none' }}>Home</Link>
         <ChevronRight size={13} />
         <Link to="/explore" style={{ color: '#64748b', textDecoration: 'none' }}>Projects</Link>
@@ -154,21 +154,17 @@ export default function PublicProjectDetailPage() {
         marginBottom: 32
       }}>
         {/* Main Cover Image */}
-        <div style={{ position: 'relative', height: 380, background: '#1e293b' }}>
+        <div className="pub-detail-hero-frame">
           <img
             src={defaultImg}
             alt={project.name}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            className="pub-detail-hero-img"
             onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80'; }}
           />
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'linear-gradient(to top, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.2) 60%, transparent 100%)'
-          }} />
+          <div className="pub-detail-hero-gradient" />
 
           {/* Overlaid Badges */}
-          <div style={{ position: 'absolute', top: 20, left: 24, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ position: 'absolute', top: 16, left: 16, display: 'flex', gap: 8, flexWrap: 'wrap', zIndex: 2 }}>
             <span style={{ background: '#10b981', color: '#ffffff', padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
               {project.status?.replace(/_/g, ' ')?.toUpperCase() || 'LAUNCHED'}
             </span>
@@ -180,18 +176,18 @@ export default function PublicProjectDetailPage() {
           </div>
 
           {/* Overlaid Bottom Title & Highlights */}
-          <div style={{ position: 'absolute', bottom: 24, left: 24, right: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
+          <div className="pub-detail-hero-content">
             <div>
-              <h1 style={{ fontSize: 34, fontWeight: 800, color: '#ffffff', margin: '0 0 6px', letterSpacing: '-0.02em' }}>
+              <h1 className="pub-detail-hero-title" style={{ fontSize: 32, fontWeight: 800, color: '#ffffff', margin: '0 0 6px', letterSpacing: '-0.02em' }}>
                 {project.name}
               </h1>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#cbd5e1', fontSize: 14 }}>
-                <MapPin size={16} color="#60a5fa" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#cbd5e1', fontSize: 13.5 }}>
+                <MapPin size={15} color="#60a5fa" />
                 <span>{project.address ? `${project.address}, ` : ''}{project.city}</span>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <div className="pub-detail-hero-actions" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <button
                 onClick={() => { setShowVisitModal(true); setVisitSuccess(false); }}
                 style={{
@@ -807,7 +803,7 @@ export default function PublicProjectDetailPage() {
                     />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 10 }}>
+                  <div className="pub-form-grid-2">
                     <div>
                       <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Visit Date *</label>
                       <input

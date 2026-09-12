@@ -86,13 +86,7 @@ export default function PublicSiteVisitPage() {
         </p>
       </div>
 
-      <div style={{
-        background: '#ffffff',
-        border: '1px solid #e2e8f0',
-        borderRadius: 20,
-        padding: '36px 32px',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.04)'
-      }}>
+      <div className="pub-booking-card" style={{ maxWidth: 800, margin: '0 auto' }}>
         {success ? (
           <div style={{ textAlign: 'center', padding: '30px 10px' }}>
             <div style={{ width: 68, height: 68, borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 32 }}>
@@ -104,7 +98,7 @@ export default function PublicSiteVisitPage() {
             <p style={{ color: '#475569', fontSize: 15, maxWidth: 480, margin: '0 auto 24px', lineHeight: 1.6 }}>
               We have reserved your slot for <strong>{selectedProjectDoc?.name}</strong> on <strong>{form.scheduledDate} at {form.scheduledTime}</strong>. Our senior relationship manager will call you shortly to confirm pickup details.
             </p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
               <Link to="/explore" className="pub-btn-book">
                 Explore More Projects
               </Link>
@@ -135,7 +129,7 @@ export default function PublicSiteVisitPage() {
               </select>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="pub-form-grid-2">
               <div>
                 <label style={{ fontSize: 13, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>
                   Full Name *
@@ -164,7 +158,7 @@ export default function PublicSiteVisitPage() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: 16 }}>
+            <div className="pub-form-grid-3">
               <div>
                 <label style={{ fontSize: 13, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>
                   Email (Optional)
