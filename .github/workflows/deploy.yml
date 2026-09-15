@@ -28,27 +28,40 @@ jobs:
             echo "🚀 Starting Deployment for Real Estate CRM"
             echo "================================================="
 
-            # Remove existing conflicting containers before building
-            echo "🛑 Stopping and removing previous containers..."
+            # ── Step 1: Stop existing containers gracefully ──────
+            echo "🛑 Stopping existing containers..."
+            if [ -d "$TARGET_DIR" ]; then
+              docker compose -p realestate-crm -f "$TARGET_DIR/docker-compose.yml" down --remove-orphans 2>/dev/null || true
+            fi
+            # Force-remove any lingering containers by name
             docker rm -f realestate_crm_frontend realestate_crm_backend realestate_crm_db 2>/dev/null || true
 
-            # Clone or update repository
+            # ── Step 2: Clone or update repository ───────────────
             if [ -d "$TARGET_DIR/.git" ]; then
               echo "🔄 Updating repository at $TARGET_DIR..."
-              cd "$TARGET_DIR" && git reset --hard HEAD && git clean -fd && git pull origin main
+              cd "$TARGET_DIR"
+              git reset --hard HEAD
+              git clean -fd
+              git pull origin main
             else
               echo "📦 Cloning repository into $TARGET_DIR..."
-              mkdir -p /docker && git clone "$REPO_URL" "$TARGET_DIR" && cd "$TARGET_DIR"
+              mkdir -p /docker
+              git clone "$REPO_URL" "$TARGET_DIR"
+              cd "$TARGET_DIR"
             fi
 
-            # Ensure upload directories exist
+            # ── All remaining commands run inside TARGET_DIR ──────
+            cd "$TARGET_DIR"
+
+            # ── Step 3: Ensure required directories exist ─────────
+            echo "📁 Ensuring upload directories exist..."
             mkdir -p backend/uploads
 
-            # Build and deploy containers
-            echo "🐳 Starting Docker Compose build and container orchestration..."
+            # ── Step 4: Build and start containers ───────────────
+            echo "🐳 Building and starting Docker containers..."
             docker compose -p realestate-crm -f docker-compose.yml up -d --build
 
-            # Prune dangling/unused images to preserve VPS disk space
+            # ── Step 5: Prune unused images to save disk space ────
             echo "🧹 Cleaning up unused Docker images..."
             docker image prune -f
 
