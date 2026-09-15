@@ -5,14 +5,11 @@
 
 export const ALL_CRM_MODULES = [
   { id: 'dashboard', label: 'Dashboard & Analytics', category: 'MAIN', icon: 'LayoutDashboard', desc: 'Real-time sales KPI widgets, revenue metrics, conversion funnel' },
-  { id: 'marketing', label: 'Marketing & Ad Campaigns', category: 'MARKETING', icon: 'TrendingUp', desc: 'Campaign budget tracking, Meta Lead Ads, UTM attribution, ROI' },
-  { id: 'leads', label: 'Leads & Pre-Sales Pipeline', category: 'MARKETING', icon: 'Users', desc: 'Lead capture, stage progression, smart routing, qualification' },
-  { id: 'communication', label: 'Omnichannel Communication', category: 'SALES', icon: 'MessageSquare', desc: 'Cloud calling dialer, WhatsApp live chat, automated SMS/email' },
+  { id: 'leads', label: 'Leads & Pre-Sales Pipeline', category: 'SALES', icon: 'Users', desc: 'Lead capture, stage progression, smart routing, qualification' },
   { id: 'activities', label: 'Activities & Follow-up Tasks', category: 'SALES', icon: 'CheckSquare', desc: 'Daily calling queues, overdue SLA alerts, calendar appointments' },
   { id: 'pipeline', label: 'Visual Sales Pipeline', category: 'SALES', icon: 'GitBranch', desc: 'Interactive Kanban stage progression and deal probability' },
   { id: 'projects', label: 'Projects & Developments', category: 'INVENTORY', icon: 'Building', desc: 'Master project catalogue, phase specs, master layout plans' },
   { id: 'inventory', label: 'Unit Matrix & Grid', category: 'INVENTORY', icon: 'Warehouse', desc: 'Real-time unit availability, blocking, reservations, hold countdown' },
-  { id: 'pricing', label: 'Pricing & Cost Sheets', category: 'INVENTORY', icon: 'DollarSign', desc: 'Official quote generation, PLC rules, payment milestone schedules' },
   { id: 'sitevisits', label: 'Site Visits & Transport', category: 'BOOKINGS', icon: 'MapPin', desc: 'Customer cab booking, gate pass QR, feedback collection' },
   { id: 'negotiations', label: 'Price Negotiations & Approvals', category: 'BOOKINGS', icon: 'Scale', desc: 'Discount matrices, approval tiers, margin protection' },
   { id: 'booking', label: 'Booking & Unit Applications', category: 'BOOKINGS', icon: 'FileText', desc: 'Official booking forms, KYC verification, token receipts' },
@@ -27,46 +24,46 @@ export const DEFAULT_ROLE_MODULE_PERMISSIONS = {
   super_admin: ['*'],
   admin: ['*'],
   sales_head: [
-    'dashboard', 'leads', 'communication', 'activities', 'pipeline',
-    'projects', 'inventory', 'pricing', 'sitevisits', 'negotiations',
+    'dashboard', 'leads', 'activities', 'pipeline',
+    'projects', 'inventory', 'sitevisits', 'negotiations',
     'booking', 'reports'
   ],
   sales_manager: [
-    'dashboard', 'leads', 'communication', 'activities', 'pipeline',
-    'projects', 'inventory', 'pricing', 'sitevisits', 'negotiations',
+    'dashboard', 'leads', 'activities', 'pipeline',
+    'projects', 'inventory', 'sitevisits', 'negotiations',
     'booking', 'reports'
   ],
   sales_executive: [
-    'dashboard', 'leads', 'communication', 'activities', 'pipeline',
-    'projects', 'inventory', 'pricing', 'sitevisits', 'booking'
+    'dashboard', 'leads', 'activities', 'pipeline',
+    'projects', 'inventory', 'sitevisits', 'booking'
   ],
   sales_rep: [
-    'dashboard', 'leads', 'communication', 'activities', 'pipeline',
-    'projects', 'inventory', 'pricing', 'sitevisits', 'booking'
+    'dashboard', 'leads', 'activities', 'pipeline',
+    'projects', 'inventory', 'sitevisits', 'booking'
   ],
   telecaller: [
-    'dashboard', 'leads', 'communication', 'activities', 'sitevisits',
+    'dashboard', 'leads', 'activities', 'sitevisits',
     'projects', 'inventory', 'booking'
   ],
   presales: [
-    'dashboard', 'leads', 'communication', 'activities', 'sitevisits',
+    'dashboard', 'leads', 'activities', 'sitevisits',
     'projects', 'inventory', 'booking'
   ],
   pre_sales_manager: [
-    'dashboard', 'leads', 'communication', 'activities', 'sitevisits',
+    'dashboard', 'leads', 'activities', 'sitevisits',
     'projects', 'inventory', 'booking', 'reports'
   ],
   marketing_head: [
-    'dashboard', 'marketing', 'leads', 'reports', 'settings'
+    'dashboard', 'leads', 'reports', 'settings'
   ],
   marketing: [
-    'dashboard', 'marketing', 'leads', 'reports'
+    'dashboard', 'leads', 'reports'
   ],
   finance_manager: [
-    'dashboard', 'pricing', 'negotiations', 'booking', 'payments', 'reports'
+    'dashboard', 'negotiations', 'booking', 'payments', 'reports'
   ],
   finance: [
-    'dashboard', 'pricing', 'booking', 'payments', 'reports'
+    'dashboard', 'booking', 'payments', 'reports'
   ],
   channel_partner: [
     'dashboard', 'projects', 'inventory', 'leads', 'sitevisits', 'booking'
@@ -190,14 +187,11 @@ export const resetToDefaultPermissions = () => {
  */
 const PATH_TO_MODULE_MAP = [
   { prefix: '/dashboard', moduleId: 'dashboard' },
-  { prefix: '/marketing', moduleId: 'marketing' },
   { prefix: '/leads', moduleId: 'leads' },
-  { prefix: '/communication', moduleId: 'communication' },
   { prefix: '/activities', moduleId: 'activities' },
   { prefix: '/pipeline', moduleId: 'pipeline' },
   { prefix: '/projects', moduleId: 'projects' },
   { prefix: '/inventory', moduleId: 'inventory' },
-  { prefix: '/pricing', moduleId: 'pricing' },
   { prefix: '/site-visits', moduleId: 'sitevisits' },
   { prefix: '/negotiations', moduleId: 'negotiations' },
   { prefix: '/booking', moduleId: 'booking' },
@@ -205,7 +199,6 @@ const PATH_TO_MODULE_MAP = [
   { prefix: '/customer-portal', moduleId: 'customerportal' },
   { prefix: '/reports', moduleId: 'reports' },
   { prefix: '/users', moduleId: 'users' },
-  { prefix: '/settings/integrations/meta', moduleId: 'marketing' },
   { prefix: '/settings', moduleId: 'settings' },
 ];
 
@@ -266,8 +259,7 @@ export const hasPathAccess = (userOrRole, pathname) => {
   if (!userOrRole) return false;
   const role = typeof userOrRole === 'object' ? (userOrRole.role || '').toLowerCase().trim() : String(userOrRole).toLowerCase().trim();
 
-  if (role === 'super_admin') return true;
-  if (pathname.startsWith('/superadmin')) return role === 'super_admin';
+  if (role === 'super_admin' || role === 'admin') return true;
   if (pathname === '/' || pathname === '/login' || pathname.startsWith('/project/') || pathname.startsWith('/explore') || pathname.startsWith('/self-booking') || pathname.startsWith('/site-visit-booking')) return true;
 
   // Find matching module from path prefix

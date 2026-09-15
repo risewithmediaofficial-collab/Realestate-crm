@@ -32,19 +32,13 @@ const PageLoader = () => (
 
 // Code-Split Lazy Loaded Pages
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
-const SuperAdminLoginPage = lazy(() => import('./pages/auth/SuperAdminLoginPage'));
-const SuperAdminDashboardPage = lazy(() => import('./pages/superadmin/SuperAdminDashboardPage'));
-const SuperAdminRoute = lazy(() => import('./components/auth/SuperAdminRoute'));
 
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
 const AllLeadsPage = lazy(() => import('./pages/leads/AllLeadsPage'));
 const ProjectsPage = lazy(() => import('./pages/projects/ProjectsPage'));
 const InventoryPage = lazy(() => import('./pages/inventory/InventoryPage'));
-const MarketingPage = lazy(() => import('./pages/marketing/MarketingPage'));
-const CommunicationPage = lazy(() => import('./pages/communication/CommunicationPage'));
 const ActivitiesPage = lazy(() => import('./pages/activities/ActivitiesPage'));
 const SalesPipelinePage = lazy(() => import('./pages/pipeline/SalesPipelinePage'));
-const PricingPage = lazy(() => import('./pages/pricing/PricingPage'));
 const NegotiationsPage = lazy(() => import('./pages/negotiations/NegotiationsPage'));
 const SiteVisitsPage = lazy(() => import('./pages/sitevisits/SiteVisitsPage'));
 const BookingPage = lazy(() => import('./pages/booking/BookingPage'));
@@ -53,7 +47,6 @@ const CustomerPortalPage = lazy(() => import('./pages/customer/CustomerPortalPag
 const ReportsPage = lazy(() => import('./pages/reports/ReportsPage'));
 const UsersPage = lazy(() => import('./pages/users/UsersPage'));
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
-const MetaIntegrationPage = lazy(() => import('./pages/settings/MetaIntegrationPage'));
 const BuyerRequirementsPage = lazy(() => import('./pages/requirements/BuyerRequirementsPage'));
 
 // Public Portal Pages (End-User / Customer Facing)
@@ -117,11 +110,6 @@ export default function App() {
 
               {/* Public Auth */}
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/superadmin/login" element={<SuperAdminLoginPage />} />
-
-              {/* Super Admin Control Center */}
-              <Route path="/superadmin" element={<SuperAdminRoute><SuperAdminDashboardPage /></SuperAdminRoute>} />
-              <Route path="/superadmin/*" element={<SuperAdminRoute><SuperAdminDashboardPage /></SuperAdminRoute>} />
 
               {/* Direct /crm Entry: typing /crm in URL opens the CRM dashboard */}
               <Route path="/crm" element={<Navigate to="/dashboard" replace />} />
@@ -131,21 +119,13 @@ export default function App() {
               <Route path="/dashboard" element={<AppWithLayout><DashboardPage /></AppWithLayout>} />
               <Route path="/dashboard/*" element={<AppWithLayout><DashboardPage /></AppWithLayout>} />
 
-              {/* 2. Marketing */}
-              <Route path="/marketing" element={<AppWithLayout><MarketingPage /></AppWithLayout>} />
-              <Route path="/marketing/*" element={<AppWithLayout><MarketingPage /></AppWithLayout>} />
-
-              {/* 3. Leads & Pre-Sales */}
+              {/* 2. Leads & Pre-Sales */}
               <Route path="/leads" element={<AppWithLayout><AllLeadsPage /></AppWithLayout>} />
               <Route path="/leads/*" element={<AppWithLayout><AllLeadsPage /></AppWithLayout>} />
 
-              {/* 3.1 Custom Buyer Requirements Dashboard */}
+              {/* 2.1 Custom Buyer Requirements Dashboard */}
               <Route path="/requirements" element={<AppWithLayout><BuyerRequirementsPage /></AppWithLayout>} />
               <Route path="/requirements/*" element={<AppWithLayout><BuyerRequirementsPage /></AppWithLayout>} />
-
-              {/* 4. Communication */}
-              <Route path="/communication" element={<AppWithLayout><CommunicationPage /></AppWithLayout>} />
-              <Route path="/communication/*" element={<AppWithLayout><CommunicationPage /></AppWithLayout>} />
 
               {/* 5. Activities & Tasks */}
               <Route path="/activities" element={<AppWithLayout><ActivitiesPage /></AppWithLayout>} />
@@ -162,11 +142,7 @@ export default function App() {
               <Route path="/inventory" element={<AppWithLayout><InventoryPage /></AppWithLayout>} />
               <Route path="/inventory/*" element={<AppWithLayout><InventoryPage /></AppWithLayout>} />
 
-              {/* 9. Pricing & Cost Sheets */}
-              <Route path="/pricing" element={<AppWithLayout><PricingPage /></AppWithLayout>} />
-              <Route path="/pricing/*" element={<AppWithLayout><PricingPage /></AppWithLayout>} />
-
-              {/* 10. Site Visits */}
+              {/* 9. Site Visits */}
               <Route path="/site-visits" element={<AppWithLayout><SiteVisitsPage /></AppWithLayout>} />
               <Route path="/site-visits/*" element={<AppWithLayout><SiteVisitsPage /></AppWithLayout>} />
 
@@ -194,9 +170,6 @@ export default function App() {
               <Route path="/users/*" element={<AppWithLayout><UsersPage /></AppWithLayout>} />
 
               {/* 19. Settings & API */}
-              <Route path="/settings/integrations/meta" element={<AppWithLayout><MetaIntegrationPage /></AppWithLayout>} />
-              <Route path="/settings/meta" element={<AppWithLayout><MetaIntegrationPage /></AppWithLayout>} />
-              <Route path="/marketing/sources/meta" element={<AppWithLayout><MetaIntegrationPage /></AppWithLayout>} />
               <Route path="/settings" element={<AppWithLayout><SettingsPage /></AppWithLayout>} />
               <Route path="/settings/*" element={<AppWithLayout><SettingsPage /></AppWithLayout>} />
 

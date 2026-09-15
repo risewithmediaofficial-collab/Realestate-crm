@@ -10,34 +10,36 @@ import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import EditLeadModal from '../../components/leads/EditLeadModal';
 import CustomSelect from '../../components/ui/CustomSelect';
-import { LEAD_STAGES, LEAD_SOURCES, LEAD_TYPES, PIPELINE_STAGES } from '../../utils/constants';
+import { LEAD_STAGES, LEAD_SOURCES, PIPELINE_STAGES } from '../../utils/constants';
 import { formatDate, timeAgo, getInitials, getScoreColor, formatCurrency } from '../../utils/formatters';
 import { exportLeadsCSV, downloadLeadsImportTemplateCSV } from '../../utils/exportTemplates';
 
 // ── Badge component (inline)
 const Badge = ({ className, children }) => <span className={`badge ${className}`}>{children}</span>;
 
-// ── Lead Score Badge (rich circular indicator)
-const LeadScoreBar = ({ score, type }) => {
+// ── Temperature config helper
+const getTempConfig = (score) => {
   const s = score || 0;
-  const isHot = s >= 70;
-  const isWarm = s >= 40 && s < 70;
-  const color = isHot ? '#ef4444' : isWarm ? '#f59e0b' : '#3b82f6';
-  const bg   = isHot ? '#fef2f2' : isWarm ? '#fffbeb' : '#eff6ff';
-  const label = isHot ? 'Hot' : isWarm ? 'Warm' : 'Cold';
-  const emoji = isHot ? '🔥' : isWarm ? '⭐' : '❄️';
-  // SVG circle ring
+  if (s >= 70) return { label: 'Hot',  emoji: '🔥', color: '#dc2626', bg: '#fef2f2', border: '#fca5a5', glow: 'rgba(220,38,38,0.12)',  barColor: '#ef4444', textColor: '#991b1b' };
+  if (s >= 40) return { label: 'Warm', emoji: '⭐', color: '#d97706', bg: '#fffbeb', border: '#fcd34d', glow: 'rgba(217,119,6,0.10)',   barColor: '#f59e0b', textColor: '#92400e' };
+  return          { label: 'Cold', emoji: '❄️', color: '#2563eb', bg: '#eff6ff', border: '#93c5fd', glow: 'rgba(37,99,235,0.08)',   barColor: '#3b82f6', textColor: '#1e40af' };
+};
+
+// ── Lead Score Badge (rich circular indicator)
+const LeadScoreBar = ({ score }) => {
+  const s = score || 0;
+  const cfg = getTempConfig(s);
   const r = 14, circ = 2 * Math.PI * r;
   const dash = (s / 100) * circ;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
       {/* Circular ring */}
       <div style={{ position: 'relative', width: 36, height: 36, flexShrink: 0 }}>
         <svg width="36" height="36" style={{ transform: 'rotate(-90deg)' }}>
           <circle cx="18" cy="18" r={r} fill="none" stroke="#e2e8f0" strokeWidth="3" />
           <circle
             cx="18" cy="18" r={r} fill="none"
-            stroke={color} strokeWidth="3"
+            stroke={cfg.barColor} strokeWidth="3"
             strokeDasharray={`${dash} ${circ}`}
             strokeLinecap="round"
             style={{ transition: 'stroke-dasharray 0.4s ease' }}
@@ -46,18 +48,29 @@ const LeadScoreBar = ({ score, type }) => {
         <span style={{
           position: 'absolute', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)',
-          fontSize: 9, fontWeight: 800, color, lineHeight: 1
+          fontSize: 9, fontWeight: 800, color: cfg.barColor, lineHeight: 1
         }}>
           {s}
         </span>
       </div>
-      {/* Label */}
+      {/* Temperature pill */}
       <div style={{
-        background: bg, color, border: `1px solid ${color}40`,
-        borderRadius: 6, padding: '2px 7px', fontSize: 10, fontWeight: 700,
-        whiteSpace: 'nowrap'
+        background: cfg.bg,
+        color: cfg.textColor,
+        border: `1.5px solid ${cfg.border}`,
+        borderRadius: 20,
+        padding: '3px 10px',
+        fontSize: 11,
+        fontWeight: 800,
+        letterSpacing: '0.01em',
+        whiteSpace: 'nowrap',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 4,
+        boxShadow: `0 0 0 3px ${cfg.glow}`
       }}>
-        {emoji} {label}
+        <span style={{ fontSize: 12 }}>{cfg.emoji}</span>
+        {cfg.label}
       </div>
     </div>
   );
@@ -277,6 +290,8 @@ const KanbanView = ({
                   {col.leads.map(lead => {
                     const isDragging = draggedId === lead._id;
                     const isLeadSv = lead.stage === 'site_visit_scheduled';
+                    const score = lead.leadScore || 0;
+                    const tempCfg = getTempConfig(score);
                     return (
                       <div
                         key={lead._id}
@@ -286,12 +301,39 @@ const KanbanView = ({
                         onDragEnd={handleDragEnd}
                         onClick={() => onLeadClick(lead)}
                         title="Drag and drop to move between stages"
+                        style={{
+                          borderLeft: `3.5px solid ${tempCfg.color}`,
+                          boxShadow: isDragging
+                            ? '0 8px 24px rgba(0,0,0,0.15)'
+                            : `0 1px 4px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(255,255,255,0.6)`,
+                          background: isDragging ? '#f8faff' : '#ffffff',
+                        }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <div className="kanban-card-name">{lead.name}</div>
+                        {/* Header row: name + temp badge + edit */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
+                          <div className="kanban-card-name" style={{ flex: 1, minWidth: 0 }}>{lead.name}</div>
+                          {/* Temperature badge — prominent top-right */}
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 3,
+                            background: tempCfg.bg,
+                            color: tempCfg.textColor,
+                            border: `1.5px solid ${tempCfg.border}`,
+                            borderRadius: 20,
+                            padding: '2px 8px',
+                            fontSize: 10,
+                            fontWeight: 800,
+                            letterSpacing: '0.01em',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0,
+                          }}>
+                            <span>{tempCfg.emoji}</span>
+                            {tempCfg.label}
+                          </div>
                           <button
                             className="btn btn-ghost btn-icon btn-sm"
-                            style={{ width: 22, height: 22, color: 'var(--text-muted)' }}
+                            style={{ width: 22, height: 22, color: 'var(--text-muted)', flexShrink: 0 }}
                             onClick={(e) => {
                               e.stopPropagation();
                               onEditLead(lead);
@@ -301,35 +343,40 @@ const KanbanView = ({
                             <Edit size={12} />
                           </button>
                         </div>
+
                         <div className="kanban-card-phone">{lead.phone}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
                           {lead.interestedProject?.name || '—'} · {lead.interestedUnitType || '—'}
                         </div>
-                        <div className="kanban-card-meta">
-                          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                            {LEAD_SOURCES[lead.source]?.icon} {LEAD_SOURCES[lead.source]?.label}
-                          </span>
-                          <span className={`badge ${LEAD_TYPES[lead.leadType]?.badge || 'badge-gray'}`} style={{ fontSize: 9, padding: '1px 6px' }}>
-                            {lead.leadType}
+
+                        {/* Source row */}
+                        <div className="kanban-card-meta" style={{ marginTop: 6 }}>
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                            {LEAD_SOURCES[lead.source]?.icon} {LEAD_SOURCES[lead.source]?.label || lead.source || '—'}
                           </span>
                         </div>
-                        <div style={{ marginTop: 6 }}>
-                          <LeadScoreBar score={lead.leadScore || 50} type={lead.leadType} />
+
+                        {/* Score ring */}
+                        <div style={{ marginTop: 8 }}>
+                          <LeadScoreBar score={score} />
                         </div>
+
                         {isLeadSv && (
                           <div style={{
                             fontSize: 10, fontWeight: 700, color: '#b45309',
                             background: '#fffbeb', border: '1px solid #fde68a',
-                            borderRadius: 6, padding: '2px 6px', marginTop: 6,
+                            borderRadius: 6, padding: '3px 8px', marginTop: 6,
                             display: 'flex', alignItems: 'center', justifyContent: 'space-between'
                           }}>
                             <span>📅 SV Scheduled</span>
                             <span style={{ fontSize: 9, color: '#d97706' }}>Synced All Boards</span>
                           </div>
                         )}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTop: '1px solid #f1f5f9' }}>
-                          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                            {lead.assignedTo ? `👤 ${lead.assignedTo.name?.split(' ')[0]}` : 'Unassigned'}
+
+                        {/* Footer */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTop: `1px solid ${tempCfg.bg === '#eff6ff' ? '#dbeafe' : tempCfg.bg === '#fffbeb' ? '#fde68a33' : '#fee2e233'}` }}>
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                            👤 {lead.assignedTo ? lead.assignedTo.name?.split(' ')[0] : 'Unassigned'}
                           </span>
                           <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{timeAgo(lead.createdAt)}</span>
                         </div>

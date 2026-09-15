@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, TrendingUp, MessageSquare, CheckSquare,
-  GitBranch, Building2, Warehouse, DollarSign, Scale, MapPin,
-  FileText, CreditCard, Handshake, User, Zap, BarChart3,
+  LayoutDashboard, Users, CheckSquare,
+  GitBranch, Warehouse, MapPin,
+  FileText, CreditCard, User, BarChart3,
   Settings, ChevronRight, LogOut, Building, X, Bell, Sparkles, Globe
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -36,7 +36,6 @@ const navConfig = [
       { id: 'pipeline', label: 'Visual Pipeline', icon: GitBranch, path: '/pipeline' },
       { id: 'requirements', label: 'Buyer Requirements', icon: Sparkles, path: '/requirements' },
       { id: 'activities', label: 'Follow-ups & Tasks', icon: CheckSquare, path: '/activities' },
-      { id: 'communication', label: 'Call & WhatsApp', icon: MessageSquare, path: '/communication' },
     ],
   },
   {
@@ -58,7 +57,6 @@ const navConfig = [
           { label: 'Tower & Sector Matrix', path: '/inventory/tower-a' },
         ],
       },
-      { id: 'pricing', label: 'Pricing & Cost Sheets', icon: DollarSign, path: '/pricing' },
     ],
   },
   {
@@ -72,7 +70,6 @@ const navConfig = [
   {
     section: 'ADMIN & TOOLS',
     items: [
-      { id: 'marketing', label: 'Marketing & Meta Ads', icon: TrendingUp, path: '/marketing' },
       { id: 'reports', label: 'Reports & Revenue BI', icon: BarChart3, path: '/reports' },
       { id: 'users', label: 'Team Members', icon: User, path: '/users' },
       { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
