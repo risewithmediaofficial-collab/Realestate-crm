@@ -19,8 +19,10 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           port: 22
-          script_stop: true
+          script_stop: false
           script: |
+            set -e
+
             TARGET_DIR="/docker/real-estate-crm"
             REPO_URL="https://github.com/${{ github.repository }}.git"
 
@@ -28,44 +30,54 @@ jobs:
             echo "🚀 Starting Deployment for Real Estate CRM"
             echo "================================================="
 
-            # ── Step 1: Stop existing containers gracefully ──────
+            # ── Step 1: Stop containers (safe — never fails the script) ──
             echo "🛑 Stopping existing containers..."
-            if [ -d "$TARGET_DIR" ]; then
-              docker compose -p realestate-crm -f "$TARGET_DIR/docker-compose.yml" down --remove-orphans 2>/dev/null || true
-            fi
-            # Force-remove any lingering containers by name
+            docker stop realestate_crm_frontend realestate_crm_backend realestate_crm_db 2>/dev/null || true
             docker rm -f realestate_crm_frontend realestate_crm_backend realestate_crm_db 2>/dev/null || true
+            echo "✔ Containers cleared"
 
-            # ── Step 2: Clone or update repository ───────────────
+            # ── Step 2: Clone or pull latest code ───────────────────────
+            mkdir -p /docker
             if [ -d "$TARGET_DIR/.git" ]; then
-              echo "🔄 Updating repository at $TARGET_DIR..."
+              echo "🔄 Pulling latest code..."
               cd "$TARGET_DIR"
-              git reset --hard HEAD
+              git fetch origin main
+              git reset --hard origin/main
               git clean -fd
-              git pull origin main
+              echo "✔ Repository updated"
             else
-              echo "📦 Cloning repository into $TARGET_DIR..."
-              mkdir -p /docker
+              echo "📦 Cloning repository..."
+              rm -rf "$TARGET_DIR"
               git clone "$REPO_URL" "$TARGET_DIR"
               cd "$TARGET_DIR"
+              echo "✔ Repository cloned"
             fi
 
-            # ── All remaining commands run inside TARGET_DIR ──────
+            # ── Ensure we are in TARGET_DIR for all remaining steps ──────
             cd "$TARGET_DIR"
+            echo "📂 Working directory: $(pwd)"
 
-            # ── Step 3: Ensure required directories exist ─────────
-            echo "📁 Ensuring upload directories exist..."
+            # ── Step 3: Ensure upload directories exist ──────────────────
             mkdir -p backend/uploads
+            echo "✔ Upload directories ready"
 
-            # ── Step 4: Build and start containers ───────────────
-            echo "🐳 Building and starting Docker containers..."
-            docker compose -p realestate-crm -f docker-compose.yml up -d --build
+            # ── Step 4: Detect docker compose command ────────────────────
+            if docker compose version > /dev/null 2>&1; then
+              COMPOSE_CMD="docker compose"
+            else
+              COMPOSE_CMD="docker-compose"
+            fi
+            echo "🐳 Using compose command: $COMPOSE_CMD"
 
-            # ── Step 5: Prune unused images to save disk space ────
-            echo "🧹 Cleaning up unused Docker images..."
+            # ── Step 5: Build and start containers ───────────────────────
+            echo "🐳 Building and starting containers..."
+            $COMPOSE_CMD -p realestate-crm -f docker-compose.yml up -d --build
+
+            # ── Step 6: Prune unused images ───────────────────────────────
+            echo "🧹 Pruning unused Docker images..."
             docker image prune -f
 
             echo "================================================="
             echo "✅ Deployment completed successfully!"
             echo "================================================="
-            docker compose -p realestate-crm -f docker-compose.yml ps
+            $COMPOSE_CMD -p realestate-crm -f docker-compose.yml ps
