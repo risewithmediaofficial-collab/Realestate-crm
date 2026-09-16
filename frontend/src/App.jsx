@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext';
 import { UIProvider } from './context/UIContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppLayout from './components/layout/AppLayout';
+import ScrollToTop from './components/common/ScrollToTop';
 
 // Sleek Lazy Loading Suspense Fallback
 const PageLoader = () => (
@@ -96,6 +97,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <AuthProvider>
         <UIProvider>
           <Suspense fallback={<PageLoader />}>
