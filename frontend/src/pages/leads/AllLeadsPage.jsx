@@ -10,7 +10,7 @@ import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import EditLeadModal from '../../components/leads/EditLeadModal';
 import CustomSelect from '../../components/ui/CustomSelect';
-import { LEAD_STAGES, LEAD_SOURCES, PIPELINE_STAGES } from '../../utils/constants';
+import { LEAD_STAGES, LEAD_SOURCES, PIPELINE_STAGES, LEAD_TYPES } from '../../utils/constants';
 import { formatDate, timeAgo, getInitials, getScoreColor, formatCurrency } from '../../utils/formatters';
 import { exportLeadsCSV, downloadLeadsImportTemplateCSV } from '../../utils/exportTemplates';
 
